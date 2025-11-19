@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { TranslationData, Language, Message } from '../types';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { sendMessageToGemini } from '../services/geminiService';
@@ -35,6 +35,9 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
     zip: '',
     city: ''
   });
+
+  // Address Validation State
+  const [addressErrors, setAddressErrors] = useState<Partial<Record<keyof ReceiverData, string>>>({});
   
   // Packet Specific
   const [shippingMethod, setShippingMethod] = useState<'economy' | 'priority' | 'express'>('economy');
@@ -75,44 +78,96 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
     }
   }, [mode]);
 
+  // --- Validation Logic ---
+  const validateAddress = () => {
+    const errors: Partial<Record<keyof ReceiverData, string>> = {};
+    
+    // Localized validation messages
+    const messages: Record<string, { required: string, format: string }> = {
+        de: { required: 'Feld erforderlich', format: 'Ungültiges Format (4 Zahlen)' },
+        fr: { required: 'Champ obligatoire', format: 'Format invalide (4 chiffres)' },
+        it: { required: 'Campo obbligatorio', format: 'Formato non valido (4 cifre)' },
+        en: { required: 'Field required', format: 'Invalid format (4 digits)' },
+        es: { required: 'Campo obligatorio', format: 'Formato inválido (4 dígitos)' },
+        pt: { required: 'Campo obrigatório', format: 'Formato inválido (4 dígitos)' },
+    };
+
+    // Fallback to english if somehow undefined, though types ensure coverage
+    const currentMsg = messages[currentLang] || messages['en'];
+
+    if (!receiver.name.trim()) errors.name = currentMsg.required;
+    if (!receiver.street.trim()) errors.street = currentMsg.required;
+    if (!receiver.city.trim()) errors.city = currentMsg.required;
+    
+    if (!receiver.zip.trim()) {
+        errors.zip = currentMsg.required;
+    } else if (!/^\d{4}$/.test(receiver.zip.trim())) {
+        errors.zip = currentMsg.format;
+    }
+
+    setAddressErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleAddressChange = (field: keyof ReceiverData, value: string) => {
+    setReceiver(prev => ({ ...prev, [field]: value }));
+    if (addressErrors[field]) {
+        setAddressErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[field];
+            return newErrors;
+        });
+    }
+  };
+
   // --- Pricing Logic ---
   
-  // Packet Pricing
+  // Packet Pricing Rules (Dynamic based on Weight)
   const getPacketPrices = (grams: number) => {
     if (grams <= 2000) {
       return { eco: 7.00, prio: 9.00 };
     } else if (grams <= 10000) {
       return { eco: 9.70, prio: 10.70 };
     } else {
-      return { eco: 20.50, prio: 23.00 };
+      return { eco: 20.50, prio: 23.00 }; // Up to 30kg
     }
   };
   
+  // Letter Pricing Rules
   const getLetterBasePrice = (method: 'economy' | 'priority' | 'express') => {
      switch(method) {
          case 'economy': return 1.00;
          case 'priority': return 1.20;
          case 'express': return 2.50;
+         default: return 1.00;
      }
   };
   
-  const calculateTotal = () => {
+  // Robust Total Price Calculation (Memoized)
+  const totalPrice = useMemo(() => {
      if (mode === 'packet') {
          const prices = getPacketPrices(weightGrams);
+         // Determine base price
          const base = shippingMethod === 'priority' ? prices.prio : prices.eco;
+         
+         // Add Signature Extra
          return base + (hasSignature ? 1.50 : 0);
+
      } else if (mode === 'letter') {
          let total = getLetterBasePrice(shippingMethod);
+         
+         // Add Letter Extras
          if (letterExtras.registered) total += 5.30;
          if (letterExtras.prepaid) total += 1.50;
          if (letterExtras.formatSurcharge) total += 2.00;
+         
          return total;
      } else {
+         // Payment Mode
          return paymentData.amount;
      }
-  };
+  }, [mode, weightGrams, shippingMethod, hasSignature, letterExtras, paymentData.amount]);
 
-  const totalPrice = calculateTotal();
 
   // Format Weight Helper
   const formatWeight = (grams: number) => {
@@ -522,7 +577,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
           <div className="font-mono bg-gray-100 px-4 py-2 rounded-lg text-lg">{paymentData.iban}</div>
           
           <div className="mt-6 pt-6 border-t border-gray-100 w-full max-w-md">
-             <div className="font-bold text-lg text-gray-900">Empfänger</div>
+             <div className="font-bold text-lg text-gray-900">{t.selfService.franking.addressReceiver}</div>
              <div className="text-gray-600">{paymentData.receiverName}, {paymentData.receiverCity}</div>
           </div>
        </div>
@@ -655,10 +710,15 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
              <input 
                 type="text" 
                 value={receiver.name}
-                onChange={(e) => setReceiver(prev => ({...prev, name: e.target.value}))}
-                className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 text-lg focus:ring-0 focus:border-black outline-none transition-all"
+                onChange={(e) => handleAddressChange('name', e.target.value)}
+                className={`w-full bg-white border-2 rounded-xl px-4 py-3 text-lg outline-none transition-all ${
+                    addressErrors.name 
+                    ? 'border-red-500 bg-red-50 focus:border-red-600' 
+                    : 'border-gray-200 focus:ring-0 focus:border-black'
+                }`}
                 placeholder="Muster Hans"
              />
+             {addressErrors.name && <p className="text-red-500 text-xs ml-1 font-medium">{addressErrors.name}</p>}
           </div>
 
           <div className="grid grid-cols-3 gap-4">
@@ -667,20 +727,30 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                  <input 
                     type="text" 
                     value={receiver.zip}
-                    onChange={(e) => setReceiver(prev => ({...prev, zip: e.target.value}))}
-                    className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 text-lg focus:ring-0 focus:border-black outline-none transition-all"
+                    onChange={(e) => handleAddressChange('zip', e.target.value)}
+                    className={`w-full bg-white border-2 rounded-xl px-4 py-3 text-lg outline-none transition-all ${
+                        addressErrors.zip
+                        ? 'border-red-500 bg-red-50 focus:border-red-600' 
+                        : 'border-gray-200 focus:ring-0 focus:border-black'
+                    }`}
                     placeholder="3000"
                  />
+                 {addressErrors.zip && <p className="text-red-500 text-xs ml-1 font-medium">{addressErrors.zip}</p>}
              </div>
              <div className="col-span-2 space-y-1">
                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">{t.selfService.franking.fields.city}</label>
                  <input 
                     type="text" 
                     value={receiver.city}
-                    onChange={(e) => setReceiver(prev => ({...prev, city: e.target.value}))}
-                    className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 text-lg focus:ring-0 focus:border-black outline-none transition-all"
+                    onChange={(e) => handleAddressChange('city', e.target.value)}
+                    className={`w-full bg-white border-2 rounded-xl px-4 py-3 text-lg outline-none transition-all ${
+                        addressErrors.city
+                        ? 'border-red-500 bg-red-50 focus:border-red-600' 
+                        : 'border-gray-200 focus:ring-0 focus:border-black'
+                    }`}
                     placeholder="Bern"
                  />
+                 {addressErrors.city && <p className="text-red-500 text-xs ml-1 font-medium">{addressErrors.city}</p>}
              </div>
           </div>
 
@@ -689,10 +759,15 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
              <input 
                 type="text" 
                 value={receiver.street}
-                onChange={(e) => setReceiver(prev => ({...prev, street: e.target.value}))}
-                className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 text-lg focus:ring-0 focus:border-black outline-none transition-all"
+                onChange={(e) => handleAddressChange('street', e.target.value)}
+                className={`w-full bg-white border-2 rounded-xl px-4 py-3 text-lg outline-none transition-all ${
+                    addressErrors.street
+                    ? 'border-red-500 bg-red-50 focus:border-red-600' 
+                    : 'border-gray-200 focus:ring-0 focus:border-black'
+                }`}
                 placeholder="Musterstrasse 1"
              />
+             {addressErrors.street && <p className="text-red-500 text-xs ml-1 font-medium">{addressErrors.street}</p>}
           </div>
        </div>
     </div>
@@ -1020,11 +1095,12 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                     {step === 'address' && (
                         <button
                             onClick={() => {
-                                if (mode === 'packet') setStep('options');
-                                else setStep('format'); 
+                                if (validateAddress()) {
+                                    if (mode === 'packet') setStep('options');
+                                    else setStep('format');
+                                }
                             }}
-                            disabled={mode === 'packet' && !receiver.name}
-                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
                         >
                             {t.ui.next}
                         </button>
