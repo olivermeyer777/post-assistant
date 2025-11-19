@@ -31,17 +31,10 @@ export const sendMessageToGemini = async (
   message: string, 
   languageContext: string
 ): Promise<GeminiResponse> => {
-  // Read API Key dynamically inside the function call
+  // Initialize using the environment variable per SDK standards
   const apiKey = process.env.API_KEY;
 
-  if (!apiKey) {
-    return { 
-        text: "Simulated Response (No API Key): Please select a Google API Key to enable the AI assistant. \nBUTTONS: Retry" 
-    };
-  }
-
   try {
-    // Create a new instance per request to ensure the latest key is used
     const genAI = new GoogleGenAI({ apiKey });
     const model = genAI.models;
     

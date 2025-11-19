@@ -72,7 +72,6 @@ const VideoCallIcon = () => (
   </svg>
 );
 
-
 const ErrorBanner = ({ message, onClose }: { message: string, onClose: () => void }) => (
   <div className="fixed top-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl shadow-lg z-[1000] flex items-center gap-3 animate-fade-in">
     <div className="bg-red-100 p-2 rounded-full">
@@ -89,32 +88,6 @@ const ErrorBanner = ({ message, onClose }: { message: string, onClose: () => voi
   </div>
 );
 
-const ApiKeySelectionView = ({ onSelect }: { onSelect: () => void }) => (
-    <div className="fixed inset-0 z-[9999] bg-white/80 backdrop-blur-md flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center border border-gray-100">
-            <div className="flex justify-center mb-6">
-                <SwissPostLogo />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">Setup Required</h2>
-            <p className="text-gray-500 mb-8">
-                Please select a Google API Key to power the AI assistant features.
-            </p>
-            
-            <button
-                onClick={onSelect}
-                className="w-full py-4 rounded-xl font-bold text-gray-900 bg-[#FFCC00] hover:bg-yellow-400 shadow-lg transition-all active:scale-95 text-lg"
-            >
-                Connect API Key
-            </button>
-            
-            <div className="mt-6 text-xs text-gray-400">
-                Need a key? <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="underline hover:text-gray-600">Check billing documentation</a>
-            </div>
-        </div>
-    </div>
-);
-
-
 const App: React.FC = () => {
   // --- State ---
   const [currentLang, setCurrentLang] = useState<Language>('de');
@@ -122,7 +95,6 @@ const App: React.FC = () => {
   const [selfServiceMode, setSelfServiceMode] = useState<'packet' | 'letter' | 'payment' | 'general_chat'>('packet');
   const [scrolled, setScrolled] = useState(false);
   const [isVideoCallActive, setIsVideoCallActive] = useState(false);
-  const [hasApiKey, setHasApiKey] = useState(false);
   
   // Chat State
   const [messages, setMessages] = useState<Message[]>([]);
@@ -138,31 +110,6 @@ const App: React.FC = () => {
   const { speak, cancel: cancelTTS } = useTTS();
 
   // --- Effects ---
-
-  // Check API Key
-  useEffect(() => {
-    const checkKey = async () => {
-        if (process.env.API_KEY) {
-            setHasApiKey(true);
-            return;
-        }
-        const win = window as any;
-        if (win.aistudio && win.aistudio.hasSelectedApiKey) {
-            const hasKey = await win.aistudio.hasSelectedApiKey();
-            setHasApiKey(hasKey);
-        }
-    };
-    checkKey();
-  }, []);
-
-  const handleSelectKey = async () => {
-      const win = window as any;
-      if (win.aistudio && win.aistudio.openSelectKey) {
-          await win.aistudio.openSelectKey();
-          // Assume success or simple re-check
-          setHasApiKey(true);
-      }
-  };
 
   // Update document title based on language
   useEffect(() => {
@@ -247,7 +194,6 @@ const App: React.FC = () => {
     },
     onMessageUpdate: (text, sender) => {
         setMessages(prev => [...prev, { id: generateId(), sender, text }]);
-        // We keep the text chat minimized or hidden to focus on the "Agent" experience
     }
   });
 
@@ -270,10 +216,6 @@ const App: React.FC = () => {
         connect(currentLang);
     }
   };
-
-  if (!hasApiKey) {
-      return <ApiKeySelectionView onSelect={handleSelectKey} />;
-  }
 
   return (
     <div className="min-h-screen font-sans text-gray-900 bg-gray-50/50 selection:bg-yellow-200 pb-32">

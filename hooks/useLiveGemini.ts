@@ -47,15 +47,7 @@ export const useLiveGemini = ({
     if (isConnected) return;
     setError(null);
     
-    // Read API Key dynamically
     const apiKey = process.env.API_KEY;
-    
-    if (!apiKey) {
-        console.error("No API Key found");
-        setError("No API Key configured");
-        return;
-    }
-
     const genAI = new GoogleGenAI({ apiKey });
     
     // Initialize Player immediately to capture user gesture for Autoplay policy
