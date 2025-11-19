@@ -17,16 +17,10 @@ const generateId = () => Math.random().toString(36).substring(2, 9);
 // --- ICONS ---
 
 const SwissPostLogo = () => (
-  <svg width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Die Post Logo">
-    {/* Yellow Background */}
+  <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-12 w-auto">
     <rect width="100" height="100" fill="#FFCC00"/>
-    
-    {/* Red Cross - Constructed from rectangles for pixel perfection */}
-    <rect x="15" y="42" width="30" height="16" fill="#FF0000"/>
-    <rect x="22" y="35" width="16" height="30" fill="#FF0000"/>
-    
-    {/* Black P */}
-    <path fillRule="evenodd" clipRule="evenodd" d="M55 35H72C82 35 88 40 88 47.5C88 55 82 60 72 60H65V70H55V35ZM65 52H72C76 52 78 50 78 47.5C78 45 76 43 72 43H65V52Z" fill="black"/>
+    <path d="M38 34H29V21H21V34H8V42H21V55H29V42H38V34Z" fill="#FF0000"/>
+    <path d="M52 21H70C82.1503 21 92 30.8497 92 43C92 55.1503 82.1503 65 70 65H61V79H52V21ZM61 30V56H70C77.1797 56 83 50.1797 83 43C83 35.8203 77.1797 30 70 30H61Z" fill="black"/>
   </svg>
 );
 
@@ -102,6 +96,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'home' | 'self-service'>('home');
   const [selfServiceMode, setSelfServiceMode] = useState<'packet' | 'letter' | 'payment' | 'general_chat'>('packet');
   const [scrolled, setScrolled] = useState(false);
+  const [isVideoCallActive, setIsVideoCallActive] = useState(false);
   
   // Chat State
   const [messages, setMessages] = useState<Message[]>([]);
@@ -141,7 +136,8 @@ const App: React.FC = () => {
   };
 
   const handleVideoClick = () => {
-    triggerUnbluVideoCall();
+    setIsVideoCallActive(true); // Hide voice agent button
+    triggerUnbluVideoCall().catch(() => setIsVideoCallActive(false));
   };
 
   const navigateToHome = () => {
@@ -181,11 +177,14 @@ const App: React.FC = () => {
   const { isConnected, isSpeaking, connect, disconnect, error: liveError } = useLiveGemini({
     onConnect: () => {
       cancelTTS();
+      // Note: For the "Agentic" mode, we might not want to open the text chat automatically
+      // if the user is using the voice-only bubble, but keeping it minimized updates the state nicely.
       setIsChatOpen(true);
-      setIsChatMinimized(false);
+      setIsChatMinimized(true); 
       setGlobalError(null);
     },
     onNavigateOracle: () => {
+       // For visual feedback if needed, or logic to switch views
        setIsChatOpen(true);
        setIsChatMinimized(false);
     },
@@ -197,8 +196,7 @@ const App: React.FC = () => {
     },
     onMessageUpdate: (text, sender) => {
         setMessages(prev => [...prev, { id: generateId(), sender, text }]);
-        setIsChatOpen(true);
-        setIsChatMinimized(false);
+        // We keep the text chat minimized or hidden to focus on the "Agent" experience
     }
   });
 
@@ -223,7 +221,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen font-sans text-gray-900 bg-gray-50/50 selection:bg-yellow-200 pb-24">
+    <div className="min-h-screen font-sans text-gray-900 bg-gray-50/50 selection:bg-yellow-200 pb-32">
       {/* Modern Light Header */}
       <header 
         className={`fixed top-0 w-full z-50 transition-all duration-300 ${
@@ -242,8 +240,6 @@ const App: React.FC = () => {
                   <span className="font-bold text-xl tracking-tight text-gray-900 leading-none">{t.topTitle}</span>
               </div>
             </div>
-
-            {/* Date/Time could go here, or status indicators */}
         </div>
       </header>
 
@@ -364,6 +360,8 @@ const App: React.FC = () => {
       </main>
 
       {/* Floating Elements */}
+      
+      {/* Standard Chat (Hidden when using Agent Voice Mode, effectively) */}
       {selfServiceMode !== 'general_chat' && (
         <ChatBox 
             isOpen={isChatOpen}
@@ -380,13 +378,13 @@ const App: React.FC = () => {
         />
       )}
 
-      {selfServiceMode !== 'general_chat' && (
-        <VoiceControl 
-            isConnected={isConnected}
-            isSpeaking={isSpeaking}
-            onToggle={handleVoiceToggle}
-        />
-      )}
+      {/* Agentic Voice Control - Global Floating */}
+      <VoiceControl 
+          isConnected={isConnected}
+          isSpeaking={isSpeaking}
+          onToggle={handleVoiceToggle}
+          isVideoCallActive={isVideoCallActive}
+      />
 
       <LanguageBar currentLang={currentLang} setLanguage={setCurrentLang} />
     </div>

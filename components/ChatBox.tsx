@@ -77,18 +77,9 @@ export const ChatBox: React.FC<ChatBoxProps> = ({
 
   if (!isOpen) return null;
 
+  // If minimized, do NOT render the bubble button (as per new requirements)
   if (isMinimized) {
-    return (
-      <button
-        onClick={() => setMinimized(false)}
-        className="fixed right-6 bottom-6 w-14 h-14 rounded-full bg-gray-900 text-white flex items-center justify-center shadow-2xl z-[999] hover:scale-110 hover:bg-black transition-all duration-300"
-        aria-label="Chat öffnen"
-      >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-        </svg>
-      </button>
-    );
+    return null;
   }
 
   return (
