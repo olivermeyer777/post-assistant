@@ -191,44 +191,83 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
   // --- RENDER FUNCTIONS ---
 
   const renderProgressBar = () => {
-    let progress = 0;
+    let stepsList: string[] = [];
     let title = "";
-    
+
     if (mode === 'packet') {
         title = t.selfService.title;
-        const stepIndices = ['destination', 'weigh', 'address', 'options', 'payment', 'success'];
-        const currentIndex = stepIndices.indexOf(step);
-        progress = Math.max(5, (currentIndex / (stepIndices.length - 1)) * 100);
+        stepsList = ['destination', 'weigh', 'address', 'options', 'payment', 'success'];
     } else if (mode === 'letter') {
         title = t.selfService.titleLetter;
-        const stepIndices = ['destination', 'addressCheck', 'address', 'format', 'options', 'extras', 'payment', 'success'];
-        const currentIndex = stepIndices.indexOf(step);
-        progress = Math.max(5, (currentIndex / (stepIndices.length - 1)) * 100);
+        stepsList = ['destination', 'addressCheck', 'address', 'format', 'options', 'extras', 'payment', 'success'];
     } else if (mode === 'payment') {
         title = t.selfService.titlePayment;
-        const stepIndices = ['scan', 'payDetails', 'payReceiver', 'payConfirm', 'paySummary', 'payment', 'success'];
-        const currentIndex = stepIndices.indexOf(step);
-        progress = Math.max(5, (currentIndex / (stepIndices.length - 1)) * 100);
+        stepsList = ['scan', 'payDetails', 'payReceiver', 'payConfirm', 'paySummary', 'payment', 'success'];
     } else {
         // General Chat
         title = t.selfService.titleChat;
-        progress = 100; // Always full for chat
+        return (
+             <div className="bg-white border-b border-gray-100 pt-6 px-4 md:px-8 pb-4">
+                <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">{title}</h1>
+             </div>
+        );
     }
 
-    if (step === 'feedback') progress = 100;
+    let currentIndex = stepsList.indexOf(step);
+    if (step === 'feedback') currentIndex = stepsList.length - 1;
+    if (currentIndex === -1) currentIndex = 0;
+
+    const progressPercent = stepsList.length > 1 
+        ? (currentIndex / (stepsList.length - 1)) * 100 
+        : 100;
 
     return (
-      <div className="bg-white border-b border-gray-100 pt-6 px-4 md:px-8 pb-4">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">
+      <div className="bg-white border-b border-gray-100 pt-6 px-4 md:px-8 pb-8">
+        <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-8">
             {title}
         </h1>
-        <div className="relative mb-4">
-            <div className="overflow-hidden h-1.5 mb-4 text-xs flex rounded-full bg-gray-100">
-                <div 
-                  style={{ width: `${progress}%` }} 
-                  className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-[#FFCC00] transition-all duration-500 ease-in-out"
-                ></div>
-            </div>
+        <div className="relative mx-2 md:mx-4">
+            {/* Gray Background Track */}
+            <div className="absolute top-1/2 left-0 w-full h-1.5 bg-gray-100 rounded-full -translate-y-1/2"></div>
+            
+            {/* Yellow Progress Track */}
+            <div 
+                className="absolute top-1/2 left-0 h-1.5 bg-[#FFCC00] rounded-full -translate-y-1/2 transition-all duration-500 ease-out"
+                style={{ width: `${progressPercent}%` }}
+            ></div>
+
+            {/* Process Steps Dots */}
+            {stepsList.map((_, idx) => {
+                const isCompleted = idx < currentIndex;
+                const isCurrent = idx === currentIndex;
+                const isFuture = idx > currentIndex;
+                const position = (idx / (stepsList.length - 1)) * 100;
+
+                return (
+                    <div 
+                        key={idx}
+                        className={`absolute top-1/2 -translate-y-1/2 flex items-center justify-center rounded-full transition-all duration-500 z-10
+                            ${isFuture 
+                                ? 'w-4 h-4 bg-white border-2 border-gray-200' 
+                                : 'w-8 h-8 bg-[#FFCC00] border-2 border-[#FFCC00] shadow-sm'
+                            }
+                        `}
+                        style={{ 
+                            left: `${position}%`, 
+                            transform: 'translate(-50%, -50%)'
+                        }}
+                    >
+                        {isCompleted && (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="text-green-800">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        )}
+                        {isCurrent && (
+                            <div className="w-2.5 h-2.5 bg-black rounded-full"></div>
+                        )}
+                    </div>
+                );
+            })}
         </div>
       </div>
     );
@@ -343,15 +382,18 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
             if (mode === 'packet') setStep('weigh');
             else setStep('addressCheck');
         }}
-        className="w-full max-w-lg bg-white border-2 border-[#FFCC00] rounded-2xl p-6 shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center gap-4 group hover:border-black hover:bg-gray-50"
+        className="w-full max-w-lg bg-white border-2 border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center gap-4 group hover:border-black hover:bg-black hover:text-white"
       >
-        <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-700 group-hover:bg-black group-hover:text-white transition-colors">
+        <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-700 group-hover:bg-gray-800 group-hover:text-yellow-400 transition-colors">
            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
              <path d="M20 6 9 17l-5-5"/>
            </svg>
         </div>
-        <div className="text-left">
-           <div className="font-bold text-lg text-gray-900">{t.selfService.franking.destCH}</div>
+        <div className="text-left flex-1">
+           <div className="font-bold text-lg group-hover:text-white">{t.selfService.franking.destCH}</div>
+        </div>
+        <div className="text-gray-400 group-hover:text-gray-500">
+             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </div>
       </button>
 
@@ -375,26 +417,30 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
   // --- Payment Steps ---
   const renderScanView = () => (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">{t.selfService.payment.scanInstruction}</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-8">{t.selfService.payment.scanInstruction}</h2>
           
           <button 
              onClick={simulateScanning}
-             className="w-64 h-64 bg-white border-4 border-dashed border-gray-300 rounded-3xl flex items-center justify-center hover:bg-gray-50 hover:border-black transition-all relative overflow-hidden group"
+             className="w-64 h-64 bg-white border-2 border-gray-200 rounded-[2rem] flex flex-col items-center justify-center hover:border-black hover:bg-black hover:text-white transition-all duration-300 relative overflow-hidden group shadow-lg"
           >
              {isScanning ? (
-                 <div className="absolute inset-0 bg-black/5 flex items-center justify-center">
-                     <div className="w-full h-1 bg-red-500 absolute top-0 animate-[scan_2s_infinite_linear]"></div>
+                 <div className="absolute inset-0 bg-black flex items-center justify-center">
+                     <div className="w-full h-0.5 bg-red-500 absolute top-0 animate-[scan_2s_infinite_linear] shadow-[0_0_15px_rgba(255,0,0,0.7)]"></div>
+                     <div className="text-white font-mono animate-pulse">Scanning...</div>
                  </div>
              ) : (
-                 <div className="flex flex-col items-center text-gray-400 group-hover:text-black">
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        <rect x="7" y="7" width="3" height="3"></rect>
-                        <rect x="14" y="7" width="3" height="3"></rect>
-                        <rect x="7" y="14" width="3" height="3"></rect>
-                        <path d="M14 17h3"></path>
-                    </svg>
-                    <span className="mt-4 font-medium">{t.selfService.payment.scanAction}</span>
+                 <div className="flex flex-col items-center transition-transform group-hover:scale-105">
+                    <div className="w-20 h-20 rounded-2xl bg-gray-50 flex items-center justify-center mb-6 group-hover:bg-gray-800 transition-colors">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 group-hover:text-white">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <path d="M7 7h3"></path>
+                            <path d="M14 7h3"></path>
+                            <path d="M7 17h3"></path>
+                            <path d="M14 17h3"></path>
+                        </svg>
+                    </div>
+                    <span className="font-bold text-lg">{t.selfService.payment.scanAction}</span>
+                    <span className="text-xs mt-2 opacity-60">Klicken zum Simulieren</span>
                  </div>
              )}
           </button>
@@ -402,24 +448,24 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
   );
 
   const renderPaymentDetailsView = () => (
-      <div className="flex flex-col items-center gap-8 min-h-[400px]">
-          <h2 className="text-xl font-bold text-gray-900">{t.selfService.payment.detailsIntro}</h2>
+      <div className="flex flex-col items-center gap-8 min-h-[400px] justify-center">
+          <h2 className="text-2xl font-bold text-gray-900 text-center">{t.selfService.payment.detailsIntro}</h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-             <div className="bg-[#FFCC00] rounded-xl p-6 flex flex-col items-center text-center shadow-sm">
-                 <span className="font-bold text-lg mb-2">{t.selfService.payment.fieldIban}</span>
-                 <span className="font-mono text-sm">{paymentData.iban}</span>
-                 <span className="text-xs mt-2 opacity-70">Wird übernommen</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
+             <div className="bg-white border-2 border-gray-100 rounded-2xl p-8 flex flex-col items-center text-center shadow-sm hover:border-black transition-colors group">
+                 <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{t.selfService.payment.fieldIban}</div>
+                 <div className="font-mono text-lg font-bold text-gray-900 mb-2 group-hover:text-black">{paymentData.iban}</div>
              </div>
-             <div className="bg-[#FFCC00] rounded-xl p-6 flex flex-col items-center text-center shadow-sm">
-                 <span className="font-bold text-lg mb-2">{t.selfService.payment.fieldAmount}</span>
-                 <span className="font-mono text-xl font-bold">CHF {paymentData.amount.toFixed(2)}</span>
-                 <span className="text-xs mt-2 opacity-70">Wird übernommen</span>
+             
+             <div className="bg-white border-2 border-[#FFCC00] rounded-2xl p-8 flex flex-col items-center text-center shadow-lg relative overflow-hidden">
+                 <div className="absolute top-0 left-0 w-full h-1.5 bg-[#FFCC00]"></div>
+                 <div className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-3">{t.selfService.payment.fieldAmount}</div>
+                 <div className="font-mono text-3xl font-bold text-gray-900 mb-2">CHF {paymentData.amount.toFixed(2)}</div>
              </div>
-             <div className="bg-[#FFCC00] rounded-xl p-6 flex flex-col items-center text-center shadow-sm">
-                 <span className="font-bold text-lg mb-2">{t.selfService.payment.fieldRef}</span>
-                 <span className="font-mono text-sm break-all">{paymentData.reference}</span>
-                 <span className="text-xs mt-2 opacity-70">Wird übernommen</span>
+             
+             <div className="bg-white border-2 border-gray-100 rounded-2xl p-8 flex flex-col items-center text-center shadow-sm hover:border-black transition-colors group">
+                 <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{t.selfService.payment.fieldRef}</div>
+                 <div className="font-mono text-sm font-medium text-gray-600 break-all group-hover:text-black">{paymentData.reference}</div>
              </div>
           </div>
       </div>
@@ -428,28 +474,40 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
   const renderPaymentReceiverView = () => (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-8">{t.selfService.payment.receiverTitle}</h2>
-          <div className="bg-[#FFCC00] rounded-2xl p-10 shadow-lg w-full max-w-xl">
-              <div className="text-2xl font-bold text-gray-900 mb-2">{paymentData.receiverName}</div>
-              <div className="text-xl text-gray-800">{paymentData.receiverCity}</div>
+          <div className="bg-white border-2 border-gray-200 rounded-[2rem] p-10 shadow-xl w-full max-w-xl relative">
+              <div className="w-16 h-16 bg-gray-900 rounded-full flex items-center justify-center absolute -top-8 left-1/2 -translate-x-1/2 text-white shadow-lg border-4 border-white">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              </div>
+              <div className="mt-6">
+                 <div className="text-3xl font-bold text-gray-900 mb-2">{paymentData.receiverName}</div>
+                 <div className="text-xl text-gray-500 font-medium">{paymentData.receiverCity}</div>
+              </div>
           </div>
       </div>
   );
 
   const renderPaymentConfirmView = () => (
-      <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-8">
-          <h2 className="text-2xl font-bold text-gray-900">{t.selfService.payment.confirmQuestion}</h2>
-          <div className="flex gap-6 w-full max-w-2xl">
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-10">
+          <h2 className="text-3xl font-bold text-gray-900">{t.selfService.payment.confirmQuestion}</h2>
+          <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl">
               <button
                   onClick={() => setStep('paySummary')} 
-                  className="flex-1 bg-[#FFCC00] rounded-2xl p-8 shadow-lg hover:bg-black hover:text-white transition-all active:scale-95 flex flex-col items-center gap-3"
+                  className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:bg-black hover:border-black transition-all duration-300 active:scale-95"
               >
-                  <span className="font-bold text-xl whitespace-pre-line">{t.selfService.payment.confirmYes}</span>
+                  <div className="w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center mx-auto mb-4 group-hover:bg-white group-hover:text-black transition-colors">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  </div>
+                  <div className="font-bold text-xl text-gray-900 group-hover:text-white whitespace-pre-line">{t.selfService.payment.confirmYes}</div>
               </button>
+
               <button
                   onClick={() => setStep('payDetails')}
-                  className="flex-1 bg-[#FFCC00] rounded-2xl p-8 shadow-lg hover:bg-black hover:text-white transition-all active:scale-95 flex flex-col items-center gap-3"
+                  className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:bg-black hover:border-black transition-all duration-300 active:scale-95"
               >
-                   <span className="font-bold text-xl whitespace-pre-line">{t.selfService.payment.confirmNo}</span>
+                   <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4 group-hover:bg-white group-hover:text-black transition-colors">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                   </div>
+                   <div className="font-bold text-xl text-gray-900 group-hover:text-white whitespace-pre-line">{t.selfService.payment.confirmNo}</div>
               </button>
           </div>
       </div>
@@ -459,11 +517,14 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
        <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-4">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">{t.selfService.payment.summaryTitle}</h2>
           
-          <div className="text-3xl font-bold text-gray-900">CHF {paymentData.amount.toFixed(2)}</div>
-          <div className="text-gray-600">{t.selfService.payment.summaryAccount}</div>
-          <div className="font-mono bg-gray-100 px-3 py-1 rounded">{paymentData.iban}</div>
-          <div className="font-medium text-gray-800 mt-2">Testkunde {paymentData.receiverName}</div>
-          <div className="text-gray-600">{paymentData.receiverCity}</div>
+          <div className="text-5xl font-bold text-gray-900 mb-2">CHF {paymentData.amount.toFixed(2)}</div>
+          <div className="text-gray-500 font-medium">{t.selfService.payment.summaryAccount}</div>
+          <div className="font-mono bg-gray-100 px-4 py-2 rounded-lg text-lg">{paymentData.iban}</div>
+          
+          <div className="mt-6 pt-6 border-t border-gray-100 w-full max-w-md">
+             <div className="font-bold text-lg text-gray-900">Empfänger</div>
+             <div className="text-gray-600">{paymentData.receiverName}, {paymentData.receiverCity}</div>
+          </div>
        </div>
   );
 
@@ -486,7 +547,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
             
             <button 
                onClick={simulateWeighing}
-               className="group relative w-64 h-64 bg-white rounded-3xl border-4 border-dashed border-gray-200 flex flex-col items-center justify-center hover:border-black hover:bg-yellow-50 transition-all duration-300"
+               className="group relative w-64 h-64 bg-white rounded-3xl border-4 border-dashed border-gray-200 flex flex-col items-center justify-center hover:border-black hover:bg-black transition-all duration-300"
             >
                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 group-hover:text-black group-hover:bg-white transition-colors mb-4">
                   <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -495,8 +556,8 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                      <line x1="12" y1="22.08" x2="12" y2="12"></line>
                   </svg>
                </div>
-               <span className="font-semibold text-gray-900">{t.selfService.franking.weighAction}</span>
-               <span className="text-xs text-gray-400 mt-1">Click to simulate</span>
+               <span className="font-semibold text-gray-900 group-hover:text-white">{t.selfService.franking.weighAction}</span>
+               <span className="text-xs text-gray-400 mt-1 group-hover:text-gray-400">Klicken zum Simulieren</span>
             </button>
          </>
        )}
@@ -504,20 +565,26 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
   );
 
   const renderAddressCheckView = () => (
-      <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-8">
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-10">
           <h2 className="text-2xl font-bold text-gray-900">{t.selfService.letter.addressCheckQuestion}</h2>
-          <div className="flex gap-6 w-full max-w-2xl">
+          <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl">
               <button
                   onClick={() => setStep('format')} 
-                  className="flex-1 bg-[#FFCC00] rounded-2xl p-8 shadow-lg hover:bg-black hover:text-white transition-all active:scale-95 flex flex-col items-center gap-3"
+                  className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:bg-black hover:border-black transition-all duration-300 active:scale-95"
               >
-                  <span className="font-bold text-xl whitespace-pre-line">{t.selfService.letter.addressCheckYes}</span>
+                   <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-900 flex items-center justify-center mx-auto mb-4 group-hover:bg-white group-hover:text-black transition-colors">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  </div>
+                  <div className="font-bold text-xl text-gray-900 group-hover:text-white whitespace-pre-line">{t.selfService.letter.addressCheckYes}</div>
               </button>
               <button
                   onClick={() => setStep('address')}
-                  className="flex-1 bg-[#FFCC00] rounded-2xl p-8 shadow-lg hover:bg-black hover:text-white transition-all active:scale-95 flex flex-col items-center gap-3"
+                  className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:bg-black hover:border-black transition-all duration-300 active:scale-95"
               >
-                   <span className="font-bold text-xl whitespace-pre-line">{t.selfService.letter.addressCheckNo}</span>
+                  <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-900 flex items-center justify-center mx-auto mb-4 group-hover:bg-white group-hover:text-black transition-colors">
+                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  </div>
+                  <div className="font-bold text-xl text-gray-900 group-hover:text-white whitespace-pre-line">{t.selfService.letter.addressCheckNo}</div>
               </button>
           </div>
       </div>
@@ -526,20 +593,29 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
   const renderFormatView = () => (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-8">
           <h2 className="text-2xl font-bold text-gray-900">{t.selfService.letter.formatQuestion}</h2>
-          <div className="flex gap-6 w-full max-w-2xl">
+          <div className="flex flex-col md:flex-row gap-6 w-full max-w-3xl">
               <button
                   onClick={() => { setLetterFormat('small'); setStep('options'); }}
-                  className={`flex-1 rounded-2xl p-8 shadow-lg transition-all active:scale-95 flex flex-col items-center gap-3 border-4 ${letterFormat === 'small' ? 'bg-[#FFCC00] border-transparent text-black' : 'bg-yellow-100 border-transparent hover:bg-black hover:text-white'}`}
+                  className={`flex-1 rounded-2xl p-8 shadow-sm transition-all active:scale-95 flex flex-col items-center gap-4 border-2 group relative overflow-hidden
+                    ${letterFormat === 'small' ? 'bg-black border-black text-white' : 'bg-white border-gray-200 hover:border-black hover:bg-gray-50'}`}
               >
-                  <span className="font-bold text-xl">{t.selfService.letter.formatSmall}</span>
-                  <span className="text-sm opacity-80">{t.selfService.letter.formatSmallDesc}</span>
+                  {letterFormat === 'small' && <div className="absolute top-4 right-4 text-white"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>}
+                  <div className="text-left w-full">
+                       <span className={`block font-bold text-xl mb-2 ${letterFormat === 'small' ? 'text-white' : 'text-gray-900'}`}>{t.selfService.letter.formatSmall}</span>
+                       <span className={`block text-sm ${letterFormat === 'small' ? 'text-gray-400' : 'text-gray-500'}`}>{t.selfService.letter.formatSmallDesc}</span>
+                  </div>
               </button>
+
               <button
                   onClick={() => { setLetterFormat('big'); setStep('options'); }}
-                  className={`flex-1 rounded-2xl p-8 shadow-lg transition-all active:scale-95 flex flex-col items-center gap-3 border-4 ${letterFormat === 'big' ? 'bg-[#FFCC00] border-transparent text-black' : 'bg-yellow-100 border-transparent hover:bg-black hover:text-white'}`}
+                  className={`flex-1 rounded-2xl p-8 shadow-sm transition-all active:scale-95 flex flex-col items-center gap-4 border-2 group relative overflow-hidden
+                    ${letterFormat === 'big' ? 'bg-black border-black text-white' : 'bg-white border-gray-200 hover:border-black hover:bg-gray-50'}`}
               >
-                   <span className="font-bold text-xl">{t.selfService.letter.formatBig}</span>
-                   <span className="text-sm opacity-80">{t.selfService.letter.formatBigDesc}</span>
+                   {letterFormat === 'big' && <div className="absolute top-4 right-4 text-white"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>}
+                   <div className="text-left w-full">
+                       <span className={`block font-bold text-xl mb-2 ${letterFormat === 'big' ? 'text-white' : 'text-gray-900'}`}>{t.selfService.letter.formatBig}</span>
+                       <span className={`block text-sm ${letterFormat === 'big' ? 'text-gray-400' : 'text-gray-500'}`}>{t.selfService.letter.formatBigDesc}</span>
+                  </div>
               </button>
           </div>
       </div>
@@ -558,16 +634,16 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
 
        <h2 className="text-xl font-bold text-gray-900">{t.selfService.franking.addressReceiver}</h2>
        
-       <div className="flex bg-gray-100 p-1 rounded-xl w-full max-w-md self-center mb-2">
+       <div className="flex bg-gray-100 p-1.5 rounded-2xl w-full max-w-md self-center mb-2">
           <button 
             onClick={() => setReceiver({...receiver, type: 'private'})}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${receiver.type === 'private' ? 'bg-black text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+            className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${receiver.type === 'private' ? 'bg-black text-white shadow-md' : 'text-gray-500 hover:text-gray-900'}`}
           >
             {t.selfService.franking.isPrivate}
           </button>
           <button 
             onClick={() => setReceiver({...receiver, type: 'company'})}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${receiver.type === 'company' ? 'bg-black text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+            className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${receiver.type === 'company' ? 'bg-black text-white shadow-md' : 'text-gray-500 hover:text-gray-900'}`}
           >
             {t.selfService.franking.isCompany}
           </button>
@@ -580,7 +656,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                 type="text" 
                 value={receiver.name}
                 onChange={(e) => setReceiver(prev => ({...prev, name: e.target.value}))}
-                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-lg focus:ring-2 focus:ring-[#FFCC00] focus:border-[#FFCC00] outline-none transition-all"
+                className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 text-lg focus:ring-0 focus:border-black outline-none transition-all"
                 placeholder="Muster Hans"
              />
           </div>
@@ -592,7 +668,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                     type="text" 
                     value={receiver.zip}
                     onChange={(e) => setReceiver(prev => ({...prev, zip: e.target.value}))}
-                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-lg focus:ring-2 focus:ring-[#FFCC00] focus:border-[#FFCC00] outline-none transition-all"
+                    className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 text-lg focus:ring-0 focus:border-black outline-none transition-all"
                     placeholder="3000"
                  />
              </div>
@@ -602,7 +678,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                     type="text" 
                     value={receiver.city}
                     onChange={(e) => setReceiver(prev => ({...prev, city: e.target.value}))}
-                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-lg focus:ring-2 focus:ring-[#FFCC00] focus:border-[#FFCC00] outline-none transition-all"
+                    className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 text-lg focus:ring-0 focus:border-black outline-none transition-all"
                     placeholder="Bern"
                  />
              </div>
@@ -614,7 +690,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                 type="text" 
                 value={receiver.street}
                 onChange={(e) => setReceiver(prev => ({...prev, street: e.target.value}))}
-                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-lg focus:ring-2 focus:ring-[#FFCC00] focus:border-[#FFCC00] outline-none transition-all"
+                className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 text-lg focus:ring-0 focus:border-black outline-none transition-all"
                 placeholder="Musterstrasse 1"
              />
           </div>
@@ -639,9 +715,9 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
 
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {mode === 'packet' && (
-             <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm h-fit">
-                <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-2 mb-3">{t.selfService.franking.addressReceiver}</h3>
-                <div className="text-gray-600 leading-relaxed">
+             <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 shadow-sm h-fit">
+                <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-2 mb-3 uppercase text-xs tracking-wider">{t.selfService.franking.addressReceiver}</h3>
+                <div className="text-gray-800 font-medium leading-relaxed text-lg">
                     {receiver.name || "Muster Hans"}<br/>
                     {receiver.street || "Strasse 1"}<br/>
                     {receiver.zip} {receiver.city}
@@ -649,56 +725,65 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
              </div>
           )}
 
-          <div className={mode === 'packet' ? "space-y-4" : "col-span-2 grid grid-cols-3 gap-4"}>
+          <div className={mode === 'packet' ? "space-y-4" : "col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4"}>
               <button 
                 onClick={() => setShippingMethod('economy')}
-                className={`p-4 rounded-xl border-2 flex flex-col md:flex-row justify-between items-center transition-all ${shippingMethod === 'economy' ? 'border-[#FFCC00] bg-yellow-50/50' : 'border-gray-200 bg-white hover:border-black hover:text-black hover:shadow-md'} ${mode === 'letter' ? 'text-center' : 'w-full'}`}
+                className={`p-5 rounded-2xl border-2 flex flex-col md:flex-row justify-between items-center transition-all cursor-pointer group relative overflow-hidden
+                    ${shippingMethod === 'economy' ? 'border-[#FFCC00] bg-yellow-50' : 'border-gray-200 bg-white hover:border-gray-400'} 
+                    ${mode === 'letter' ? 'text-center' : 'w-full'}`}
               >
-                 <div className={mode === 'letter' ? 'w-full' : 'text-left'}>
-                    <div className="font-bold text-gray-900">{mode === 'packet' ? t.selfService.franking.economy : t.selfService.letter.bPost}</div>
-                    <div className="text-xs text-gray-500">{t.selfService.franking.duration2days}</div>
+                 {shippingMethod === 'economy' && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#FFCC00]"></div>}
+                 <div className={mode === 'letter' ? 'w-full text-center' : 'text-left'}>
+                    <div className="font-bold text-lg text-gray-900">{mode === 'packet' ? t.selfService.franking.economy : t.selfService.letter.bPost}</div>
+                    <div className="text-sm text-gray-500 font-medium mt-0.5">{t.selfService.franking.duration2days}</div>
                  </div>
-                 <div className="font-bold text-lg mt-2 md:mt-0">CHF {mode === 'packet' ? getPacketPrices(weightGrams).eco.toFixed(2) : getLetterBasePrice('economy').toFixed(2)}</div>
+                 <div className="font-bold text-xl mt-2 md:mt-0 bg-white/50 px-3 py-1 rounded-lg">CHF {mode === 'packet' ? getPacketPrices(weightGrams).eco.toFixed(2) : getLetterBasePrice('economy').toFixed(2)}</div>
               </button>
 
               <button 
                 onClick={() => setShippingMethod('priority')}
-                className={`p-4 rounded-xl border-2 flex flex-col md:flex-row justify-between items-center transition-all ${shippingMethod === 'priority' ? 'border-[#FFCC00] bg-yellow-50/50' : 'border-gray-200 bg-white hover:border-black hover:text-black hover:shadow-md'} ${mode === 'letter' ? 'text-center' : 'w-full'}`}
+                 className={`p-5 rounded-2xl border-2 flex flex-col md:flex-row justify-between items-center transition-all cursor-pointer group relative overflow-hidden
+                    ${shippingMethod === 'priority' ? 'border-[#FFCC00] bg-yellow-50' : 'border-gray-200 bg-white hover:border-gray-400'} 
+                    ${mode === 'letter' ? 'text-center' : 'w-full'}`}
               >
-                 <div className={mode === 'letter' ? 'w-full' : 'text-left'}>
-                    <div className="font-bold text-gray-900">{mode === 'packet' ? t.selfService.franking.priority : t.selfService.letter.aPost}</div>
-                    <div className="text-xs text-gray-500">{t.selfService.franking.duration1day}</div>
+                 {shippingMethod === 'priority' && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#FFCC00]"></div>}
+                 <div className={mode === 'letter' ? 'w-full text-center' : 'text-left'}>
+                    <div className="font-bold text-lg text-gray-900">{mode === 'packet' ? t.selfService.franking.priority : t.selfService.letter.aPost}</div>
+                    <div className="text-sm text-gray-500 font-medium mt-0.5">{t.selfService.franking.duration1day}</div>
                  </div>
-                 <div className="font-bold text-lg mt-2 md:mt-0">CHF {mode === 'packet' ? getPacketPrices(weightGrams).prio.toFixed(2) : getLetterBasePrice('priority').toFixed(2)}</div>
+                 <div className="font-bold text-xl mt-2 md:mt-0 bg-white/50 px-3 py-1 rounded-lg">CHF {mode === 'packet' ? getPacketPrices(weightGrams).prio.toFixed(2) : getLetterBasePrice('priority').toFixed(2)}</div>
               </button>
               
               {mode === 'letter' && (
                   <button 
                     onClick={() => setShippingMethod('express')}
-                    className={`p-4 rounded-xl border-2 flex flex-col justify-between items-center transition-all text-center ${shippingMethod === 'express' ? 'border-[#FFCC00] bg-yellow-50/50' : 'border-gray-200 bg-white hover:border-black hover:text-black hover:shadow-md'}`}
+                    className={`p-5 rounded-2xl border-2 flex flex-col justify-between items-center transition-all cursor-pointer group relative overflow-hidden
+                        ${shippingMethod === 'express' ? 'border-[#FFCC00] bg-yellow-50' : 'border-gray-200 bg-white hover:border-gray-400'} 
+                        text-center`}
                   >
-                     <div className="w-full">
-                        <div className="font-bold text-gray-900">{t.selfService.letter.express}</div>
-                        <div className="text-xs text-gray-500">{t.selfService.franking.duration1day}</div>
+                     {shippingMethod === 'express' && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#FFCC00]"></div>}
+                     <div className="w-full text-center">
+                        <div className="font-bold text-lg text-gray-900">{t.selfService.letter.express}</div>
+                        <div className="text-sm text-gray-500 font-medium mt-0.5">{t.selfService.franking.duration1day}</div>
                      </div>
-                     <div className="font-bold text-lg mt-2">CHF {getLetterBasePrice('express').toFixed(2)}</div>
+                     <div className="font-bold text-xl mt-2 bg-white/50 px-3 py-1 rounded-lg">CHF {getLetterBasePrice('express').toFixed(2)}</div>
                   </button>
               )}
 
               {mode === 'packet' && (
                   <div className="pt-4 border-t border-gray-100 mt-4">
-                      <h3 className="font-bold text-gray-900 mb-3">{t.selfService.franking.extras}</h3>
+                      <h3 className="font-bold text-gray-900 mb-3 text-sm uppercase tracking-wider">{t.selfService.franking.extras}</h3>
                       <button 
                         onClick={() => setHasSignature(!hasSignature)}
-                        className="flex items-center justify-between w-full"
+                        className={`flex items-center justify-between w-full p-4 rounded-xl border-2 transition-all ${hasSignature ? 'border-black bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'}`}
                       >
-                         <div className="flex items-center gap-3">
-                            <div className={`w-6 h-6 rounded border flex items-center justify-center transition-colors ${hasSignature ? 'bg-black border-black text-white' : 'border-gray-300 bg-white'}`}>
-                               {hasSignature && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                         <div className="flex items-center gap-4">
+                            <div className={`w-6 h-6 rounded flex items-center justify-center transition-colors border ${hasSignature ? 'bg-white border-white text-black' : 'border-gray-300 bg-white'}`}>
+                               {hasSignature && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
                             </div>
-                            <span className="text-gray-700 font-medium">{t.selfService.franking.signature}</span>
+                            <span className="font-bold text-lg">{t.selfService.franking.signature}</span>
                          </div>
-                         <span className="font-medium text-gray-900">CHF 1.50</span>
+                         <span className="font-medium">CHF 1.50</span>
                       </button>
                   </div>
               )}
@@ -706,9 +791,9 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
        </div>
        
        {mode === 'packet' && (
-          <div className="bg-gray-900 text-white p-6 rounded-xl mt-2 flex justify-between items-center">
-             <span className="text-gray-300 font-medium">{t.selfService.franking.total}</span>
-             <span className="text-2xl font-bold">CHF {totalPrice.toFixed(2)}</span>
+          <div className="bg-black text-white p-6 rounded-2xl mt-2 flex justify-between items-center shadow-lg">
+             <span className="text-gray-400 font-bold uppercase tracking-wider text-sm">{t.selfService.franking.total}</span>
+             <span className="text-3xl font-bold">CHF {totalPrice.toFixed(2)}</span>
           </div>
        )}
     </div>
@@ -717,29 +802,32 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
   const renderExtrasView = () => (
      <div className="flex flex-col gap-8 min-h-[400px]">
         <h2 className="text-xl font-bold text-gray-900 text-center">{t.selfService.letter.extrasQuestion}</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <button 
                onClick={() => setLetterExtras(p => ({...p, registered: !p.registered}))}
-               className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${letterExtras.registered ? 'bg-[#FFCC00] border-[#FFCC00]' : 'bg-white border-gray-200 hover:border-black hover:text-black'}`}
+               className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all cursor-pointer
+                  ${letterExtras.registered ? 'bg-black border-black text-white scale-[1.02] shadow-lg' : 'bg-white border-gray-200 text-gray-900 hover:border-black hover:bg-gray-50'}`}
             >
-               <span className="font-bold text-lg">{t.selfService.letter.extraRegistered}</span>
-               <span className="text-sm font-semibold">CHF 5.30</span>
+               <span className="font-bold text-xl">{t.selfService.letter.extraRegistered}</span>
+               <span className={`text-sm font-medium ${letterExtras.registered ? 'text-gray-400' : 'text-gray-500'}`}>CHF 5.30</span>
             </button>
 
             <button 
                onClick={() => setLetterExtras(p => ({...p, prepaid: !p.prepaid}))}
-               className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${letterExtras.prepaid ? 'bg-[#FFCC00] border-[#FFCC00]' : 'bg-white border-gray-200 hover:border-black hover:text-black'}`}
+               className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all cursor-pointer
+                  ${letterExtras.prepaid ? 'bg-black border-black text-white scale-[1.02] shadow-lg' : 'bg-white border-gray-200 text-gray-900 hover:border-black hover:bg-gray-50'}`}
             >
-               <span className="font-bold text-lg">{t.selfService.letter.extraPrepaid}</span>
-               <span className="text-sm font-semibold">CHF 1.50</span>
+               <span className="font-bold text-xl">{t.selfService.letter.extraPrepaid}</span>
+               <span className={`text-sm font-medium ${letterExtras.prepaid ? 'text-gray-400' : 'text-gray-500'}`}>CHF 1.50</span>
             </button>
 
              <button 
                onClick={() => setLetterExtras(p => ({...p, formatSurcharge: !p.formatSurcharge}))}
-               className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${letterExtras.formatSurcharge ? 'bg-[#FFCC00] border-[#FFCC00]' : 'bg-white border-gray-200 hover:border-black hover:text-black'}`}
+               className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all cursor-pointer
+                  ${letterExtras.formatSurcharge ? 'bg-black border-black text-white scale-[1.02] shadow-lg' : 'bg-white border-gray-200 text-gray-900 hover:border-black hover:bg-gray-50'}`}
             >
-               <span className="font-bold text-lg">{t.selfService.letter.extraFormat}</span>
-               <span className="text-sm font-semibold">CHF 2.00</span>
+               <span className="font-bold text-xl">{t.selfService.letter.extraFormat}</span>
+               <span className={`text-sm font-medium ${letterExtras.formatSurcharge ? 'text-gray-400' : 'text-gray-500'}`}>CHF 2.00</span>
             </button>
         </div>
      </div>
@@ -750,50 +838,51 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
         <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.selfService.franking.payTerminal}</h2>
         
         <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-lg my-8 max-w-md w-full relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-yellow-400 to-red-500"></div>
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-yellow-400 to-red-500"></div>
             
             {mode === 'letter' && (
-                <div className="mb-6 text-left text-sm text-gray-600 space-y-1 border-b border-gray-100 pb-4">
-                    <div className="flex justify-between">
-                        <span>{t.selfService.letter.shippingTitle}</span>
-                        <span>CHF {getLetterBasePrice(shippingMethod).toFixed(2)}</span>
+                <div className="mb-6 text-left text-sm text-gray-600 space-y-3 border-b border-gray-100 pb-6">
+                    <div className="flex justify-between items-center">
+                        <span className="font-bold text-gray-900 text-lg">{t.selfService.letter.shippingTitle}</span>
+                        <span className="font-mono font-bold">CHF {getLetterBasePrice(shippingMethod).toFixed(2)}</span>
                     </div>
-                    {letterExtras.registered && <div className="flex justify-between"><span>{t.selfService.letter.extraRegistered}</span><span>CHF 5.30</span></div>}
-                    {letterExtras.prepaid && <div className="flex justify-between"><span>{t.selfService.letter.extraPrepaid}</span><span>CHF 1.50</span></div>}
-                    {letterExtras.formatSurcharge && <div className="flex justify-between"><span>{t.selfService.letter.extraFormat}</span><span>CHF 2.00</span></div>}
+                    {letterExtras.registered && <div className="flex justify-between"><span>{t.selfService.letter.extraRegistered}</span><span className="font-mono">CHF 5.30</span></div>}
+                    {letterExtras.prepaid && <div className="flex justify-between"><span>{t.selfService.letter.extraPrepaid}</span><span className="font-mono">CHF 1.50</span></div>}
+                    {letterExtras.formatSurcharge && <div className="flex justify-between"><span>{t.selfService.letter.extraFormat}</span><span className="font-mono">CHF 2.00</span></div>}
                 </div>
             )}
 
             {mode === 'payment' && (
-                <div className="mb-6 text-left text-sm text-gray-600 space-y-1 border-b border-gray-100 pb-4">
-                    <div className="flex justify-between font-bold text-gray-800">
+                <div className="mb-6 text-left space-y-2 border-b border-gray-100 pb-6">
+                    <div className="flex justify-between font-bold text-gray-900 text-lg">
                         <span>{t.selfService.payment.summaryTitle}</span>
-                        <span>CHF {totalPrice.toFixed(2)}</span>
+                        <span className="font-mono">CHF {totalPrice.toFixed(2)}</span>
                     </div>
-                    <div className="text-xs text-gray-400 mt-1 truncate">Ref: {paymentData.reference}</div>
+                    <div className="text-xs text-gray-400 truncate font-mono">Ref: {paymentData.reference}</div>
                 </div>
             )}
 
             <div className="w-32 h-48 mx-auto bg-gray-800 rounded-xl border-4 border-gray-700 shadow-inner flex flex-col items-center p-4 mb-6">
-               <div className="w-full h-20 bg-white/10 rounded mb-4 flex items-center justify-center text-white font-mono text-lg">
+               <div className="w-full h-20 bg-white/10 rounded mb-4 flex items-center justify-center text-white font-mono text-lg tracking-widest">
                   CHF {totalPrice.toFixed(2)}
                </div>
                <div className="grid grid-cols-3 gap-2 w-full">
                   {[1,2,3,4,5,6,7,8,9].map(n => <div key={n} className="w-full h-2 bg-gray-600 rounded-sm"></div>)}
                </div>
             </div>
-            <div className="flex justify-center gap-4">
+            <div className="flex justify-center gap-4 opacity-60 grayscale">
                <div className="w-10 h-6 bg-gray-100 rounded border border-gray-200 flex items-center justify-center text-[8px] font-bold">VISA</div>
                <div className="w-10 h-6 bg-gray-100 rounded border border-gray-200 flex items-center justify-center text-[8px] font-bold">MC</div>
-               <div className="w-10 h-6 bg-[#FFCC00] rounded border border-yellow-500 flex items-center justify-center text-[8px] font-bold">PF</div>
+               <div className="w-10 h-6 bg-gray-100 rounded border border-gray-200 flex items-center justify-center text-[8px] font-bold">PF</div>
             </div>
         </div>
 
         <button
             onClick={() => setStep('success')}
-            className="w-full max-w-sm py-4 rounded-2xl font-bold text-gray-900 bg-[#FFCC00] hover:bg-black hover:text-white shadow-lg shadow-yellow-400/20 transition-all active:scale-95 text-lg"
+            className="w-full max-w-sm py-4 rounded-2xl font-bold text-white bg-black hover:bg-gray-900 shadow-lg shadow-gray-900/20 transition-all active:scale-95 text-lg flex items-center justify-center gap-3"
         >
-           {t.selfService.franking.payButton}
+           <span>{t.selfService.franking.payButton}</span>
+           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
         </button>
     </div>
   );
@@ -807,19 +896,19 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
         </div>
         <h2 className="text-3xl font-bold text-gray-900 mb-12">{t.selfService.franking.successTitle}</h2>
 
-        <div className="bg-yellow-50 rounded-3xl p-8 max-w-xl w-full border border-yellow-100">
+        <div className="bg-white border-2 border-gray-100 rounded-[2rem] p-8 max-w-xl w-full shadow-sm">
            <div className="space-y-6 text-left">
-              <div className="flex items-start gap-4">
-                 <div className="w-8 h-8 rounded-full bg-gray-900 text-white flex-shrink-0 flex items-center justify-center font-bold">1</div>
-                 <div className="pt-1 text-gray-800 font-medium">{t.selfService.franking.instruction1}</div>
+              <div className="flex items-start gap-5">
+                 <div className="w-10 h-10 rounded-full bg-black text-white flex-shrink-0 flex items-center justify-center font-bold text-lg shadow-lg">1</div>
+                 <div className="pt-2 text-gray-900 font-medium text-lg">{t.selfService.franking.instruction1}</div>
               </div>
-              <div className="flex items-start gap-4">
-                 <div className="w-8 h-8 rounded-full bg-gray-900 text-white flex-shrink-0 flex items-center justify-center font-bold">2</div>
-                 <div className="pt-1 text-gray-800 font-medium">{t.selfService.franking.instruction2}</div>
+              <div className="flex items-start gap-5">
+                 <div className="w-10 h-10 rounded-full bg-black text-white flex-shrink-0 flex items-center justify-center font-bold text-lg shadow-lg">2</div>
+                 <div className="pt-2 text-gray-900 font-medium text-lg">{t.selfService.franking.instruction2}</div>
               </div>
-              <div className="flex items-start gap-4">
-                 <div className="w-8 h-8 rounded-full bg-gray-900 text-white flex-shrink-0 flex items-center justify-center font-bold">3</div>
-                 <div className="pt-1 text-gray-800 font-medium">{t.selfService.franking.instruction3}</div>
+              <div className="flex items-start gap-5">
+                 <div className="w-10 h-10 rounded-full bg-black text-white flex-shrink-0 flex items-center justify-center font-bold text-lg shadow-lg">3</div>
+                 <div className="pt-2 text-gray-900 font-medium text-lg">{t.selfService.franking.instruction3}</div>
               </div>
            </div>
         </div>
@@ -836,7 +925,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                    <button 
                      key={num}
                      onClick={() => setFeedbackScore(num)}
-                     className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-gray-200 text-xs md:text-sm font-medium hover:bg-gray-900 hover:text-white hover:border-gray-900 transition-all"
+                     className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-gray-200 text-xs md:text-sm font-medium hover:bg-black hover:text-white hover:border-black transition-all"
                    >
                      {num}
                    </button>
@@ -935,7 +1024,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                                 else setStep('format'); 
                             }}
                             disabled={mode === 'packet' && !receiver.name}
-                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-gray-900 hover:bg-black shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                             {t.ui.next}
                         </button>
@@ -947,7 +1036,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                                 if (mode === 'packet') setStep('payment');
                                 else setStep('extras');
                             }}
-                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-gray-900 hover:bg-black shadow-lg transition-all"
+                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
                         >
                             {t.ui.next}
                         </button>
@@ -956,7 +1045,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                     {step === 'extras' && (
                         <button
                             onClick={() => setStep('payment')}
-                            className="px-8 py-3 rounded-xl text-sm font-bold text-gray-900 bg-[#FFCC00] hover:bg-black hover:text-white shadow-lg transition-all"
+                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
                         >
                             {t.ui.pay}
                         </button>
@@ -965,7 +1054,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                     {step === 'payDetails' && (
                         <button
                             onClick={() => setStep('payReceiver')}
-                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-gray-900 hover:bg-black shadow-lg transition-all"
+                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
                         >
                             {t.ui.next}
                         </button>
@@ -974,7 +1063,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                     {step === 'payReceiver' && (
                         <button
                             onClick={() => setStep('payConfirm')}
-                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-gray-900 hover:bg-black shadow-lg transition-all"
+                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
                         >
                             {t.ui.next}
                         </button>
@@ -983,7 +1072,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                     {step === 'paySummary' && (
                         <button
                             onClick={() => setStep('payment')}
-                            className="px-8 py-3 rounded-xl text-sm font-bold text-gray-900 bg-[#FFCC00] hover:bg-black hover:text-white shadow-lg transition-all"
+                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
                         >
                             {t.ui.pay}
                         </button>
@@ -997,7 +1086,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
             <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-center">
                  <button
                     onClick={onBack}
-                    className="px-12 py-4 rounded-xl text-base font-bold text-white bg-gray-900 hover:bg-black shadow-lg transition-all"
+                    className="px-12 py-4 rounded-xl text-base font-bold text-white bg-black hover:bg-gray-900 shadow-lg transition-all"
                 >
                     {t.ui.finish}
                 </button>
