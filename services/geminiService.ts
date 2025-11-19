@@ -1,12 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-const API_KEY = process.env.API_KEY || ""; 
-// Note: In a real production app, we wouldn't hardcode or expect the key to be empty. 
-// The UI will show a fallback if no key is present.
-
-const genAI = new GoogleGenAI({ apiKey: API_KEY });
-
 const SYSTEM_INSTRUCTION = `
 You are the official AI Assistant for "Schweizer Post" (Swiss Post).
 Your goal is to answer customer questions accurately using ONLY information found on the Swiss Post website (post.ch).
@@ -37,14 +31,20 @@ export const sendMessageToGemini = async (
   message: string, 
   languageContext: string
 ): Promise<GeminiResponse> => {
-  if (!API_KEY) {
+  // Read API Key dynamically inside the function call
+  const apiKey = process.env.API_KEY;
+
+  if (!apiKey) {
     return { 
-        text: "Simulated Response (No API Key): I can help you with Swiss Post services. \nBUTTONS: Track Package | Find Branch | Change Address" 
+        text: "Simulated Response (No API Key): Please select a Google API Key to enable the AI assistant. \nBUTTONS: Retry" 
     };
   }
 
   try {
+    // Create a new instance per request to ensure the latest key is used
+    const genAI = new GoogleGenAI({ apiKey });
     const model = genAI.models;
+    
     const response = await model.generateContent({
       model: 'gemini-2.5-flash',
       contents: `User Language Context: ${languageContext}. User Query: ${message}`,

@@ -1,9 +1,8 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Modality } from "@google/genai";
 import { AudioRecorder, AudioStreamPlayer, arrayBufferToBase64, base64ToArrayBuffer } from '../utils/audioStreamer';
 import { Language } from '../types';
-
-const API_KEY = process.env.API_KEY || "";
 
 const SYSTEM_INSTRUCTION = `
 You are the specific voice assistant for Swiss Post.
@@ -48,13 +47,16 @@ export const useLiveGemini = ({
     if (isConnected) return;
     setError(null);
     
-    if (!API_KEY) {
+    // Read API Key dynamically
+    const apiKey = process.env.API_KEY;
+    
+    if (!apiKey) {
         console.error("No API Key found");
         setError("No API Key configured");
         return;
     }
 
-    const genAI = new GoogleGenAI({ apiKey: API_KEY });
+    const genAI = new GoogleGenAI({ apiKey });
     
     // Initialize Player immediately to capture user gesture for Autoplay policy
     playerRef.current = new AudioStreamPlayer();
