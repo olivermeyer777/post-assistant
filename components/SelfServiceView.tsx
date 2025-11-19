@@ -547,22 +547,22 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
           <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl">
               <button
                   onClick={() => setStep('paySummary')} 
-                  className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:bg-black hover:border-black transition-all duration-300 active:scale-95"
+                  className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:border-green-500 hover:bg-green-50 transition-all duration-300 active:scale-95"
               >
                   <div className="w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform border border-green-100">
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   </div>
-                  <div className="font-bold text-xl text-gray-900 group-hover:text-white whitespace-pre-line">{t.selfService.payment.confirmYes}</div>
+                  <div className="font-bold text-xl text-gray-900 group-hover:text-green-800 whitespace-pre-line">{t.selfService.payment.confirmYes}</div>
               </button>
 
               <button
                   onClick={() => setStep('payDetails')}
-                  className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:bg-black hover:border-black transition-all duration-300 active:scale-95"
+                  className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:border-red-500 hover:bg-red-50 transition-all duration-300 active:scale-95"
               >
                    <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform border border-red-100">
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                    </div>
-                   <div className="font-bold text-xl text-gray-900 group-hover:text-white whitespace-pre-line">{t.selfService.payment.confirmNo}</div>
+                   <div className="font-bold text-xl text-gray-900 group-hover:text-red-800 whitespace-pre-line">{t.selfService.payment.confirmNo}</div>
               </button>
           </div>
       </div>
@@ -625,21 +625,21 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
           <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl">
               <button
                   onClick={() => setStep('format')} 
-                  className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:bg-black hover:border-black transition-all duration-300 active:scale-95"
+                  className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:border-green-500 hover:bg-green-50 transition-all duration-300 active:scale-95"
               >
                    <div className="w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform border border-green-100">
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   </div>
-                  <div className="font-bold text-xl text-gray-900 group-hover:text-white whitespace-pre-line">{t.selfService.letter.addressCheckYes}</div>
+                  <div className="font-bold text-xl text-gray-900 group-hover:text-green-800 whitespace-pre-line">{t.selfService.letter.addressCheckYes}</div>
               </button>
               <button
                   onClick={() => setStep('address')}
-                  className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:bg-black hover:border-black transition-all duration-300 active:scale-95"
+                  className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:border-red-500 hover:bg-red-50 transition-all duration-300 active:scale-95"
               >
                   <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform border border-red-100">
                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                   </div>
-                  <div className="font-bold text-xl text-gray-900 group-hover:text-white whitespace-pre-line">{t.selfService.letter.addressCheckNo}</div>
+                  <div className="font-bold text-xl text-gray-900 group-hover:text-red-800 whitespace-pre-line">{t.selfService.letter.addressCheckNo}</div>
               </button>
           </div>
       </div>
@@ -652,7 +652,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
               <button
                   onClick={() => { setLetterFormat('small'); setStep('options'); }}
                   className={`flex-1 rounded-2xl p-8 shadow-sm transition-all active:scale-95 flex flex-col items-center gap-4 border-2 group relative overflow-hidden
-                    ${letterFormat === 'small' ? 'bg-black border-black text-white' : 'bg-white border-gray-200 hover:border-black hover:bg-gray-50'}`}
+                    ${letterFormat === 'small' ? 'bg-black border-black text-white' : 'bg-white border-gray-200 hover:border-green-500 hover:bg-green-50'}`}
               >
                   {letterFormat === 'small' && (
                     <div className="absolute top-4 right-4 bg-white rounded-full p-1 text-green-600 shadow-sm">
@@ -660,7 +660,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                     </div>
                   )}
                   <div className="text-left w-full">
-                       <span className={`block font-bold text-xl mb-2 ${letterFormat === 'small' ? 'text-white' : 'text-gray-900'}`}>{t.selfService.letter.formatSmall}</span>
+                       <span className={`block font-bold text-xl mb-2 ${letterFormat === 'small' ? 'text-white' : 'text-gray-900 group-hover:text-green-800'}`}>{t.selfService.letter.formatSmall}</span>
                        <span className={`block text-sm ${letterFormat === 'small' ? 'text-gray-400' : 'text-gray-500'}`}>{t.selfService.letter.formatSmallDesc}</span>
                   </div>
               </button>
@@ -668,7 +668,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
               <button
                   onClick={() => { setLetterFormat('big'); setStep('options'); }}
                   className={`flex-1 rounded-2xl p-8 shadow-sm transition-all active:scale-95 flex flex-col items-center gap-4 border-2 group relative overflow-hidden
-                    ${letterFormat === 'big' ? 'bg-black border-black text-white' : 'bg-white border-gray-200 hover:border-black hover:bg-gray-50'}`}
+                    ${letterFormat === 'big' ? 'bg-black border-black text-white' : 'bg-white border-gray-200 hover:border-green-500 hover:bg-green-50'}`}
               >
                    {letterFormat === 'big' && (
                      <div className="absolute top-4 right-4 bg-white rounded-full p-1 text-green-600 shadow-sm">
@@ -676,7 +676,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                     </div>
                    )}
                    <div className="text-left w-full">
-                       <span className={`block font-bold text-xl mb-2 ${letterFormat === 'big' ? 'text-white' : 'text-gray-900'}`}>{t.selfService.letter.formatBig}</span>
+                       <span className={`block font-bold text-xl mb-2 ${letterFormat === 'big' ? 'text-white' : 'text-gray-900 group-hover:text-green-800'}`}>{t.selfService.letter.formatBig}</span>
                        <span className={`block text-sm ${letterFormat === 'big' ? 'text-gray-400' : 'text-gray-500'}`}>{t.selfService.letter.formatBigDesc}</span>
                   </div>
               </button>
@@ -858,15 +858,15 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
                       <h3 className="font-bold text-gray-900 mb-3 text-sm uppercase tracking-wider">{t.selfService.franking.extras}</h3>
                       <button 
                         onClick={() => setHasSignature(!hasSignature)}
-                        className={`flex items-center justify-between w-full p-4 rounded-xl border-2 transition-all ${hasSignature ? 'border-black bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'}`}
+                        className={`flex items-center justify-between w-full p-4 rounded-xl border-2 transition-all ${hasSignature ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'}`}
                       >
                          <div className="flex items-center gap-4">
-                            <div className={`w-6 h-6 rounded flex items-center justify-center transition-colors border ${hasSignature ? 'bg-white border-white text-green-600' : 'border-gray-300 bg-white'}`}>
-                               {hasSignature && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                            <div className={`w-6 h-6 rounded flex items-center justify-center transition-colors border ${hasSignature ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 bg-white text-transparent'}`}>
+                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                             </div>
-                            <span className="font-bold text-lg">{t.selfService.franking.signature}</span>
+                            <span className={`font-bold text-lg ${hasSignature ? 'text-green-900' : 'text-gray-900'}`}>{t.selfService.franking.signature}</span>
                          </div>
-                         <span className="font-medium">CHF 1.50</span>
+                         <span className={`font-medium ${hasSignature ? 'text-green-700' : 'text-gray-900'}`}>CHF 1.50</span>
                       </button>
                   </div>
               )}

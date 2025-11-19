@@ -99,8 +99,8 @@ export const useLiveGemini = ({
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } }
           },
-          inputAudioTranscription: {},
-          outputAudioTranscription: {},
+          inputAudioTranscription: { model: "gemini-2.0-flash-exp" },
+          outputAudioTranscription: { model: "gemini-2.0-flash-exp" },
         },
         callbacks: {
             onopen: async () => {
@@ -119,7 +119,7 @@ export const useLiveGemini = ({
                       sessionPromise.then(session => {
                           session.sendRealtimeInput({
                               media: {
-                                mimeType: "audio/pcm", // Strictly use audio/pcm
+                                mimeType: "audio/pcm;rate=16000", // Explicit sample rate required for stability
                                 data: base64
                               }
                           });
@@ -140,6 +140,7 @@ export const useLiveGemini = ({
                             const audioBuffer = base64ToArrayBuffer(part.inlineData.data);
                             playerRef.current?.addChunk(audioBuffer);
                             setIsSpeaking(true);
+                            // Simple debounce for visualizer
                             setTimeout(() => setIsSpeaking(false), 2000);
                         }
                     }
