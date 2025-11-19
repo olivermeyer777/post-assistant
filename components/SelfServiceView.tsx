@@ -453,7 +453,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
       </button>
 
       <div className="w-full max-w-lg bg-gray-50 border-2 border-gray-100 rounded-2xl p-6 opacity-70 flex items-center gap-4 cursor-not-allowed">
-         <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-400">
+         <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                <circle cx="12" cy="12" r="10"/>
                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
@@ -888,27 +888,42 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <button 
                onClick={() => setLetterExtras(p => ({...p, registered: !p.registered}))}
-               className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all cursor-pointer
+               className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all cursor-pointer relative overflow-hidden
                   ${letterExtras.registered ? 'bg-black border-black text-white scale-[1.02] shadow-lg' : 'bg-white border-gray-200 text-gray-900 hover:border-black hover:bg-gray-50'}`}
             >
+               {letterExtras.registered && (
+                   <div className="absolute top-3 right-3 bg-white rounded-full p-0.5 text-green-600 shadow-sm">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                   </div>
+               )}
                <span className="font-bold text-xl">{t.selfService.letter.extraRegistered}</span>
                <span className={`text-sm font-medium ${letterExtras.registered ? 'text-gray-400' : 'text-gray-500'}`}>CHF 5.30</span>
             </button>
 
             <button 
                onClick={() => setLetterExtras(p => ({...p, prepaid: !p.prepaid}))}
-               className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all cursor-pointer
+               className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all cursor-pointer relative overflow-hidden
                   ${letterExtras.prepaid ? 'bg-black border-black text-white scale-[1.02] shadow-lg' : 'bg-white border-gray-200 text-gray-900 hover:border-black hover:bg-gray-50'}`}
             >
+               {letterExtras.prepaid && (
+                   <div className="absolute top-3 right-3 bg-white rounded-full p-0.5 text-green-600 shadow-sm">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                   </div>
+               )}
                <span className="font-bold text-xl">{t.selfService.letter.extraPrepaid}</span>
                <span className={`text-sm font-medium ${letterExtras.prepaid ? 'text-gray-400' : 'text-gray-500'}`}>CHF 1.50</span>
             </button>
 
              <button 
                onClick={() => setLetterExtras(p => ({...p, formatSurcharge: !p.formatSurcharge}))}
-               className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all cursor-pointer
+               className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all cursor-pointer relative overflow-hidden
                   ${letterExtras.formatSurcharge ? 'bg-black border-black text-white scale-[1.02] shadow-lg' : 'bg-white border-gray-200 text-gray-900 hover:border-black hover:bg-gray-50'}`}
             >
+               {letterExtras.formatSurcharge && (
+                   <div className="absolute top-3 right-3 bg-white rounded-full p-0.5 text-green-600 shadow-sm">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                   </div>
+               )}
                <span className="font-bold text-xl">{t.selfService.letter.extraFormat}</span>
                <span className={`text-sm font-medium ${letterExtras.formatSurcharge ? 'text-gray-400' : 'text-gray-500'}`}>CHF 2.00</span>
             </button>

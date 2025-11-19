@@ -83,7 +83,7 @@ export const useLiveGemini = ({
 
     try {
       const sessionPromise = genAI.live.connect({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
         config: {
           tools: navigationTools,
           systemInstruction: `You are the voice interface for the "Swiss Post Assistant". 
@@ -99,8 +99,9 @@ export const useLiveGemini = ({
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } }
           },
-          inputAudioTranscription: { model: "gemini-2.0-flash-exp" },
-          outputAudioTranscription: { model: "gemini-2.0-flash-exp" },
+          // Enable transcription with empty objects (default model)
+          inputAudioTranscription: {}, 
+          outputAudioTranscription: {},
         },
         callbacks: {
             onopen: async () => {
@@ -119,7 +120,7 @@ export const useLiveGemini = ({
                       sessionPromise.then(session => {
                           session.sendRealtimeInput({
                               media: {
-                                mimeType: "audio/pcm;rate=16000", // Explicit sample rate required for stability
+                                mimeType: "audio/pcm;rate=16000",
                                 data: base64
                               }
                           });
