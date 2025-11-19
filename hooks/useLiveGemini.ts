@@ -4,16 +4,17 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import { AudioRecorder, AudioStreamPlayer, arrayBufferToBase64, base64ToArrayBuffer } from '../utils/audioStreamer';
 import { Language } from '../types';
 
-const SYSTEM_INSTRUCTION = `
-You are the specific voice assistant for Swiss Post.
-Your interaction MUST start with a specific greeting.
-
-RULES:
-1. When the session starts or you hear the first sound, you MUST say exactly: "How can I assist you?"
-2. Wait for the user to respond.
-3. Keep answers concise (max 2 sentences) and helpful.
-4. Speak in English.
-`;
+const getSystemInstruction = (lang: Language) => {
+  const instructions: Record<Language, string> = {
+    de: 'Du bist der Sprachassistent der Schweizer Post. Begrüsse den Nutzer kurz auf Deutsch: "Grüezi! Wie kann ich helfen?" Halte Antworten kurz (max 2 Sätze).',
+    fr: 'Vous êtes l\'assistant vocal de la Poste Suisse. Saluez brièvement l\'utilisateur en français : "Bonjour ! Comment puis-je vous aider ?" Gardez les réponses courtes.',
+    it: 'Sei l\'assistente vocale della Posta Svizzera. Saluta brevemente l\'utente in italiano: "Buongiorno! Come posso aiutare?" Mantieni le risposte brevi.',
+    en: 'You are the voice assistant for Swiss Post. Greet the user briefly: "Hello! How can I assist you?" Keep answers short (max 2 sentences).',
+    es: 'Eres el asistente de voz de Correos Suiza. Saluda brevemente al usuario en español: "¡Hola! ¿Cómo puedo ayudarle?" Mantén las respuestas cortas.',
+    pt: 'É o assistente de voz dos Correios Suíços. Cumprimente brevemente o utilizador em português: "Olá! Como posso ajudar?" Mantenha as respostas curtas.'
+  };
+  return instructions[lang] || instructions['de'];
+};
 
 interface UseLiveGeminiProps {
   onNavigateOracle: () => void;
@@ -52,12 +53,14 @@ export const useLiveGemini = ({
     
     // Initialize Player immediately to capture user gesture for Autoplay policy
     playerRef.current = new AudioStreamPlayer();
+    // Explicitly resume audio context on user click to prevent "silent" playback
+    await playerRef.current.resume();
 
     try {
       const sessionPromise = genAI.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-09-2025',
         config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
+          systemInstruction: getSystemInstruction(language),
           responseModalities: [Modality.AUDIO], 
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } }
@@ -69,12 +72,16 @@ export const useLiveGemini = ({
                 setIsConnected(true);
                 handlersRef.current.onConnect();
                 
+                // Session is established. 
+                // We removed the session.send() call as it caused runtime errors in this SDK version.
+                // The bot is now ready to receive audio.
+                
                 // Start Microphone
                 try {
                   recorderRef.current = new AudioRecorder((pcmData) => {
                       const base64 = arrayBufferToBase64(pcmData);
-                      sessionPromise.then(session => {
-                          session.sendRealtimeInput({
+                      sessionPromise.then(sess => {
+                          sess.sendRealtimeInput({
                               media: {
                                 mimeType: "audio/pcm;rate=16000",
                                 data: base64

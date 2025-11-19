@@ -172,11 +172,13 @@ const App: React.FC = () => {
   };
 
   // --- Voice Hook Integration ---
-  const { isConnected, isSpeaking, connect, disconnect, error: liveError } = useLiveGemini({
+  const { isConnected, isSpeaking: isAgentSpeaking, connect, disconnect, error: liveError } = useLiveGemini({
     onConnect: () => {
       cancelTTS();
-      // Note: For the "Agentic" mode, we might not want to open the text chat automatically
-      // if the user is using the voice-only bubble, but keeping it minimized updates the state nicely.
+      // Use local TTS to greet the user immediately. 
+      // This bridges the silence since we can't easily force Gemini to speak first without a user turn in some SDK versions.
+      speak(t.ui.welcomeChat, currentLang);
+
       setIsChatOpen(true);
       setIsChatMinimized(true); 
       setGlobalError(null);
@@ -378,7 +380,7 @@ const App: React.FC = () => {
       {/* Agentic Voice Control - Global Floating */}
       <VoiceControl 
           isConnected={isConnected}
-          isSpeaking={isSpeaking}
+          isSpeaking={isAgentSpeaking}
           onToggle={handleVoiceToggle}
           isVideoCallActive={isVideoCallActive}
       />

@@ -1,3 +1,4 @@
+
 export class AudioRecorder {
   stream: MediaStream | null = null;
   audioContext: AudioContext | null = null;
@@ -87,6 +88,12 @@ export class AudioStreamPlayer {
     this.gainNode = this.audioContext.createGain();
     this.gainNode.gain.value = 1.2; // Boost volume slightly
     this.gainNode.connect(this.audioContext.destination);
+  }
+
+  async resume() {
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+    }
   }
 
   async addChunk(data: ArrayBuffer) {
