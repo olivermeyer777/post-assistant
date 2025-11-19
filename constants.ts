@@ -1,6 +1,10 @@
 
 import { TranslationData, Language } from './types';
 
+const DE_FR_DEFAULTS = {
+  // Reused logic for brevity in this snippet, full expansion below
+};
+
 export const TRANSLATIONS: Record<Language, TranslationData> = {
   de: {
     topTitle: "PostAssistant",
@@ -17,9 +21,9 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         btnText: "Assistent starten",
       },
       self: {
-        title: "Self-Service",
-        desc: "Erledige deine Postgeschäfte direkt online: Sendungsverfolgung, Umzug und mehr.",
-        btnText: "Zu den Services",
+        title: "Paket frankieren",
+        desc: "Erledige deine Postgeschäfte direkt online: Paket aufgeben, Sendungsverfolgung und mehr.",
+        btnText: "Paket aufgeben",
       },
       video: {
         title: "Video-Beratung",
@@ -30,11 +34,66 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
     ui: {
       back: "Zurück",
       next: "Weiter",
+      confirm: "Bestätigen",
+      cancel: "Abbrechen",
+      finish: "Abschliessen",
       thinking: "Ich denke nach…",
       welcomeChat: "Grüezi! Ich bin dein PostAssistant. Wie kann ich dir heute helfen?",
       errorGeneric: "Es ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
       errorMicrophone: "Mikrofonzugriff fehlgeschlagen. Bitte überprüfen Sie die Berechtigungen.",
-      retry: "Erneut versuchen"
+      retry: "Erneut versuchen",
+      pay: "Bezahlen"
+    },
+    selfService: {
+      title: "Paket frankieren",
+      steps: {
+        start: "Start",
+        weigh: "Wiegen",
+        address: "Adresse",
+        options: "Versandart",
+        pay: "Bezahlung",
+        done: "Abschluss"
+      },
+      franking: {
+        destCH: "Schweiz / Liechtenstein",
+        destInt: "Ausland",
+        destIntNote: "Versenden ins Ausland ist hier nicht möglich. Bitte wenden Sie sich an den Schalter.",
+        weighIntro: "Legen Sie Ihr Paket auf die Waage um zu starten.",
+        weighAction: "Paket wiegen",
+        weighing: "Paket wird analysiert...",
+        detectedLabel: "Gewicht und Masse Ihres Pakets erkannt",
+        weight: "Gewicht",
+        length: "Länge",
+        width: "Breite",
+        height: "Höhe",
+        addressSender: "Absender",
+        addressReceiver: "Empfänger erfassen",
+        isCompany: "Firma",
+        isPrivate: "Privatperson",
+        fields: {
+          name: "Name, Vorname",
+          street: "Strasse, Nr.",
+          zip: "PLZ",
+          city: "Ort"
+        },
+        shippingMethod: "Versandart auswählen",
+        economy: "PostPac Economy",
+        priority: "PostPac Priority",
+        duration2days: "2 Werktage",
+        duration1day: "Nächster Werktag",
+        extras: "Zusatzleistung hinzufügen",
+        signature: "Signatur",
+        total: "Total",
+        payTerminal: "Bitte nutzen Sie zur Zahlung das Kartenterminal.",
+        payInstruction: "Zahlung mit Bargeld und TWINT nicht möglich",
+        payButton: "Zahlung bestätigen",
+        successTitle: "Zahlung erfolgreich",
+        instruction1: "Etikette aus dem Drucker nehmen.",
+        instruction2: "Aufs Paket kleben (gut sichtbar).",
+        instruction3: "Beim Paketeinwurf aufgeben.",
+        feedbackTitle: "Wie zufrieden sind Sie mit Ihrer Erfahrung?",
+        feedbackThanks: "Danke für Ihren Besuch!"
+      }
     }
   },
   fr: {
@@ -52,9 +111,9 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         btnText: "Démarrer l'assistant",
       },
       self: {
-        title: "Self-Service",
-        desc: "Gérez vos affaires postales en ligne : suivi des envois, déménagement et plus.",
-        btnText: "Vers les services",
+        title: "Affranchir un colis",
+        desc: "Gérez vos affaires postales en ligne : affranchissement, suivi et plus.",
+        btnText: "Affranchir",
       },
       video: {
         title: "Conseil vidéo",
@@ -65,11 +124,66 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
     ui: {
       back: "Retour",
       next: "Suivant",
+      confirm: "Confirmer",
+      cancel: "Annuler",
+      finish: "Terminer",
       thinking: "Je réfléchis…",
       welcomeChat: "Bonjour ! Je suis votre PostAssistant. Comment puis-je vous aider aujourd'hui ?",
       errorGeneric: "Une erreur s'est produite. Veuillez réessayer plus tard.",
       errorMicrophone: "L'accès au microphone a échoué. Veuillez vérifier les autorisations.",
-      retry: "Réessayer"
+      retry: "Réessayer",
+      pay: "Payer"
+    },
+    selfService: {
+      title: "Affranchir un colis",
+      steps: {
+        start: "Départ",
+        weigh: "Peser",
+        address: "Adresse",
+        options: "Expédition",
+        pay: "Paiement",
+        done: "Fin"
+      },
+      franking: {
+        destCH: "Suisse / Liechtenstein",
+        destInt: "Étranger",
+        destIntNote: "L'envoi à l'étranger n'est pas possible ici. Veuillez vous adresser au guichet.",
+        weighIntro: "Placez votre colis sur la balance pour commencer.",
+        weighAction: "Peser le colis",
+        weighing: "Analyse du colis...",
+        detectedLabel: "Poids et dimensions détectés",
+        weight: "Poids",
+        length: "Longueur",
+        width: "Largeur",
+        height: "Hauteur",
+        addressSender: "Expéditeur",
+        addressReceiver: "Saisir le destinataire",
+        isCompany: "Entreprise",
+        isPrivate: "Particulier",
+        fields: {
+          name: "Nom, Prénom",
+          street: "Rue, N°",
+          zip: "NPA",
+          city: "Lieu"
+        },
+        shippingMethod: "Choisir le mode d'expédition",
+        economy: "PostPac Economy",
+        priority: "PostPac Priority",
+        duration2days: "2 jours ouvrables",
+        duration1day: "Prochain jour ouvrable",
+        extras: "Ajouter des prestations complémentaires",
+        signature: "Signature",
+        total: "Total",
+        payTerminal: "Veuillez utiliser le terminal de carte pour le paiement.",
+        payInstruction: "Paiement en espèces et TWINT impossible",
+        payButton: "Confirmer le paiement",
+        successTitle: "Paiement réussi",
+        instruction1: "Prendre l'étiquette de l'imprimante.",
+        instruction2: "Coller sur le colis (bien visible).",
+        instruction3: "Déposer dans la boîte à colis.",
+        feedbackTitle: "Êtes-vous satisfait de votre expérience ?",
+        feedbackThanks: "Merci de votre visite !"
+      }
     }
   },
   it: {
@@ -87,9 +201,9 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         btnText: "Avvia assistente",
       },
       self: {
-        title: "Self-Service",
-        desc: "Sbriga le tue operazioni postali online: tracciamento, trasloco e altro.",
-        btnText: "Ai servizi",
+        title: "Affrancare pacco",
+        desc: "Sbriga le tue operazioni postali online: affrancatura, tracciamento e altro.",
+        btnText: "Affrancare",
       },
       video: {
         title: "Consulenza video",
@@ -100,11 +214,66 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
     ui: {
       back: "Indietro",
       next: "Avanti",
+      confirm: "Conferma",
+      cancel: "Annulla",
+      finish: "Finito",
       thinking: "Sto pensando…",
       welcomeChat: "Buongiorno! Sono il tuo PostAssistant. Come posso aiutarti oggi?",
       errorGeneric: "Si è verificato un errore. Riprova più tardi.",
       errorMicrophone: "Accesso al microfono fallito. Controlla le autorizzazioni.",
-      retry: "Riprova"
+      retry: "Riprova",
+      pay: "Pagare"
+    },
+    selfService: {
+      title: "Affrancare pacco",
+      steps: {
+        start: "Inizio",
+        weigh: "Pesare",
+        address: "Indirizzo",
+        options: "Spedizione",
+        pay: "Pagamento",
+        done: "Fine"
+      },
+      franking: {
+        destCH: "Svizzera / Liechtenstein",
+        destInt: "Estero",
+        destIntNote: "La spedizione all'estero non è possibile qui. Rivolgersi allo sportello.",
+        weighIntro: "Posiziona il pacco sulla bilancia per iniziare.",
+        weighAction: "Pesare pacco",
+        weighing: "Analisi del pacco...",
+        detectedLabel: "Peso e dimensioni rilevati",
+        weight: "Peso",
+        length: "Lunghezza",
+        width: "Larghezza",
+        height: "Altezza",
+        addressSender: "Mittente",
+        addressReceiver: "Inserire destinatario",
+        isCompany: "Ditta",
+        isPrivate: "Privato",
+        fields: {
+          name: "Cognome, Nome",
+          street: "Via, N.",
+          zip: "NPA",
+          city: "Luogo"
+        },
+        shippingMethod: "Scegliere modalità di spedizione",
+        economy: "PostPac Economy",
+        priority: "PostPac Priority",
+        duration2days: "2 giorni lavorativi",
+        duration1day: "Giorno successivo",
+        extras: "Aggiungere prestazioni supplementari",
+        signature: "Firma",
+        total: "Totale",
+        payTerminal: "Utilizzare il terminale carte per il pagamento.",
+        payInstruction: "Pagamento in contanti e TWINT non possibile",
+        payButton: "Confermare pagamento",
+        successTitle: "Pagamento riuscito",
+        instruction1: "Prendere l'etichetta dalla stampante.",
+        instruction2: "Incollare sul pacco (ben visibile).",
+        instruction3: "Imbucare nella buca pacchi.",
+        feedbackTitle: "Quanto sei soddisfatto della tua esperienza?",
+        feedbackThanks: "Grazie per la visita!"
+      }
     }
   },
   en: {
@@ -122,9 +291,9 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         btnText: "Start Assistant",
       },
       self: {
-        title: "Self-Service",
-        desc: "Manage your postal services online: track & trace, change of address, and more.",
-        btnText: "Go to Services",
+        title: "Frank a package",
+        desc: "Manage your postal services online: franking, track & trace, and more.",
+        btnText: "Start Franking",
       },
       video: {
         title: "Video Advice",
@@ -135,11 +304,66 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
     ui: {
       back: "Back",
       next: "Next",
+      confirm: "Confirm",
+      cancel: "Cancel",
+      finish: "Finish",
       thinking: "Thinking…",
       welcomeChat: "Hello! I am your PostAssistant. How can I help you today?",
       errorGeneric: "An error occurred. Please try again later.",
       errorMicrophone: "Microphone access failed. Please check permissions.",
-      retry: "Retry"
+      retry: "Retry",
+      pay: "Pay"
+    },
+    selfService: {
+      title: "Frank a package",
+      steps: {
+        start: "Start",
+        weigh: "Weigh",
+        address: "Address",
+        options: "Shipping",
+        pay: "Payment",
+        done: "Done"
+      },
+      franking: {
+        destCH: "Switzerland / Liechtenstein",
+        destInt: "International",
+        destIntNote: "International shipping is not available here. Please go to the counter.",
+        weighIntro: "Place your package on the scale to start.",
+        weighAction: "Weigh Package",
+        weighing: "Analyzing package...",
+        detectedLabel: "Weight and dimensions detected",
+        weight: "Weight",
+        length: "Length",
+        width: "Width",
+        height: "Height",
+        addressSender: "Sender",
+        addressReceiver: "Enter Receiver",
+        isCompany: "Company",
+        isPrivate: "Private Person",
+        fields: {
+          name: "Name, First Name",
+          street: "Street, No.",
+          zip: "ZIP",
+          city: "City"
+        },
+        shippingMethod: "Select Shipping Method",
+        economy: "PostPac Economy",
+        priority: "PostPac Priority",
+        duration2days: "2 working days",
+        duration1day: "Next working day",
+        extras: "Add Extra Services",
+        signature: "Signature",
+        total: "Total",
+        payTerminal: "Please use the card terminal for payment.",
+        payInstruction: "Cash and TWINT payments not possible",
+        payButton: "Confirm Payment",
+        successTitle: "Payment Successful",
+        instruction1: "Take label from printer.",
+        instruction2: "Stick on package (clearly visible).",
+        instruction3: "Drop off at package chute.",
+        feedbackTitle: "How satisfied are you with your experience?",
+        feedbackThanks: "Thanks for your visit!"
+      }
     }
   },
   es: {
@@ -157,9 +381,9 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         btnText: "Iniciar asistente",
       },
       self: {
-        title: "Autoservicio",
-        desc: "Gestiona tus servicios postales en línea: seguimiento, mudanza y más.",
-        btnText: "Ir a servicios",
+        title: "Franquear paquete",
+        desc: "Gestiona tus servicios postales en línea: franqueo, seguimiento y más.",
+        btnText: "Franquear",
       },
       video: {
         title: "Asesoramiento por vídeo",
@@ -170,11 +394,66 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
     ui: {
       back: "Atrás",
       next: "Siguiente",
+      confirm: "Confirmar",
+      cancel: "Cancelar",
+      finish: "Finalizar",
       thinking: "Pensando…",
       welcomeChat: "¡Hola! Soy tu PostAssistant. ¿Cómo puedo ayudarte hoy?",
       errorGeneric: "Ocurrió un error. Por favor, inténtalo de nuevo más tarde.",
       errorMicrophone: "Fallo en el acceso al micrófono. Por favor, verifica los permisos.",
-      retry: "Reintentar"
+      retry: "Reintentar",
+      pay: "Pagar"
+    },
+    selfService: {
+      title: "Franquear paquete",
+      steps: {
+        start: "Inicio",
+        weigh: "Pesar",
+        address: "Dirección",
+        options: "Envío",
+        pay: "Pago",
+        done: "Fin"
+      },
+      franking: {
+        destCH: "Suiza / Liechtenstein",
+        destInt: "Extranjero",
+        destIntNote: "El envío al extranjero no es posible aquí. Por favor, diríjase a la ventanilla.",
+        weighIntro: "Coloque su paquete en la balanza para comenzar.",
+        weighAction: "Pesar paquete",
+        weighing: "Analizando paquete...",
+        detectedLabel: "Peso y dimensiones detectados",
+        weight: "Peso",
+        length: "Longitud",
+        width: "Anchura",
+        height: "Altura",
+        addressSender: "Remitente",
+        addressReceiver: "Introducir destinatario",
+        isCompany: "Empresa",
+        isPrivate: "Persona privada",
+        fields: {
+          name: "Apellido, Nombre",
+          street: "Calle, Nº",
+          zip: "CP",
+          city: "Localidad"
+        },
+        shippingMethod: "Seleccionar método de envío",
+        economy: "PostPac Economy",
+        priority: "PostPac Priority",
+        duration2days: "2 días laborables",
+        duration1day: "Siguiente día laborable",
+        extras: "Añadir servicios adicionales",
+        signature: "Firma",
+        total: "Total",
+        payTerminal: "Por favor, utilice el terminal de tarjetas para el pago.",
+        payInstruction: "No es posible el pago en efectivo ni TWINT",
+        payButton: "Confirmar pago",
+        successTitle: "Pago exitoso",
+        instruction1: "Recoger etiqueta de la impresora.",
+        instruction2: "Pegar en el paquete (bien visible).",
+        instruction3: "Depositar en el buzón de paquetes.",
+        feedbackTitle: "¿Qué tan satisfecho está con su experiencia?",
+        feedbackThanks: "¡Gracias por su visita!"
+      }
     }
   },
   pt: {
@@ -192,9 +471,9 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         btnText: "Iniciar assistente",
       },
       self: {
-        title: "Self-Service",
-        desc: "Gerencie seus serviços postais online: rastreamento, mudança e muito mais.",
-        btnText: "Ir para serviços",
+        title: "Franquear pacote",
+        desc: "Gerencie seus serviços postais online: franquia, rastreamento e muito mais.",
+        btnText: "Franquear",
       },
       video: {
         title: "Consultoria por vídeo",
@@ -205,11 +484,66 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
     ui: {
       back: "Voltar",
       next: "Próximo",
+      confirm: "Confirmar",
+      cancel: "Cancelar",
+      finish: "Concluir",
       thinking: "Pensando…",
       welcomeChat: "Olá! Sou o seu PostAssistant. Como posso ajudar você hoje?",
       errorGeneric: "Ocorreu um erro. Por favor, tente novamente mais tarde.",
       errorMicrophone: "Falha no acesso ao microfone. Verifique as permissões.",
-      retry: "Tentar novamente"
+      retry: "Tentar novamente",
+      pay: "Pagar"
+    },
+    selfService: {
+      title: "Franquear pacote",
+      steps: {
+        start: "Início",
+        weigh: "Pesar",
+        address: "Endereço",
+        options: "Envio",
+        pay: "Pagamento",
+        done: "Fim"
+      },
+      franking: {
+        destCH: "Suíça / Liechtenstein",
+        destInt: "Estrangeiro",
+        destIntNote: "O envio para o exterior não é possível aqui. Por favor, dirija-se ao balcão.",
+        weighIntro: "Coloque seu pacote na balança para começar.",
+        weighAction: "Pesar pacote",
+        weighing: "Analisando pacote...",
+        detectedLabel: "Peso e dimensões detectados",
+        weight: "Peso",
+        length: "Comprimento",
+        width: "Largura",
+        height: "Altura",
+        addressSender: "Remetente",
+        addressReceiver: "Inserir destinatário",
+        isCompany: "Empresa",
+        isPrivate: "Pessoa privada",
+        fields: {
+          name: "Sobrenome, Nome",
+          street: "Rua, Nº",
+          zip: "CP",
+          city: "Localidade"
+        },
+        shippingMethod: "Selecionar método de envio",
+        economy: "PostPac Economy",
+        priority: "PostPac Priority",
+        duration2days: "2 dias úteis",
+        duration1day: "Próximo dia útil",
+        extras: "Adicionar serviços adicionais",
+        signature: "Assinatura",
+        total: "Total",
+        payTerminal: "Por favor, utilize o terminal de cartões para o pagamento.",
+        payInstruction: "Pagamento em dinheiro e TWINT não é possível",
+        payButton: "Confirmar pagamento",
+        successTitle: "Pagamento bem-sucedido",
+        instruction1: "Retirar etiqueta da impressora.",
+        instruction2: "Colar no pacote (bem visível).",
+        instruction3: "Depositar na caixa de pacotes.",
+        feedbackTitle: "Quão satisfeito você está com sua experiência?",
+        feedbackThanks: "Obrigado pela sua visita!"
+      }
     }
   }
 };
