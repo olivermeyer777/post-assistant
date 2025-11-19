@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI, LiveSession, Tool, Type, Modality } from "@google/genai";
+import { GoogleGenAI, Tool, Type, Modality } from "@google/genai";
 import { AudioRecorder, AudioStreamPlayer, arrayBufferToBase64, base64ToArrayBuffer } from '../utils/audioStreamer';
 import { Language } from '../types';
 
@@ -55,7 +55,7 @@ export const useLiveGemini = ({
   const [isConnected, setIsConnected] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false); // Bot is speaking
   const [error, setError] = useState<string | null>(null);
-  const sessionRef = useRef<LiveSession | null>(null);
+  const sessionRef = useRef<any>(null);
   const recorderRef = useRef<AudioRecorder | null>(null);
   const playerRef = useRef<AudioStreamPlayer | null>(null);
 
@@ -83,7 +83,7 @@ export const useLiveGemini = ({
 
     try {
       const sessionPromise = genAI.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+        model: 'gemini-2.0-flash-exp',
         config: {
           tools: navigationTools,
           systemInstruction: `You are the voice interface for the "Swiss Post Assistant". 
@@ -118,8 +118,10 @@ export const useLiveGemini = ({
                       const base64 = arrayBufferToBase64(pcmData);
                       sessionPromise.then(session => {
                           session.sendRealtimeInput({
-                              mimeType: "audio/pcm;rate=16000",
-                              data: base64
+                              media: {
+                                mimeType: "audio/pcm", // Strictly use audio/pcm
+                                data: base64
+                              }
                           });
                       });
                   });
