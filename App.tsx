@@ -14,12 +14,19 @@ import { triggerUnbluVideoCall } from './utils/unbluIntegration';
 // Helper to generate IDs
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
-// SVG Icons
+// --- ICONS ---
+
 const SwissPostLogo = () => (
   <svg width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Die Post Logo">
+    {/* Yellow Background */}
     <rect width="100" height="100" fill="#FFCC00"/>
-    <path fillRule="evenodd" clipRule="evenodd" d="M58.836 30H76.606C84.828 30 91.5 35.046 91.5 41.225C91.5 47.404 84.828 52.45 76.606 52.45H70.45V63.675H58.836V30ZM70.45 44.037H76.606C79.712 44.037 82.229 42.775 82.229 41.225C82.229 39.675 79.712 38.413 76.606 38.413H70.45V44.037Z" fill="black"/>
-    <path fillRule="evenodd" clipRule="evenodd" d="M39.152 28.597H27.539V39.821H16.5V51.045H27.539V62.27H39.152V51.045H50.191V39.821H39.152V28.597Z" fill="#FF0000"/>
+    
+    {/* Red Cross - Constructed from rectangles for pixel perfection */}
+    <rect x="15" y="42" width="30" height="16" fill="#FF0000"/>
+    <rect x="22" y="35" width="16" height="30" fill="#FF0000"/>
+    
+    {/* Black P */}
+    <path fillRule="evenodd" clipRule="evenodd" d="M55 35H72C82 35 88 40 88 47.5C88 55 82 60 72 60H65V70H55V35ZM65 52H72C76 52 78 50 78 47.5C78 45 76 43 72 43H65V52Z" fill="black"/>
   </svg>
 );
 
@@ -34,6 +41,43 @@ const VideoIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
   </svg>
 );
+
+// Button Icons
+const PacketIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+  </svg>
+);
+
+const LetterIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect width="20" height="16" x="2" y="4" rx="2"></rect>
+    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+  </svg>
+);
+
+const CreditCardIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect width="20" height="14" x="2" y="5" rx="2"></rect>
+    <line x1="2" x2="22" y1="10" y2="10"></line>
+  </svg>
+);
+
+const ChatIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
+  </svg>
+);
+
+const VideoCallIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m22 8-6 4 6 4V8Z"></path>
+    <rect width="14" height="12" x="2" y="6" rx="2" ry="2"></rect>
+  </svg>
+);
+
 
 const ErrorBanner = ({ message, onClose }: { message: string, onClose: () => void }) => (
   <div className="fixed top-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl shadow-lg z-[1000] flex items-center gap-3 animate-fade-in">
@@ -252,45 +296,37 @@ const App: React.FC = () => {
                          {/* Packet */}
                          <button 
                            onClick={() => handleSelfServiceClick('packet')}
-                           className="w-full py-4 px-6 rounded-2xl text-left font-bold text-gray-900 bg-gray-50 hover:bg-black hover:text-white transition-all flex items-center justify-between group/btn"
+                           className="w-full py-4 px-6 rounded-2xl text-left font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all flex items-center gap-4 shadow-lg group/btn"
                          >
+                           <PacketIcon />
                            <span>{t.tiles.self.btnPacket}</span>
-                           <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center group-hover/btn:bg-gray-800 opacity-0 group-hover/btn:opacity-100 transition-opacity text-black group-hover/btn:text-white">
-                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                           </div>
                          </button>
 
                          {/* Letter */}
                          <button 
                            onClick={() => handleSelfServiceClick('letter')}
-                           className="w-full py-4 px-6 rounded-2xl text-left font-bold text-gray-900 bg-gray-50 hover:bg-black hover:text-white transition-all flex items-center justify-between group/btn"
+                           className="w-full py-4 px-6 rounded-2xl text-left font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all flex items-center gap-4 shadow-lg group/btn"
                          >
+                           <LetterIcon />
                            <span>{t.tiles.self.btnLetter}</span>
-                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center group-hover/btn:bg-gray-800 opacity-0 group-hover/btn:opacity-100 transition-opacity text-black group-hover/btn:text-white">
-                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                           </div>
                          </button>
                          
                          {/* Payment */}
                          <button 
                            onClick={() => handleSelfServiceClick('payment')}
-                           className="w-full py-4 px-6 rounded-2xl text-left font-bold text-gray-900 bg-gray-50 hover:bg-black hover:text-white transition-all flex items-center justify-between group/btn"
+                           className="w-full py-4 px-6 rounded-2xl text-left font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all flex items-center gap-4 shadow-lg group/btn"
                          >
+                           <CreditCardIcon />
                            <span>{t.tiles.self.btnPayment}</span>
-                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center group-hover/btn:bg-gray-800 opacity-0 group-hover/btn:opacity-100 transition-opacity text-black group-hover/btn:text-white">
-                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                           </div>
                          </button>
 
-                         {/* Other - Now General Chat */}
+                         {/* General Chat */}
                          <button 
                            onClick={() => handleSelfServiceClick('general_chat')}
-                           className="w-full py-4 px-6 rounded-2xl text-left font-bold text-gray-900 bg-gray-50 hover:bg-black hover:text-white transition-all flex items-center justify-between group/btn"
+                           className="w-full py-4 px-6 rounded-2xl text-left font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all flex items-center gap-4 shadow-lg group/btn"
                          >
+                           <ChatIcon />
                            <span>{t.tiles.self.btnOther}</span>
-                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center group-hover/btn:bg-gray-800 opacity-0 group-hover/btn:opacity-100 transition-opacity text-black group-hover/btn:text-white">
-                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                           </div>
                          </button>
                     </div>
                   </div>
@@ -308,9 +344,9 @@ const App: React.FC = () => {
                   <p className="text-gray-500 leading-relaxed text-sm mb-8 flex-1">
                     {t.tiles.video.desc}
                   </p>
-                  <div className="inline-flex items-center justify-between px-6 py-4 text-sm font-bold text-gray-900 bg-gray-50 rounded-2xl group-hover:bg-black group-hover:text-white transition-colors w-full">
+                  <div className="w-full py-4 px-6 rounded-2xl text-center font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all shadow-lg flex items-center justify-center gap-3">
+                    <VideoCallIcon />
                     <span>{t.tiles.video.btnText}</span>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
                   </div>
                 </button>
             </section>
