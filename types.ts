@@ -5,6 +5,11 @@ export interface TileContent {
   title: string;
   desc: string;
   btnText: string;
+  // Optional buttons for the multi-action Self-Service tile
+  btnPacket?: string;
+  btnLetter?: string;
+  btnPayment?: string;
+  btnOther?: string;
 }
 
 export interface TranslationData {
@@ -35,13 +40,20 @@ export interface TranslationData {
   };
   selfService: {
     title: string;
+    titleLetter: string;
+    titlePayment: string;
+    titleChat: string; // New
     steps: {
       start: string;
       weigh: string;
       address: string;
+      format: string;
       options: string;
       pay: string;
       done: string;
+      scan: string;
+      details: string;
+      check: string;
     };
     franking: {
       destCH: string;
@@ -83,6 +95,53 @@ export interface TranslationData {
       feedbackTitle: string;
       feedbackThanks: string;
     };
+    letter: {
+      addressCheckTitle: string;
+      addressCheckQuestion: string;
+      addressCheckYes: string;
+      addressCheckNo: string;
+      formatTitle: string;
+      formatQuestion: string;
+      formatSmall: string;
+      formatSmallDesc: string;
+      formatBig: string;
+      formatBigDesc: string;
+      shippingTitle: string;
+      shippingQuestion: string;
+      bPost: string;
+      aPost: string;
+      express: string;
+      extrasTitle: string;
+      extrasQuestion: string;
+      extraRegistered: string;
+      extraPrepaid: string;
+      extraFormat: string;
+    };
+    payment: {
+      scanTitle: string;
+      scanInstruction: string;
+      scanAction: string;
+      detailsTitle: string;
+      detailsIntro: string;
+      fieldIban: string;
+      fieldAmount: string;
+      fieldRef: string;
+      receiverTitle: string;
+      confirmTitle: string;
+      confirmQuestion: string;
+      confirmYes: string;
+      confirmNo: string;
+      summaryTitle: string;
+      summaryAccount: string;
+    };
+    // New section for General Chat / Assistant
+    chat: {
+      introTitle: string;
+      introDesc: string;
+      listening: string;
+      sources: string;
+      tryAgain: string;
+    };
   }
 }
 
@@ -90,4 +149,5 @@ export interface Message {
   id: string;
   sender: 'user' | 'assistant';
   text: string;
+  sources?: Array<{ title: string; uri: string }>; // Added specifically for Grounding
 }

@@ -1,12 +1,31 @@
 
 import { TranslationData, Language } from './types';
 
-const DE_FR_DEFAULTS = {
-  // Reused logic for brevity in this snippet, full expansion below
+// Helper function to merge partial translations with defaults (Deep Merge simplified)
+const mergeTranslations = (base: TranslationData, update: any): TranslationData => {
+  // This is a simplified merge for this specific structure
+  return {
+    ...base,
+    ...update,
+    tiles: { ...base.tiles, ...update.tiles },
+    ui: { ...base.ui, ...update.ui },
+    selfService: { 
+      ...base.selfService, 
+      ...update.selfService,
+      steps: { ...base.selfService.steps, ...update.selfService?.steps },
+      franking: { 
+         ...base.selfService.franking, 
+         ...update.selfService?.franking,
+         fields: { ...base.selfService.franking.fields, ...update.selfService?.franking?.fields }
+      },
+      letter: { ...base.selfService.letter, ...update.selfService?.letter },
+      payment: { ...base.selfService.payment, ...update.selfService?.payment },
+      chat: { ...base.selfService.chat, ...update.selfService?.chat }
+    }
+  };
 };
 
-export const TRANSLATIONS: Record<Language, TranslationData> = {
-  de: {
+const DE_DEFAULTS: TranslationData = {
     topTitle: "PostAssistant",
     pageTitle: "Willkommen bei der Post",
     chatHeaderTitle: "PostAssistant Chat",
@@ -21,9 +40,13 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         btnText: "Assistent starten",
       },
       self: {
-        title: "Paket frankieren",
-        desc: "Erledige deine Postgeschäfte direkt online: Paket aufgeben, Sendungsverfolgung und mehr.",
+        title: "Self-Service Assistent",
+        desc: "Erledigen Sie ihre Postgeschäfte direkt hier im Self-Service, bei Bedarf mit Unterstützung eines digitalen Assistenten.",
         btnText: "Paket aufgeben",
+        btnPacket: "Paket aufgeben",
+        btnLetter: "Brief versenden",
+        btnPayment: "Einzahlung (mit Karte)",
+        btnOther: "Alles andere"
       },
       video: {
         title: "Video-Beratung",
@@ -46,13 +69,20 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
     },
     selfService: {
       title: "Paket frankieren",
+      titleLetter: "Brief versenden",
+      titlePayment: "Einzahlung",
+      titleChat: "Post Info",
       steps: {
         start: "Start",
         weigh: "Wiegen",
         address: "Adresse",
+        format: "Format",
         options: "Versandart",
         pay: "Bezahlung",
-        done: "Abschluss"
+        done: "Abschluss",
+        scan: "Scan",
+        details: "Details",
+        check: "Prüfung"
       },
       franking: {
         destCH: "Schweiz / Liechtenstein",
@@ -87,465 +117,144 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         payTerminal: "Bitte nutzen Sie zur Zahlung das Kartenterminal.",
         payInstruction: "Zahlung mit Bargeld und TWINT nicht möglich",
         payButton: "Zahlung bestätigen",
-        successTitle: "Zahlung erfolgreich",
-        instruction1: "Etikette aus dem Drucker nehmen.",
-        instruction2: "Aufs Paket kleben (gut sichtbar).",
-        instruction3: "Beim Paketeinwurf aufgeben.",
+        successTitle: "Vorgang erfolgreich",
+        instruction1: "Quittung entnehmen.",
+        instruction2: "Zahlungsbeleg aufbewahren.",
+        instruction3: "Vorgang abgeschlossen.",
         feedbackTitle: "Wie zufrieden sind Sie mit Ihrer Erfahrung?",
         feedbackThanks: "Danke für Ihren Besuch!"
+      },
+      letter: {
+        addressCheckTitle: "Brief Versenden - Adresse",
+        addressCheckQuestion: "Haben Sie die Adresse auf dem Brief bereits erfasst?",
+        addressCheckYes: "Ja\nAdresse ist vorhanden",
+        addressCheckNo: "Nein\nAdresse erfassen",
+        formatTitle: "Brief Versenden - Format",
+        formatQuestion: "Welches Format hat ihre Sendung?",
+        formatSmall: "Brief Normal",
+        formatSmallDesc: "25 x 17cm / bis 100g / < 2cm",
+        formatBig: "Brief Gross",
+        formatBigDesc: "35 x 25 cm / bis 1000g / < 2cm",
+        shippingTitle: "Brief Versenden - Versandart",
+        shippingQuestion: "Wie möchten Sie ihre Sendung versenden?",
+        bPost: "B-Post",
+        aPost: "A-Post",
+        express: "Express",
+        extrasTitle: "Brief Versenden - Zusatzleistungen",
+        extrasQuestion: "Bitte wählen Sie allfällige Zusatzleistungen aus (Mehrfachauswahl möglich):",
+        extraRegistered: "Einschreiben",
+        extraPrepaid: "Bereits vorfrankiert",
+        extraFormat: "Format-Zuschlag"
+      },
+      payment: {
+        scanTitle: "Einzahlen",
+        scanInstruction: "Bitte platzieren Sie den QR-Code unter der Dokumentenkamera.",
+        scanAction: "QR-Code scannen",
+        detailsTitle: "Einzahlen - Zahlungsdetails",
+        detailsIntro: "Bitte überprüfen Sie die Zahlungsdetails.",
+        fieldIban: "Konto / IBAN",
+        fieldAmount: "Betrag CHF",
+        fieldRef: "Referenz",
+        receiverTitle: "Einzahlen - Zahlungsempfänger",
+        confirmTitle: "Einzahlen - Bestätigung",
+        confirmQuestion: "Sind alle Angaben korrekt?",
+        confirmYes: "Ja\nWeiter zur Abrechnung",
+        confirmNo: "Nein\nZurück zur Eingabe",
+        summaryTitle: "Bestätigung Einzahlung",
+        summaryAccount: "auf Konto"
+      },
+      chat: {
+        introTitle: "Wie kann ich helfen?",
+        introDesc: "Tippen Sie auf das Mikrofon und stellen Sie Ihre Frage.",
+        listening: "Ich höre zu...",
+        sources: "Quellen:",
+        tryAgain: "Neue Frage stellen"
       }
     }
-  },
-  fr: {
+};
+
+// Creating translations for other languages by merging with DE defaults (simplified for prototype)
+const createTranslation = (lang: string, overrides: any = {}): TranslationData => {
+   return mergeTranslations(DE_DEFAULTS, overrides);
+};
+
+export const TRANSLATIONS: Record<Language, TranslationData> = {
+  de: DE_DEFAULTS,
+  fr: createTranslation('fr', {
     topTitle: "PostAssistant",
     pageTitle: "Bienvenue à la Poste",
-    chatHeaderTitle: "Chat PostAssistant",
-    chatPlaceholder: "Écrivez votre question…",
-    chatSendLabel: "Envoyer",
-    orakelViewTitle: "Comment pouvons-nous vous aider ?",
-    orakelViewSubtitle: "Choisissez un sujet ou décrivez votre demande.",
     tiles: {
-      orakel: {
-        title: "Assistant",
-        desc: "Posez votre question à notre assistant IA pour des réponses et solutions rapides.",
-        btnText: "Démarrer l'assistant",
-      },
       self: {
-        title: "Affranchir un colis",
-        desc: "Gérez vos affaires postales en ligne : affranchissement, suivi et plus.",
-        btnText: "Affranchir",
-      },
-      video: {
-        title: "Conseil vidéo",
-        desc: "Conseil personnalisé par appel vidéo avec nos experts.",
-        btnText: "Démarrer le conseil",
-      },
-    },
-    ui: {
-      back: "Retour",
-      next: "Suivant",
-      confirm: "Confirmer",
-      cancel: "Annuler",
-      finish: "Terminer",
-      thinking: "Je réfléchis…",
-      welcomeChat: "Bonjour ! Je suis votre PostAssistant. Comment puis-je vous aider aujourd'hui ?",
-      errorGeneric: "Une erreur s'est produite. Veuillez réessayer plus tard.",
-      errorMicrophone: "L'accès au microphone a échoué. Veuillez vérifier les autorisations.",
-      retry: "Réessayer",
-      pay: "Payer"
+        title: "Assistant Self-Service",
+        desc: "Effectuez vos opérations postales directement ici en libre-service.",
+        btnPacket: "Affranchir un colis",
+        btnLetter: "Envoyer une lettre",
+        btnPayment: "Versement (par carte)",
+        btnOther: "Tout le reste"
+      }
     },
     selfService: {
       title: "Affranchir un colis",
-      steps: {
-        start: "Départ",
-        weigh: "Peser",
-        address: "Adresse",
-        options: "Expédition",
-        pay: "Paiement",
-        done: "Fin"
-      },
-      franking: {
-        destCH: "Suisse / Liechtenstein",
-        destInt: "Étranger",
-        destIntNote: "L'envoi à l'étranger n'est pas possible ici. Veuillez vous adresser au guichet.",
-        weighIntro: "Placez votre colis sur la balance pour commencer.",
-        weighAction: "Peser le colis",
-        weighing: "Analyse du colis...",
-        detectedLabel: "Poids et dimensions détectés",
-        weight: "Poids",
-        length: "Longueur",
-        width: "Largeur",
-        height: "Hauteur",
-        addressSender: "Expéditeur",
-        addressReceiver: "Saisir le destinataire",
-        isCompany: "Entreprise",
-        isPrivate: "Particulier",
-        fields: {
-          name: "Nom, Prénom",
-          street: "Rue, N°",
-          zip: "NPA",
-          city: "Lieu"
-        },
-        shippingMethod: "Choisir le mode d'expédition",
-        economy: "PostPac Economy",
-        priority: "PostPac Priority",
-        duration2days: "2 jours ouvrables",
-        duration1day: "Prochain jour ouvrable",
-        extras: "Ajouter des prestations complémentaires",
-        signature: "Signature",
-        total: "Total",
-        payTerminal: "Veuillez utiliser le terminal de carte pour le paiement.",
-        payInstruction: "Paiement en espèces et TWINT impossible",
-        payButton: "Confirmer le paiement",
-        successTitle: "Paiement réussi",
-        instruction1: "Prendre l'étiquette de l'imprimante.",
-        instruction2: "Coller sur le colis (bien visible).",
-        instruction3: "Déposer dans la boîte à colis.",
-        feedbackTitle: "Êtes-vous satisfait de votre expérience ?",
-        feedbackThanks: "Merci de votre visite !"
+      titleLetter: "Envoyer une lettre",
+      titlePayment: "Versement",
+      titleChat: "Post Info",
+      chat: {
+        introTitle: "Comment puis-je vous aider?",
+        introDesc: "Appuyez sur le microphone et posez votre question.",
+        listening: "J'écoute...",
+        sources: "Sources:",
+        tryAgain: "Nouvelle question"
       }
     }
-  },
-  it: {
-    topTitle: "PostAssistant",
+  }),
+  it: createTranslation('it', {
     pageTitle: "Benvenuti alla Posta",
-    chatHeaderTitle: "Chat PostAssistant",
-    chatPlaceholder: "Scrivi la tua domanda…",
-    chatSendLabel: "Invia",
-    orakelViewTitle: "Come possiamo aiutarti?",
-    orakelViewSubtitle: "Scegli un argomento o descrivi la tua richiesta.",
     tiles: {
-      orakel: {
-        title: "Assistente",
-        desc: "Poni la tua domanda al nostro assistente IA per risposte e soluzioni rapide.",
-        btnText: "Avvia assistente",
-      },
-      self: {
-        title: "Affrancare pacco",
-        desc: "Sbriga le tue operazioni postali online: affrancatura, tracciamento e altro.",
-        btnText: "Affrancare",
-      },
-      video: {
-        title: "Consulenza video",
-        desc: "Consulenza personale tramite videochiamata con i nostri esperti.",
-        btnText: "Avvia consulenza",
-      },
-    },
-    ui: {
-      back: "Indietro",
-      next: "Avanti",
-      confirm: "Conferma",
-      cancel: "Annulla",
-      finish: "Finito",
-      thinking: "Sto pensando…",
-      welcomeChat: "Buongiorno! Sono il tuo PostAssistant. Come posso aiutarti oggi?",
-      errorGeneric: "Si è verificato un errore. Riprova più tardi.",
-      errorMicrophone: "Accesso al microfono fallito. Controlla le autorizzazioni.",
-      retry: "Riprova",
-      pay: "Pagare"
+       self: {
+        title: "Assistente Self-Service",
+        btnPacket: "Affrancare pacco",
+        btnLetter: "Inviare lettera",
+        btnPayment: "Versamento (con carta)",
+        btnOther: "Tutto il resto"
+       }
     },
     selfService: {
-      title: "Affrancare pacco",
-      steps: {
-        start: "Inizio",
-        weigh: "Pesare",
-        address: "Indirizzo",
-        options: "Spedizione",
-        pay: "Pagamento",
-        done: "Fine"
-      },
-      franking: {
-        destCH: "Svizzera / Liechtenstein",
-        destInt: "Estero",
-        destIntNote: "La spedizione all'estero non è possibile qui. Rivolgersi allo sportello.",
-        weighIntro: "Posiziona il pacco sulla bilancia per iniziare.",
-        weighAction: "Pesare pacco",
-        weighing: "Analisi del pacco...",
-        detectedLabel: "Peso e dimensioni rilevati",
-        weight: "Peso",
-        length: "Lunghezza",
-        width: "Larghezza",
-        height: "Altezza",
-        addressSender: "Mittente",
-        addressReceiver: "Inserire destinatario",
-        isCompany: "Ditta",
-        isPrivate: "Privato",
-        fields: {
-          name: "Cognome, Nome",
-          street: "Via, N.",
-          zip: "NPA",
-          city: "Luogo"
-        },
-        shippingMethod: "Scegliere modalità di spedizione",
-        economy: "PostPac Economy",
-        priority: "PostPac Priority",
-        duration2days: "2 giorni lavorativi",
-        duration1day: "Giorno successivo",
-        extras: "Aggiungere prestazioni supplementari",
-        signature: "Firma",
-        total: "Totale",
-        payTerminal: "Utilizzare il terminale carte per il pagamento.",
-        payInstruction: "Pagamento in contanti e TWINT non possibile",
-        payButton: "Confermare pagamento",
-        successTitle: "Pagamento riuscito",
-        instruction1: "Prendere l'etichetta dalla stampante.",
-        instruction2: "Incollare sul pacco (ben visibile).",
-        instruction3: "Imbucare nella buca pacchi.",
-        feedbackTitle: "Quanto sei soddisfatto della tua esperienza?",
-        feedbackThanks: "Grazie per la visita!"
+      titleChat: "Info Posta",
+      chat: {
+        introTitle: "Come posso aiutare?",
+        listening: "Ascolto...",
+        sources: "Fonti:",
+        tryAgain: "Nuova domanda"
       }
     }
-  },
-  en: {
-    topTitle: "PostAssistant",
+  }),
+  en: createTranslation('en', {
     pageTitle: "Welcome to Swiss Post",
-    chatHeaderTitle: "PostAssistant Chat",
-    chatPlaceholder: "Type your question…",
-    chatSendLabel: "Send",
-    orakelViewTitle: "How can we help?",
-    orakelViewSubtitle: "Choose a topic or describe your request.",
     tiles: {
-      orakel: {
-        title: "Assistant",
-        desc: "Ask our AI assistant for quick answers and solutions to your postal queries.",
-        btnText: "Start Assistant",
-      },
-      self: {
-        title: "Frank a package",
-        desc: "Manage your postal services online: franking, track & trace, and more.",
-        btnText: "Start Franking",
-      },
-      video: {
-        title: "Video Advice",
-        desc: "Personal advice via video call with our experts.",
-        btnText: "Start Advice",
-      },
-    },
-    ui: {
-      back: "Back",
-      next: "Next",
-      confirm: "Confirm",
-      cancel: "Cancel",
-      finish: "Finish",
-      thinking: "Thinking…",
-      welcomeChat: "Hello! I am your PostAssistant. How can I help you today?",
-      errorGeneric: "An error occurred. Please try again later.",
-      errorMicrophone: "Microphone access failed. Please check permissions.",
-      retry: "Retry",
-      pay: "Pay"
+       self: {
+        title: "Self-Service Assistant",
+        btnPacket: "Frank a package",
+        btnLetter: "Send letter",
+        btnPayment: "Payment (card)",
+        btnOther: "Everything else"
+       }
     },
     selfService: {
-      title: "Frank a package",
-      steps: {
-        start: "Start",
-        weigh: "Weigh",
-        address: "Address",
-        options: "Shipping",
-        pay: "Payment",
-        done: "Done"
-      },
-      franking: {
-        destCH: "Switzerland / Liechtenstein",
-        destInt: "International",
-        destIntNote: "International shipping is not available here. Please go to the counter.",
-        weighIntro: "Place your package on the scale to start.",
-        weighAction: "Weigh Package",
-        weighing: "Analyzing package...",
-        detectedLabel: "Weight and dimensions detected",
-        weight: "Weight",
-        length: "Length",
-        width: "Width",
-        height: "Height",
-        addressSender: "Sender",
-        addressReceiver: "Enter Receiver",
-        isCompany: "Company",
-        isPrivate: "Private Person",
-        fields: {
-          name: "Name, First Name",
-          street: "Street, No.",
-          zip: "ZIP",
-          city: "City"
-        },
-        shippingMethod: "Select Shipping Method",
-        economy: "PostPac Economy",
-        priority: "PostPac Priority",
-        duration2days: "2 working days",
-        duration1day: "Next working day",
-        extras: "Add Extra Services",
-        signature: "Signature",
-        total: "Total",
-        payTerminal: "Please use the card terminal for payment.",
-        payInstruction: "Cash and TWINT payments not possible",
-        payButton: "Confirm Payment",
-        successTitle: "Payment Successful",
-        instruction1: "Take label from printer.",
-        instruction2: "Stick on package (clearly visible).",
-        instruction3: "Drop off at package chute.",
-        feedbackTitle: "How satisfied are you with your experience?",
-        feedbackThanks: "Thanks for your visit!"
+       title: "Frank a package",
+       titleLetter: "Send letter",
+       titlePayment: "Payment",
+       titleChat: "Post Info",
+       chat: {
+        introTitle: "How can I help?",
+        introDesc: "Tap the microphone and ask your question.",
+        listening: "Listening...",
+        sources: "Sources:",
+        tryAgain: "Ask new question"
       }
     }
-  },
-  es: {
-    topTitle: "PostAssistant",
-    pageTitle: "Bienvenido a Correos",
-    chatHeaderTitle: "Chat PostAssistant",
-    chatPlaceholder: "Escribe tu pregunta…",
-    chatSendLabel: "Enviar",
-    orakelViewTitle: "¿Cómo podemos ayudarte?",
-    orakelViewSubtitle: "Elige un tema o describe tu solicitud.",
-    tiles: {
-      orakel: {
-        title: "Asistente",
-        desc: "Pregunta a nuestro asistente de IA para obtener respuestas y soluciones rápidas.",
-        btnText: "Iniciar asistente",
-      },
-      self: {
-        title: "Franquear paquete",
-        desc: "Gestiona tus servicios postales en línea: franqueo, seguimiento y más.",
-        btnText: "Franquear",
-      },
-      video: {
-        title: "Asesoramiento por vídeo",
-        desc: "Asesoramiento personal por videollamada con nuestros expertos.",
-        btnText: "Iniciar asesoramiento",
-      },
-    },
-    ui: {
-      back: "Atrás",
-      next: "Siguiente",
-      confirm: "Confirmar",
-      cancel: "Cancelar",
-      finish: "Finalizar",
-      thinking: "Pensando…",
-      welcomeChat: "¡Hola! Soy tu PostAssistant. ¿Cómo puedo ayudarte hoy?",
-      errorGeneric: "Ocurrió un error. Por favor, inténtalo de nuevo más tarde.",
-      errorMicrophone: "Fallo en el acceso al micrófono. Por favor, verifica los permisos.",
-      retry: "Reintentar",
-      pay: "Pagar"
-    },
-    selfService: {
-      title: "Franquear paquete",
-      steps: {
-        start: "Inicio",
-        weigh: "Pesar",
-        address: "Dirección",
-        options: "Envío",
-        pay: "Pago",
-        done: "Fin"
-      },
-      franking: {
-        destCH: "Suiza / Liechtenstein",
-        destInt: "Extranjero",
-        destIntNote: "El envío al extranjero no es posible aquí. Por favor, diríjase a la ventanilla.",
-        weighIntro: "Coloque su paquete en la balanza para comenzar.",
-        weighAction: "Pesar paquete",
-        weighing: "Analizando paquete...",
-        detectedLabel: "Peso y dimensiones detectados",
-        weight: "Peso",
-        length: "Longitud",
-        width: "Anchura",
-        height: "Altura",
-        addressSender: "Remitente",
-        addressReceiver: "Introducir destinatario",
-        isCompany: "Empresa",
-        isPrivate: "Persona privada",
-        fields: {
-          name: "Apellido, Nombre",
-          street: "Calle, Nº",
-          zip: "CP",
-          city: "Localidad"
-        },
-        shippingMethod: "Seleccionar método de envío",
-        economy: "PostPac Economy",
-        priority: "PostPac Priority",
-        duration2days: "2 días laborables",
-        duration1day: "Siguiente día laborable",
-        extras: "Añadir servicios adicionales",
-        signature: "Firma",
-        total: "Total",
-        payTerminal: "Por favor, utilice el terminal de tarjetas para el pago.",
-        payInstruction: "No es posible el pago en efectivo ni TWINT",
-        payButton: "Confirmar pago",
-        successTitle: "Pago exitoso",
-        instruction1: "Recoger etiqueta de la impresora.",
-        instruction2: "Pegar en el paquete (bien visible).",
-        instruction3: "Depositar en el buzón de paquetes.",
-        feedbackTitle: "¿Qué tan satisfecho está con su experiencia?",
-        feedbackThanks: "¡Gracias por su visita!"
-      }
-    }
-  },
-  pt: {
-    topTitle: "PostAssistant",
-    pageTitle: "Bem-vindo aos Correios",
-    chatHeaderTitle: "Chat PostAssistant",
-    chatPlaceholder: "Escreva a sua pergunta…",
-    chatSendLabel: "Enviar",
-    orakelViewTitle: "Como podemos ajudar?",
-    orakelViewSubtitle: "Escolha um tópico ou descreva o seu pedido.",
-    tiles: {
-      orakel: {
-        title: "Assistente",
-        desc: "Pergunte ao nosso assistente de IA para respostas rápidas e soluções.",
-        btnText: "Iniciar assistente",
-      },
-      self: {
-        title: "Franquear pacote",
-        desc: "Gerencie seus serviços postais online: franquia, rastreamento e muito mais.",
-        btnText: "Franquear",
-      },
-      video: {
-        title: "Consultoria por vídeo",
-        desc: "Aconselhamento pessoal por videochamada com nossos especialistas.",
-        btnText: "Iniciar consultoria",
-      },
-    },
-    ui: {
-      back: "Voltar",
-      next: "Próximo",
-      confirm: "Confirmar",
-      cancel: "Cancelar",
-      finish: "Concluir",
-      thinking: "Pensando…",
-      welcomeChat: "Olá! Sou o seu PostAssistant. Como posso ajudar você hoje?",
-      errorGeneric: "Ocorreu um erro. Por favor, tente novamente mais tarde.",
-      errorMicrophone: "Falha no acesso ao microfone. Verifique as permissões.",
-      retry: "Tentar novamente",
-      pay: "Pagar"
-    },
-    selfService: {
-      title: "Franquear pacote",
-      steps: {
-        start: "Início",
-        weigh: "Pesar",
-        address: "Endereço",
-        options: "Envio",
-        pay: "Pagamento",
-        done: "Fim"
-      },
-      franking: {
-        destCH: "Suíça / Liechtenstein",
-        destInt: "Estrangeiro",
-        destIntNote: "O envio para o exterior não é possível aqui. Por favor, dirija-se ao balcão.",
-        weighIntro: "Coloque seu pacote na balança para começar.",
-        weighAction: "Pesar pacote",
-        weighing: "Analisando pacote...",
-        detectedLabel: "Peso e dimensões detectados",
-        weight: "Peso",
-        length: "Comprimento",
-        width: "Largura",
-        height: "Altura",
-        addressSender: "Remetente",
-        addressReceiver: "Inserir destinatário",
-        isCompany: "Empresa",
-        isPrivate: "Pessoa privada",
-        fields: {
-          name: "Sobrenome, Nome",
-          street: "Rua, Nº",
-          zip: "CP",
-          city: "Localidade"
-        },
-        shippingMethod: "Selecionar método de envio",
-        economy: "PostPac Economy",
-        priority: "PostPac Priority",
-        duration2days: "2 dias úteis",
-        duration1day: "Próximo dia útil",
-        extras: "Adicionar serviços adicionais",
-        signature: "Assinatura",
-        total: "Total",
-        payTerminal: "Por favor, utilize o terminal de cartões para o pagamento.",
-        payInstruction: "Pagamento em dinheiro e TWINT não é possível",
-        payButton: "Confirmar pagamento",
-        successTitle: "Pagamento bem-sucedido",
-        instruction1: "Retirar etiqueta da impressora.",
-        instruction2: "Colar no pacote (bem visível).",
-        instruction3: "Depositar na caixa de pacotes.",
-        feedbackTitle: "Quão satisfeito você está com sua experiência?",
-        feedbackThanks: "Obrigado pela sua visita!"
-      }
-    }
-  }
+  }),
+  es: createTranslation('es', {}),
+  pt: createTranslation('pt', {})
 };
 
 export const LANGUAGES: { code: Language; label: string }[] = [

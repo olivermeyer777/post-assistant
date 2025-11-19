@@ -16,19 +16,10 @@ const generateId = () => Math.random().toString(36).substring(2, 9);
 
 // SVG Icons
 const SwissPostLogo = () => (
-  <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Die Post Logo">
-    <title>Die Post</title>
+  <svg width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Die Post Logo">
     <rect width="100" height="100" fill="#FFCC00"/>
-    {/* Red Cross */}
-    <path d="M44 39V27H32V39H20V51H32V63H44V51H56V39H44Z" fill="#FF0000"/>
-    {/* Black P */}
-    <path fillRule="evenodd" clipRule="evenodd" d="M62 27H78C86.8 27 94 32.4 94 39C94 45.6 86.8 51 78 51H72V63H62V27ZM72 43H78C81.3 43 84 41.2 84 39C84 36.8 81.3 35 78 35H72V43Z" fill="black"/>
-  </svg>
-);
-
-const AssistantIcon = () => (
-  <svg className="w-10 h-10 mb-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+    <path fillRule="evenodd" clipRule="evenodd" d="M58.836 30H76.606C84.828 30 91.5 35.046 91.5 41.225C91.5 47.404 84.828 52.45 76.606 52.45H70.45V63.675H58.836V30ZM70.45 44.037H76.606C79.712 44.037 82.229 42.775 82.229 41.225C82.229 39.675 79.712 38.413 76.606 38.413H70.45V44.037Z" fill="black"/>
+    <path fillRule="evenodd" clipRule="evenodd" d="M39.152 28.597H27.539V39.821H16.5V51.045H27.539V62.27H39.152V51.045H50.191V39.821H39.152V28.597Z" fill="#FF0000"/>
   </svg>
 );
 
@@ -65,6 +56,8 @@ const App: React.FC = () => {
   // --- State ---
   const [currentLang, setCurrentLang] = useState<Language>('de');
   const [currentView, setCurrentView] = useState<'home' | 'self-service'>('home');
+  const [selfServiceMode, setSelfServiceMode] = useState<'packet' | 'letter' | 'payment' | 'general_chat'>('packet');
+  const [scrolled, setScrolled] = useState(false);
   
   // Chat State
   const [messages, setMessages] = useState<Message[]>([]);
@@ -86,14 +79,19 @@ const App: React.FC = () => {
     document.title = `${t.topTitle} – Schweizer Post`;
   }, [t.topTitle]);
 
+  // Scroll listener for header
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 10);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   // --- Logic ---
 
-  const handleAssistantClick = () => {
-    // Placeholder for future OpenAI Agent
-    alert("OpenAI Agent Integration coming soon!");
-  };
-
-  const handleSelfServiceClick = () => {
+  const handleSelfServiceClick = (mode: 'packet' | 'letter' | 'payment' | 'general_chat') => {
+    setSelfServiceMode(mode);
     setCurrentView('self-service');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -108,8 +106,7 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Chat Logic (Kept for Global Voice Control / Legacy Demo if needed, 
-  // but detached from Assistant Tile)
+  // Chat Logic
   const handleSendMessage = async (text: string) => {
     cancelTTS();
     const userMsg: Message = { id: generateId(), sender: 'user', text };
@@ -119,9 +116,8 @@ const App: React.FC = () => {
     setGlobalError(null);
 
     try {
-      const rawReply = await sendMessageToGemini(text, currentLang);
-      // Simple cleanup as buttons are not relevant for global chat in this context anymore
-      const cleanText = rawReply.replace(/BUTTONS:.*$/im, '').trim();
+      const response = await sendMessageToGemini(text, currentLang);
+      const cleanText = response.text.replace(/BUTTONS:.*$/im, '').trim();
       
       setIsThinking(false);
       setMessages(prev => [...prev, { id: generateId(), sender: 'assistant', text: cleanText }]);
@@ -146,7 +142,6 @@ const App: React.FC = () => {
       setGlobalError(null);
     },
     onNavigateOracle: () => {
-       // Re-purposed to just open chat
        setIsChatOpen(true);
        setIsChatMinimized(false);
     },
@@ -184,83 +179,138 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen font-sans text-gray-900 bg-gray-50 selection:bg-yellow-200">
-      {/* Modern Header */}
-      <header className="bg-[#FFCC00] px-6 py-4 flex items-center gap-4 shadow-md sticky top-0 z-50">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={navigateToHome}>
-          <SwissPostLogo />
-          <div className="h-6 w-px bg-black/10 mx-1"></div>
-          <div className="font-bold text-xl tracking-tight text-gray-900">{t.topTitle}</div>
+    <div className="min-h-screen font-sans text-gray-900 bg-gray-50/50 selection:bg-yellow-200 pb-24">
+      {/* Modern Light Header */}
+      <header 
+        className={`fixed top-0 w-full z-50 transition-all duration-300 ${
+          scrolled ? 'bg-white/80 backdrop-blur-md shadow-sm' : 'bg-transparent'
+        }`}
+      >
+        {/* Branding Line */}
+        <div className="h-1 w-full bg-[#FFCC00]"></div>
+        
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4 cursor-pointer group" onClick={navigateToHome}>
+              <div className="transform transition-transform group-hover:scale-105">
+                 <SwissPostLogo />
+              </div>
+              <div className="flex flex-col justify-center h-12">
+                  <span className="font-bold text-xl tracking-tight text-gray-900 leading-none">{t.topTitle}</span>
+              </div>
+            </div>
+
+            {/* Date/Time could go here, or status indicators */}
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto mt-8 mb-24 px-4 sm:px-6">
+      {/* Spacer for fixed header */}
+      <div className="h-24"></div>
+
+      <main className="max-w-6xl mx-auto mb-12 px-4 sm:px-6 relative z-10">
         
         {globalError && (
           <ErrorBanner message={globalError} onClose={() => setGlobalError(null)} />
         )}
 
         {currentView === 'home' && (
-          <div id="home-view" className="animate-fade-in space-y-8">
-            {/* Modern Hero */}
-            <section className="bg-white rounded-3xl p-10 md:p-14 shadow-xl shadow-black/5 text-center relative overflow-hidden border border-white/50">
-               <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-yellow-400 to-yellow-200"></div>
-               <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-3 tracking-tight">{t.pageTitle}</h1>
-               <p className="text-gray-500 max-w-xl mx-auto text-lg">
-                 {currentLang === 'de' ? 'Ihr persönlicher Zugang zu allen Postdienstleistungen.' : 'Your personal gateway to all postal services.'}
-               </p>
+          <div id="home-view" className="animate-fade-in space-y-12">
+            
+            {/* Modern Typography Hero (No Box) */}
+            <section className="relative py-10 md:py-16">
+               {/* Decorative subtle blobs */}
+               <div className="absolute -top-20 -left-20 w-96 h-96 bg-yellow-200/30 rounded-full blur-3xl -z-10 mix-blend-multiply"></div>
+               <div className="absolute top-0 right-0 w-72 h-72 bg-gray-100/50 rounded-full blur-3xl -z-10"></div>
+
+               <div className="max-w-3xl">
+                  <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 tracking-tight leading-[1.1] mb-6">
+                    {t.pageTitle}
+                  </h1>
+                  <p className="text-xl md:text-2xl text-gray-500 font-light leading-relaxed">
+                    {currentLang === 'de' 
+                      ? 'Erledigen Sie Ihre Postgeschäfte einfach und schnell. Wie können wir Sie heute unterstützen?' 
+                      : 'Manage your postal services simply and quickly. How can we support you today?'}
+                  </p>
+               </div>
             </section>
 
             {/* Tiles Grid */}
             <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Assistant Tile - OPENAI PLACEHOLDER */}
-                <button 
-                  onClick={handleAssistantClick}
-                  className="group bg-white rounded-3xl p-8 shadow-lg shadow-gray-200/50 border border-gray-100 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-xl text-left"
-                >
-                  <div className="p-4 bg-yellow-50 rounded-2xl mb-6 group-hover:bg-yellow-100 transition-colors">
-                    <AssistantIcon />
-                  </div>
-                  <h2 className="text-xl font-bold mb-3 text-gray-900">{t.tiles.orakel.title}</h2>
-                  <p className="text-gray-500 leading-relaxed text-sm mb-8">
-                    {t.tiles.orakel.desc}
-                  </p>
-                  <div className="mt-auto inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white bg-gray-900 rounded-full group-hover:bg-black transition-colors w-full">
-                    {t.tiles.orakel.btnText}
-                  </div>
-                </button>
+                {/* Self-Service Tile - Expanded (Takes 2 Columns) */}
+                <div className="md:col-span-2 group bg-white rounded-[2rem] p-8 md:p-10 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-white hover:border-black transition-all duration-300 hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)] flex flex-col text-left">
+                  <div className="flex flex-col md:flex-row gap-8 h-full">
+                    <div className="flex-1 flex flex-col">
+                        <div className="w-16 h-16 rounded-2xl bg-yellow-50 flex items-center justify-center mb-6 text-yellow-600 group-hover:scale-110 transition-transform duration-300">
+                          <ServiceIcon />
+                        </div>
+                        <h2 className="text-2xl font-bold mb-3 text-gray-900">{t.tiles.self.title}</h2>
+                        <p className="text-gray-500 leading-relaxed text-base max-w-xs">
+                          {t.tiles.self.desc}
+                        </p>
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col gap-3 justify-end">
+                         {/* Packet */}
+                         <button 
+                           onClick={() => handleSelfServiceClick('packet')}
+                           className="w-full py-4 px-6 rounded-2xl text-left font-bold text-gray-900 bg-gray-50 hover:bg-black hover:text-white transition-all flex items-center justify-between group/btn"
+                         >
+                           <span>{t.tiles.self.btnPacket}</span>
+                           <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center group-hover/btn:bg-gray-800 opacity-0 group-hover/btn:opacity-100 transition-opacity text-black group-hover/btn:text-white">
+                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                           </div>
+                         </button>
 
-                {/* Self-Service Tile - TEMPLATE */}
-                <button 
-                  onClick={handleSelfServiceClick}
-                  className="group bg-white rounded-3xl p-8 shadow-lg shadow-gray-200/50 border border-gray-100 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-xl text-left"
-                >
-                  <div className="p-4 bg-yellow-50 rounded-2xl mb-6 group-hover:bg-yellow-100 transition-colors">
-                    <ServiceIcon />
+                         {/* Letter */}
+                         <button 
+                           onClick={() => handleSelfServiceClick('letter')}
+                           className="w-full py-4 px-6 rounded-2xl text-left font-bold text-gray-900 bg-gray-50 hover:bg-black hover:text-white transition-all flex items-center justify-between group/btn"
+                         >
+                           <span>{t.tiles.self.btnLetter}</span>
+                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center group-hover/btn:bg-gray-800 opacity-0 group-hover/btn:opacity-100 transition-opacity text-black group-hover/btn:text-white">
+                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                           </div>
+                         </button>
+                         
+                         {/* Payment */}
+                         <button 
+                           onClick={() => handleSelfServiceClick('payment')}
+                           className="w-full py-4 px-6 rounded-2xl text-left font-bold text-gray-900 bg-gray-50 hover:bg-black hover:text-white transition-all flex items-center justify-between group/btn"
+                         >
+                           <span>{t.tiles.self.btnPayment}</span>
+                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center group-hover/btn:bg-gray-800 opacity-0 group-hover/btn:opacity-100 transition-opacity text-black group-hover/btn:text-white">
+                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                           </div>
+                         </button>
+
+                         {/* Other - Now General Chat */}
+                         <button 
+                           onClick={() => handleSelfServiceClick('general_chat')}
+                           className="w-full py-4 px-6 rounded-2xl text-left font-bold text-gray-900 bg-gray-50 hover:bg-black hover:text-white transition-all flex items-center justify-between group/btn"
+                         >
+                           <span>{t.tiles.self.btnOther}</span>
+                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center group-hover/btn:bg-gray-800 opacity-0 group-hover/btn:opacity-100 transition-opacity text-black group-hover/btn:text-white">
+                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                           </div>
+                         </button>
+                    </div>
                   </div>
-                  <h2 className="text-xl font-bold mb-3 text-gray-900">{t.tiles.self.title}</h2>
-                  <p className="text-gray-500 leading-relaxed text-sm mb-8">
-                    {t.tiles.self.desc}
-                  </p>
-                  <div className="mt-auto inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-gray-900 bg-gray-100 rounded-full group-hover:bg-gray-200 transition-colors w-full">
-                    {t.tiles.self.btnText}
-                  </div>
-                </button>
+                </div>
 
                 {/* Video Tile - UNBLU */}
                 <button 
                   onClick={handleVideoClick}
-                  className="group bg-white rounded-3xl p-8 shadow-lg shadow-gray-200/50 border border-gray-100 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-xl text-left"
+                  className="group bg-white rounded-[2rem] p-8 md:p-10 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-white hover:border-black flex flex-col text-left transition-all duration-300 hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)]"
                 >
-                  <div className="p-4 bg-yellow-50 rounded-2xl mb-6 group-hover:bg-yellow-100 transition-colors">
+                  <div className="w-16 h-16 rounded-2xl bg-yellow-50 flex items-center justify-center mb-6 text-yellow-600 group-hover:scale-110 transition-transform duration-300">
                      <VideoIcon />
                   </div>
                   <h2 className="text-xl font-bold mb-3 text-gray-900">{t.tiles.video.title}</h2>
-                  <p className="text-gray-500 leading-relaxed text-sm mb-8">
+                  <p className="text-gray-500 leading-relaxed text-sm mb-8 flex-1">
                     {t.tiles.video.desc}
                   </p>
-                  <div className="mt-auto inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-gray-900 bg-gray-100 rounded-full group-hover:bg-gray-200 transition-colors w-full">
-                    {t.tiles.video.btnText}
+                  <div className="inline-flex items-center justify-between px-6 py-4 text-sm font-bold text-gray-900 bg-gray-50 rounded-2xl group-hover:bg-black group-hover:text-white transition-colors w-full">
+                    <span>{t.tiles.video.btnText}</span>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
                   </div>
                 </button>
             </section>
@@ -268,30 +318,39 @@ const App: React.FC = () => {
         )}
 
         {currentView === 'self-service' && (
-          <SelfServiceView t={t} onBack={navigateToHome} />
+          <SelfServiceView 
+            t={t} 
+            onBack={navigateToHome} 
+            mode={selfServiceMode} 
+            currentLang={currentLang} // Pass lang for speech
+          />
         )}
       </main>
 
       {/* Floating Elements */}
-      <ChatBox 
-        isOpen={isChatOpen}
-        isMinimized={isChatMinimized}
-        setMinimized={setIsChatMinimized}
-        messages={messages}
-        onSendMessage={handleSendMessage}
-        isThinking={isThinking}
-        t={t}
-        isVoiceActive={isConnected}
-        isSoundEnabled={isSoundEnabled}
-        onToggleSound={() => setIsSoundEnabled(!isSoundEnabled)}
-        currentLang={currentLang}
-      />
+      {selfServiceMode !== 'general_chat' && (
+        <ChatBox 
+            isOpen={isChatOpen}
+            isMinimized={isChatMinimized}
+            setMinimized={setIsChatMinimized}
+            messages={messages}
+            onSendMessage={handleSendMessage}
+            isThinking={isThinking}
+            t={t}
+            isVoiceActive={isConnected}
+            isSoundEnabled={isSoundEnabled}
+            onToggleSound={() => setIsSoundEnabled(!isSoundEnabled)}
+            currentLang={currentLang}
+        />
+      )}
 
-      <VoiceControl 
-        isConnected={isConnected}
-        isSpeaking={isSpeaking}
-        onToggle={handleVoiceToggle}
-      />
+      {selfServiceMode !== 'general_chat' && (
+        <VoiceControl 
+            isConnected={isConnected}
+            isSpeaking={isSpeaking}
+            onToggle={handleVoiceToggle}
+        />
+      )}
 
       <LanguageBar currentLang={currentLang} setLanguage={setCurrentLang} />
     </div>

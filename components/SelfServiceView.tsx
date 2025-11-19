@@ -1,13 +1,18 @@
 
 import React, { useState, useEffect } from 'react';
-import { TranslationData } from '../types';
+import { TranslationData, Language, Message } from '../types';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { sendMessageToGemini } from '../services/geminiService';
+import { useTTS } from '../hooks/useTTS';
 
 interface SelfServiceViewProps {
   t: TranslationData;
   onBack: () => void;
+  mode?: 'packet' | 'letter' | 'payment' | 'general_chat';
+  currentLang?: Language;
 }
 
-type Step = 'destination' | 'weigh' | 'address' | 'options' | 'payment' | 'success' | 'feedback';
+type Step = 'destination' | 'weigh' | 'addressCheck' | 'address' | 'format' | 'options' | 'extras' | 'payment' | 'success' | 'feedback' | 'scan' | 'payDetails' | 'payReceiver' | 'payConfirm' | 'paySummary';
 
 interface ReceiverData {
   type: 'private' | 'company';
@@ -17,9 +22,10 @@ interface ReceiverData {
   city: string;
 }
 
-export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack }) => {
+export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mode = 'packet', currentLang = 'de' }) => {
   const [step, setStep] = useState<Step>('destination');
   const [isWeighing, setIsWeighing] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   
   // State for "Simulated Data"
   const [receiver, setReceiver] = useState<ReceiverData>({
@@ -29,32 +35,84 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack }) =
     zip: '',
     city: ''
   });
-  const [shippingMethod, setShippingMethod] = useState<'economy' | 'priority'>('economy');
+  
+  // Packet Specific
+  const [shippingMethod, setShippingMethod] = useState<'economy' | 'priority' | 'express'>('economy');
+  const [weightGrams, setWeightGrams] = useState<number>(7796);
   const [hasSignature, setHasSignature] = useState(false);
+  
+  // Letter Specific
+  const [letterFormat, setLetterFormat] = useState<'small' | 'big'>('small');
+  const [letterExtras, setLetterExtras] = useState({
+    registered: false,
+    prepaid: false,
+    formatSurcharge: false
+  });
+  
+  // Payment Specific
+  const [paymentData, setPaymentData] = useState({
+    iban: 'CH97 0900 0078 3740 23',
+    amount: 51.00,
+    reference: '27 3840 0239 3020 1',
+    receiverName: 'Max Mustermann',
+    receiverCity: 'Grosshöchstetten'
+  });
+
+  // Chat / Assistant Specific
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
+  const [isProcessingChat, setIsProcessingChat] = useState(false);
+  const { isListening, startListening, stopListening } = useSpeechRecognition();
+  const { speak, cancel: cancelTTS } = useTTS();
+
   const [feedbackScore, setFeedbackScore] = useState<number | null>(null);
 
-  // Random Weight State (in grams) - Defaulting to ~7.8kg initially, but will be randomized
-  const [weightGrams, setWeightGrams] = useState<number>(7796);
+  // --- Init ---
+  useEffect(() => {
+    if (mode === 'payment') {
+        setStep('scan');
+    } else {
+        setStep('destination');
+    }
+  }, [mode]);
 
-  // Pricing Logic based on Swiss Post (PostPac Economy / Priority)
-  // Source: https://www.post.ch/de/pakete-versenden/pakete-schweiz
-  const getPrices = (grams: number) => {
+  // --- Pricing Logic ---
+  
+  // Packet Pricing
+  const getPacketPrices = (grams: number) => {
     if (grams <= 2000) {
-      // Up to 2kg
       return { eco: 7.00, prio: 9.00 };
     } else if (grams <= 10000) {
-      // Up to 10kg
       return { eco: 9.70, prio: 10.70 };
     } else {
-      // Up to 30kg
       return { eco: 20.50, prio: 23.00 };
     }
   };
+  
+  const getLetterBasePrice = (method: 'economy' | 'priority' | 'express') => {
+     switch(method) {
+         case 'economy': return 1.00;
+         case 'priority': return 1.20;
+         case 'express': return 2.50;
+     }
+  };
+  
+  const calculateTotal = () => {
+     if (mode === 'packet') {
+         const prices = getPacketPrices(weightGrams);
+         const base = shippingMethod === 'priority' ? prices.prio : prices.eco;
+         return base + (hasSignature ? 1.50 : 0);
+     } else if (mode === 'letter') {
+         let total = getLetterBasePrice(shippingMethod);
+         if (letterExtras.registered) total += 5.30;
+         if (letterExtras.prepaid) total += 1.50;
+         if (letterExtras.formatSurcharge) total += 2.00;
+         return total;
+     } else {
+         return paymentData.amount;
+     }
+  };
 
-  const prices = getPrices(weightGrams);
-  const PRICE_SIG = 1.50;
-
-  const totalPrice = (shippingMethod === 'economy' ? prices.eco : prices.prio) + (hasSignature ? PRICE_SIG : 0);
+  const totalPrice = calculateTotal();
 
   // Format Weight Helper
   const formatWeight = (grams: number) => {
@@ -70,101 +128,230 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack }) =
     if (step === 'success' || step === 'feedback') {
       timer = setTimeout(() => {
         onBack();
-      }, 60000); // 60 seconds timeout
+      }, 60000);
     }
     return () => clearTimeout(timer);
   }, [step, onBack]);
 
   const simulateWeighing = () => {
     setIsWeighing(true);
-    // Generate random weight between 500g (0.5kg) and 30000g (30kg)
     const randomWeight = Math.floor(Math.random() * (30000 - 500 + 1)) + 500;
-    
     setTimeout(() => {
       setWeightGrams(randomWeight);
       setIsWeighing(false);
       setStep('address');
     }, 2000);
   };
+  
+  const simulateScanning = () => {
+      setIsScanning(true);
+      setTimeout(() => {
+          setIsScanning(false);
+          setStep('payDetails');
+      }, 2000);
+  };
 
-  // Step Flow Logic
-  const getProgressPercent = () => {
-    switch (step) {
-      case 'destination': return 5;
-      case 'weigh': return 20;
-      case 'address': return 40;
-      case 'options': return 60;
-      case 'payment': return 80;
-      case 'success': return 100;
-      case 'feedback': return 100;
-      default: return 0;
+  // --- Chat Logic ---
+  const handleMicClick = () => {
+    if (isListening) {
+        stopListening();
+    } else {
+        startListening(currentLang, (text, isFinal) => {
+            if (isFinal) {
+                handleUserQuery(text);
+            }
+        });
     }
   };
 
-  const canProceedAddress = () => {
-    return receiver.name.trim() !== '' && receiver.zip.trim() !== '' && receiver.city.trim() !== '';
+  const handleUserQuery = async (text: string) => {
+     cancelTTS();
+     setChatMessages(prev => [...prev, { id: Date.now().toString(), sender: 'user', text }]);
+     setIsProcessingChat(true);
+     
+     try {
+        const response = await sendMessageToGemini(text, currentLang);
+        const cleanText = response.text.replace(/BUTTONS:.*$/im, '').trim();
+        
+        setChatMessages(prev => [...prev, { 
+            id: Date.now().toString(), 
+            sender: 'assistant', 
+            text: cleanText,
+            sources: response.sources 
+        }]);
+        
+        speak(cleanText, currentLang);
+     } catch (e) {
+         setChatMessages(prev => [...prev, { id: Date.now().toString(), sender: 'assistant', text: t.ui.errorGeneric }]);
+     } finally {
+         setIsProcessingChat(false);
+     }
   };
 
   // --- RENDER FUNCTIONS ---
 
   const renderProgressBar = () => {
-    const stepsList = [
-      t.selfService.steps.start,
-      t.selfService.steps.weigh,
-      t.selfService.steps.address,
-      t.selfService.steps.options,
-      t.selfService.steps.pay,
-      t.selfService.steps.done
-    ];
+    let progress = 0;
+    let title = "";
+    
+    if (mode === 'packet') {
+        title = t.selfService.title;
+        const stepIndices = ['destination', 'weigh', 'address', 'options', 'payment', 'success'];
+        const currentIndex = stepIndices.indexOf(step);
+        progress = Math.max(5, (currentIndex / (stepIndices.length - 1)) * 100);
+    } else if (mode === 'letter') {
+        title = t.selfService.titleLetter;
+        const stepIndices = ['destination', 'addressCheck', 'address', 'format', 'options', 'extras', 'payment', 'success'];
+        const currentIndex = stepIndices.indexOf(step);
+        progress = Math.max(5, (currentIndex / (stepIndices.length - 1)) * 100);
+    } else if (mode === 'payment') {
+        title = t.selfService.titlePayment;
+        const stepIndices = ['scan', 'payDetails', 'payReceiver', 'payConfirm', 'paySummary', 'payment', 'success'];
+        const currentIndex = stepIndices.indexOf(step);
+        progress = Math.max(5, (currentIndex / (stepIndices.length - 1)) * 100);
+    } else {
+        // General Chat
+        title = t.selfService.titleChat;
+        progress = 100; // Always full for chat
+    }
 
-    const currentIdx = ['destination', 'weigh', 'address', 'options', 'payment', 'success', 'feedback'].indexOf(step);
-    const visualIdx = step === 'feedback' ? 5 : (currentIdx > 5 ? 5 : currentIdx);
+    if (step === 'feedback') progress = 100;
 
     return (
       <div className="bg-white border-b border-gray-100 pt-6 px-4 md:px-8 pb-4">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">{t.selfService.title}</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">
+            {title}
+        </h1>
         <div className="relative mb-4">
             <div className="overflow-hidden h-1.5 mb-4 text-xs flex rounded-full bg-gray-100">
                 <div 
-                  style={{ width: `${getProgressPercent()}%` }} 
+                  style={{ width: `${progress}%` }} 
                   className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-[#FFCC00] transition-all duration-500 ease-in-out"
                 ></div>
-            </div>
-            <div className="hidden md:flex justify-between text-[10px] md:text-xs font-medium text-gray-400 uppercase tracking-wider">
-               {stepsList.map((label, idx) => (
-                 <span key={idx} className={`${idx <= visualIdx ? 'text-gray-900 font-bold' : ''} transition-colors duration-300`}>
-                   {label}
-                 </span>
-               ))}
             </div>
         </div>
       </div>
     );
   };
 
+  // --- General Chat View (Alles andere) ---
+  const renderGeneralChatView = () => {
+      const lastMessage = chatMessages.length > 0 ? chatMessages[chatMessages.length - 1] : null;
+      const showIntro = chatMessages.length === 0;
+
+      return (
+          <div className="flex flex-col items-center justify-center min-h-[400px] w-full max-w-3xl mx-auto">
+              
+              {showIntro && (
+                  <div className="text-center animate-fade-in mb-12">
+                      <h2 className="text-3xl font-bold text-gray-900 mb-4">{t.selfService.chat.introTitle}</h2>
+                      <p className="text-gray-500 text-lg">{t.selfService.chat.introDesc}</p>
+                  </div>
+              )}
+
+              {/* Result Display Area */}
+              {!showIntro && (
+                  <div className="w-full space-y-6 mb-8 animate-fade-in">
+                      {/* Only show the last Q&A interaction for clarity in this specific view */}
+                      {chatMessages.slice(-2).map((msg) => (
+                          <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                              {msg.sender === 'user' ? (
+                                  <div className="bg-gray-100 text-gray-600 px-6 py-3 rounded-2xl rounded-tr-none max-w-[80%] text-lg">
+                                      "{msg.text}"
+                                  </div>
+                              ) : (
+                                  <div className="bg-white border border-gray-200 shadow-lg rounded-3xl p-6 w-full relative">
+                                      <div className="prose prose-lg max-w-none text-gray-800 leading-relaxed whitespace-pre-wrap">
+                                          {msg.text}
+                                      </div>
+                                      
+                                      {/* Sources / Grounding Chips */}
+                                      {msg.sources && msg.sources.length > 0 && (
+                                          <div className="mt-6 pt-6 border-t border-gray-100">
+                                              <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{t.selfService.chat.sources}</div>
+                                              <div className="flex flex-wrap gap-2">
+                                                  {msg.sources.map((src, idx) => (
+                                                      <a 
+                                                        key={idx} 
+                                                        href={src.uri} 
+                                                        target="_blank" 
+                                                        rel="noreferrer"
+                                                        className="flex items-center gap-2 bg-gray-50 hover:bg-black hover:text-white border border-gray-200 px-3 py-2 rounded-lg text-sm text-blue-600 transition-colors truncate max-w-[250px]"
+                                                      >
+                                                          <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                                          <span className="truncate">{src.title}</span>
+                                                      </a>
+                                                  ))}
+                                              </div>
+                                          </div>
+                                      )}
+                                  </div>
+                              )}
+                          </div>
+                      ))}
+                      {isProcessingChat && (
+                           <div className="flex justify-start">
+                               <div className="bg-white border border-gray-200 shadow-sm rounded-3xl p-6 flex items-center gap-3">
+                                   <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
+                                   <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-75"></span>
+                                   <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-150"></span>
+                               </div>
+                           </div>
+                      )}
+                  </div>
+              )}
+
+              {/* Mic Button Area */}
+              <div className="relative mt-auto">
+                  {isListening && (
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-red-100 rounded-full animate-ping opacity-75"></div>
+                  )}
+                  <button
+                      onClick={handleMicClick}
+                      disabled={isProcessingChat}
+                      className={`
+                        relative z-10 w-24 h-24 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 transform hover:scale-110
+                        ${isListening ? 'bg-red-600 text-white' : (chatMessages.length > 0 ? 'bg-black text-white' : 'bg-[#FFCC00] text-gray-900 hover:bg-black hover:text-white')}
+                      `}
+                  >
+                      {isListening ? (
+                           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><line x1="6" y1="12" x2="18" y2="12"></line></svg> // Stop Icon
+                      ) : (
+                           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                      )}
+                  </button>
+              </div>
+              
+              <div className="mt-6 text-gray-400 font-medium text-sm h-6">
+                  {isListening ? t.selfService.chat.listening : (chatMessages.length > 0 ? t.selfService.chat.tryAgain : "")}
+              </div>
+          </div>
+      );
+  };
+
+  // --- Common Steps ---
   const renderDestinationView = () => (
     <div className="flex flex-col gap-6 items-center justify-center min-h-[400px]">
       <div className="text-center max-w-lg mb-4">
          <h3 className="text-xl font-semibold text-gray-800">
-           {t.selfService.franking.weighIntro}
+            {mode === 'packet' ? t.selfService.franking.weighIntro : t.selfService.franking.destCH}
          </h3>
       </div>
       
       <button 
-        onClick={() => setStep('weigh')}
-        className="w-full max-w-lg bg-white border-2 border-[#FFCC00] rounded-2xl p-6 shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center gap-4 group"
+        onClick={() => {
+            if (mode === 'packet') setStep('weigh');
+            else setStep('addressCheck');
+        }}
+        className="w-full max-w-lg bg-white border-2 border-[#FFCC00] rounded-2xl p-6 shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center gap-4 group hover:border-black hover:bg-gray-50"
       >
-        <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-700 group-hover:bg-yellow-200 transition-colors">
+        <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-700 group-hover:bg-black group-hover:text-white transition-colors">
            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
              <path d="M20 6 9 17l-5-5"/>
            </svg>
         </div>
         <div className="text-left">
            <div className="font-bold text-lg text-gray-900">{t.selfService.franking.destCH}</div>
-           <div className="flex gap-2 mt-1 text-xs text-green-600 font-medium">
-              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-600"></span>{t.selfService.franking.economy}</span>
-              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-600"></span>{t.selfService.franking.priority}</span>
-           </div>
         </div>
       </button>
 
@@ -185,6 +372,102 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack }) =
     </div>
   );
 
+  // --- Payment Steps ---
+  const renderScanView = () => (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">{t.selfService.payment.scanInstruction}</h2>
+          
+          <button 
+             onClick={simulateScanning}
+             className="w-64 h-64 bg-white border-4 border-dashed border-gray-300 rounded-3xl flex items-center justify-center hover:bg-gray-50 hover:border-black transition-all relative overflow-hidden group"
+          >
+             {isScanning ? (
+                 <div className="absolute inset-0 bg-black/5 flex items-center justify-center">
+                     <div className="w-full h-1 bg-red-500 absolute top-0 animate-[scan_2s_infinite_linear]"></div>
+                 </div>
+             ) : (
+                 <div className="flex flex-col items-center text-gray-400 group-hover:text-black">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <rect x="7" y="7" width="3" height="3"></rect>
+                        <rect x="14" y="7" width="3" height="3"></rect>
+                        <rect x="7" y="14" width="3" height="3"></rect>
+                        <path d="M14 17h3"></path>
+                    </svg>
+                    <span className="mt-4 font-medium">{t.selfService.payment.scanAction}</span>
+                 </div>
+             )}
+          </button>
+      </div>
+  );
+
+  const renderPaymentDetailsView = () => (
+      <div className="flex flex-col items-center gap-8 min-h-[400px]">
+          <h2 className="text-xl font-bold text-gray-900">{t.selfService.payment.detailsIntro}</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+             <div className="bg-[#FFCC00] rounded-xl p-6 flex flex-col items-center text-center shadow-sm">
+                 <span className="font-bold text-lg mb-2">{t.selfService.payment.fieldIban}</span>
+                 <span className="font-mono text-sm">{paymentData.iban}</span>
+                 <span className="text-xs mt-2 opacity-70">Wird übernommen</span>
+             </div>
+             <div className="bg-[#FFCC00] rounded-xl p-6 flex flex-col items-center text-center shadow-sm">
+                 <span className="font-bold text-lg mb-2">{t.selfService.payment.fieldAmount}</span>
+                 <span className="font-mono text-xl font-bold">CHF {paymentData.amount.toFixed(2)}</span>
+                 <span className="text-xs mt-2 opacity-70">Wird übernommen</span>
+             </div>
+             <div className="bg-[#FFCC00] rounded-xl p-6 flex flex-col items-center text-center shadow-sm">
+                 <span className="font-bold text-lg mb-2">{t.selfService.payment.fieldRef}</span>
+                 <span className="font-mono text-sm break-all">{paymentData.reference}</span>
+                 <span className="text-xs mt-2 opacity-70">Wird übernommen</span>
+             </div>
+          </div>
+      </div>
+  );
+
+  const renderPaymentReceiverView = () => (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-8">{t.selfService.payment.receiverTitle}</h2>
+          <div className="bg-[#FFCC00] rounded-2xl p-10 shadow-lg w-full max-w-xl">
+              <div className="text-2xl font-bold text-gray-900 mb-2">{paymentData.receiverName}</div>
+              <div className="text-xl text-gray-800">{paymentData.receiverCity}</div>
+          </div>
+      </div>
+  );
+
+  const renderPaymentConfirmView = () => (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-8">
+          <h2 className="text-2xl font-bold text-gray-900">{t.selfService.payment.confirmQuestion}</h2>
+          <div className="flex gap-6 w-full max-w-2xl">
+              <button
+                  onClick={() => setStep('paySummary')} 
+                  className="flex-1 bg-[#FFCC00] rounded-2xl p-8 shadow-lg hover:bg-black hover:text-white transition-all active:scale-95 flex flex-col items-center gap-3"
+              >
+                  <span className="font-bold text-xl whitespace-pre-line">{t.selfService.payment.confirmYes}</span>
+              </button>
+              <button
+                  onClick={() => setStep('payDetails')}
+                  className="flex-1 bg-[#FFCC00] rounded-2xl p-8 shadow-lg hover:bg-black hover:text-white transition-all active:scale-95 flex flex-col items-center gap-3"
+              >
+                   <span className="font-bold text-xl whitespace-pre-line">{t.selfService.payment.confirmNo}</span>
+              </button>
+          </div>
+      </div>
+  );
+
+  const renderPaymentSummaryView = () => (
+       <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-4">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">{t.selfService.payment.summaryTitle}</h2>
+          
+          <div className="text-3xl font-bold text-gray-900">CHF {paymentData.amount.toFixed(2)}</div>
+          <div className="text-gray-600">{t.selfService.payment.summaryAccount}</div>
+          <div className="font-mono bg-gray-100 px-3 py-1 rounded">{paymentData.iban}</div>
+          <div className="font-medium text-gray-800 mt-2">Testkunde {paymentData.receiverName}</div>
+          <div className="text-gray-600">{paymentData.receiverCity}</div>
+       </div>
+  );
+
+  // --- Existing Packet/Letter Steps (simplified ref) ---
   const renderWeighView = () => (
     <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
        {isWeighing ? (
@@ -203,9 +486,9 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack }) =
             
             <button 
                onClick={simulateWeighing}
-               className="group relative w-64 h-64 bg-white rounded-3xl border-4 border-dashed border-gray-200 flex flex-col items-center justify-center hover:border-yellow-400 hover:bg-yellow-50 transition-all duration-300"
+               className="group relative w-64 h-64 bg-white rounded-3xl border-4 border-dashed border-gray-200 flex flex-col items-center justify-center hover:border-black hover:bg-yellow-50 transition-all duration-300"
             >
-               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 group-hover:text-yellow-600 group-hover:bg-white transition-colors mb-4">
+               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 group-hover:text-black group-hover:bg-white transition-colors mb-4">
                   <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
                      <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
@@ -220,19 +503,61 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack }) =
     </div>
   );
 
+  const renderAddressCheckView = () => (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-8">
+          <h2 className="text-2xl font-bold text-gray-900">{t.selfService.letter.addressCheckQuestion}</h2>
+          <div className="flex gap-6 w-full max-w-2xl">
+              <button
+                  onClick={() => setStep('format')} 
+                  className="flex-1 bg-[#FFCC00] rounded-2xl p-8 shadow-lg hover:bg-black hover:text-white transition-all active:scale-95 flex flex-col items-center gap-3"
+              >
+                  <span className="font-bold text-xl whitespace-pre-line">{t.selfService.letter.addressCheckYes}</span>
+              </button>
+              <button
+                  onClick={() => setStep('address')}
+                  className="flex-1 bg-[#FFCC00] rounded-2xl p-8 shadow-lg hover:bg-black hover:text-white transition-all active:scale-95 flex flex-col items-center gap-3"
+              >
+                   <span className="font-bold text-xl whitespace-pre-line">{t.selfService.letter.addressCheckNo}</span>
+              </button>
+          </div>
+      </div>
+  );
+
+  const renderFormatView = () => (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-8">
+          <h2 className="text-2xl font-bold text-gray-900">{t.selfService.letter.formatQuestion}</h2>
+          <div className="flex gap-6 w-full max-w-2xl">
+              <button
+                  onClick={() => { setLetterFormat('small'); setStep('options'); }}
+                  className={`flex-1 rounded-2xl p-8 shadow-lg transition-all active:scale-95 flex flex-col items-center gap-3 border-4 ${letterFormat === 'small' ? 'bg-[#FFCC00] border-transparent text-black' : 'bg-yellow-100 border-transparent hover:bg-black hover:text-white'}`}
+              >
+                  <span className="font-bold text-xl">{t.selfService.letter.formatSmall}</span>
+                  <span className="text-sm opacity-80">{t.selfService.letter.formatSmallDesc}</span>
+              </button>
+              <button
+                  onClick={() => { setLetterFormat('big'); setStep('options'); }}
+                  className={`flex-1 rounded-2xl p-8 shadow-lg transition-all active:scale-95 flex flex-col items-center gap-3 border-4 ${letterFormat === 'big' ? 'bg-[#FFCC00] border-transparent text-black' : 'bg-yellow-100 border-transparent hover:bg-black hover:text-white'}`}
+              >
+                   <span className="font-bold text-xl">{t.selfService.letter.formatBig}</span>
+                   <span className="text-sm opacity-80">{t.selfService.letter.formatBigDesc}</span>
+              </button>
+          </div>
+      </div>
+  );
+
   const renderAddressView = () => (
     <div className="flex flex-col gap-6 min-h-[400px]">
-       {/* Detected Package Info Banner */}
-       <div className="bg-green-50 border border-green-100 rounded-xl p-4 flex items-center gap-3 mb-2">
-          <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-white">
-             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          </div>
-          <span className="text-green-800 font-medium text-sm">{t.selfService.franking.detectedLabel}: <span className="font-bold">{formatWeight(weightGrams)}</span></span>
-       </div>
+       {mode === 'packet' && (
+        <div className="bg-green-50 border border-green-100 rounded-xl p-4 flex items-center gap-3 mb-2">
+            <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-white">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+            <span className="text-green-800 font-medium text-sm">{t.selfService.franking.detectedLabel}: <span className="font-bold">{formatWeight(weightGrams)}</span></span>
+        </div>
+       )}
 
        <h2 className="text-xl font-bold text-gray-900">{t.selfService.franking.addressReceiver}</h2>
        
-       {/* Type Toggle */}
        <div className="flex bg-gray-100 p-1 rounded-xl w-full max-w-md self-center mb-2">
           <button 
             onClick={() => setReceiver({...receiver, type: 'private'})}
@@ -248,7 +573,6 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack }) =
           </button>
        </div>
 
-       {/* Form */}
        <div className="space-y-4">
           <div className="space-y-1">
              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">{t.selfService.franking.fields.name}</label>
@@ -300,87 +624,156 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack }) =
 
   const renderOptionsView = () => (
     <div className="flex flex-col gap-8 min-h-[400px]">
-       {/* Weight Display (Cool & Centered) */}
        <div className="flex justify-center mb-4 mt-4">
-           <div className="bg-white rounded-full w-48 h-48 shadow-xl border-4 border-[#FFCC00] flex flex-col items-center justify-center transform transition-all hover:scale-105 relative">
-                <div className="absolute -top-2 w-4 h-8 bg-[#FFCC00] rounded-full opacity-50"></div>
-                <span className="text-4xl mb-2">⚖️</span>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.selfService.franking.weight}</span>
-                <span className="text-2xl font-bold text-gray-900 mt-1 tracking-tight">{formatWeight(weightGrams)}</span>
-           </div>
+           {mode === 'packet' ? (
+               <div className="bg-white rounded-full w-48 h-48 shadow-xl border-4 border-[#FFCC00] flex flex-col items-center justify-center transform transition-all hover:scale-105 relative">
+                    <div className="absolute -top-2 w-4 h-8 bg-[#FFCC00] rounded-full opacity-50"></div>
+                    <span className="text-4xl mb-2">⚖️</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.selfService.franking.weight}</span>
+                    <span className="text-2xl font-bold text-gray-900 mt-1 tracking-tight">{formatWeight(weightGrams)}</span>
+               </div>
+           ) : (
+               <h2 className="text-2xl font-bold text-gray-900">{t.selfService.letter.shippingQuestion}</h2>
+           )}
        </div>
 
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left: Summary */}
-          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm h-fit">
-             <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-2 mb-3">{t.selfService.franking.addressReceiver}</h3>
-             <div className="text-gray-600 leading-relaxed">
-                {receiver.name || "Muster Hans"}<br/>
-                {receiver.street || "Strasse 1"}<br/>
-                {receiver.zip} {receiver.city}
+          {mode === 'packet' && (
+             <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm h-fit">
+                <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-2 mb-3">{t.selfService.franking.addressReceiver}</h3>
+                <div className="text-gray-600 leading-relaxed">
+                    {receiver.name || "Muster Hans"}<br/>
+                    {receiver.street || "Strasse 1"}<br/>
+                    {receiver.zip} {receiver.city}
+                </div>
              </div>
-          </div>
+          )}
 
-          {/* Right: Selection */}
-          <div className="space-y-4">
-              <h3 className="font-bold text-gray-900">{t.selfService.franking.shippingMethod}</h3>
-              
-              {/* Economy */}
+          <div className={mode === 'packet' ? "space-y-4" : "col-span-2 grid grid-cols-3 gap-4"}>
               <button 
                 onClick={() => setShippingMethod('economy')}
-                className={`w-full p-4 rounded-xl border-2 flex justify-between items-center transition-all ${shippingMethod === 'economy' ? 'border-[#FFCC00] bg-yellow-50/50' : 'border-gray-200 bg-white hover:border-gray-300'}`}
+                className={`p-4 rounded-xl border-2 flex flex-col md:flex-row justify-between items-center transition-all ${shippingMethod === 'economy' ? 'border-[#FFCC00] bg-yellow-50/50' : 'border-gray-200 bg-white hover:border-black hover:text-black hover:shadow-md'} ${mode === 'letter' ? 'text-center' : 'w-full'}`}
               >
-                 <div className="text-left">
-                    <div className="font-bold text-gray-900">{t.selfService.franking.economy}</div>
+                 <div className={mode === 'letter' ? 'w-full' : 'text-left'}>
+                    <div className="font-bold text-gray-900">{mode === 'packet' ? t.selfService.franking.economy : t.selfService.letter.bPost}</div>
                     <div className="text-xs text-gray-500">{t.selfService.franking.duration2days}</div>
                  </div>
-                 <div className="font-bold text-lg">CHF {prices.eco.toFixed(2)}</div>
+                 <div className="font-bold text-lg mt-2 md:mt-0">CHF {mode === 'packet' ? getPacketPrices(weightGrams).eco.toFixed(2) : getLetterBasePrice('economy').toFixed(2)}</div>
               </button>
 
-              {/* Priority */}
               <button 
                 onClick={() => setShippingMethod('priority')}
-                className={`w-full p-4 rounded-xl border-2 flex justify-between items-center transition-all ${shippingMethod === 'priority' ? 'border-[#FFCC00] bg-yellow-50/50' : 'border-gray-200 bg-white hover:border-gray-300'}`}
+                className={`p-4 rounded-xl border-2 flex flex-col md:flex-row justify-between items-center transition-all ${shippingMethod === 'priority' ? 'border-[#FFCC00] bg-yellow-50/50' : 'border-gray-200 bg-white hover:border-black hover:text-black hover:shadow-md'} ${mode === 'letter' ? 'text-center' : 'w-full'}`}
               >
-                 <div className="text-left">
-                    <div className="font-bold text-gray-900">{t.selfService.franking.priority}</div>
+                 <div className={mode === 'letter' ? 'w-full' : 'text-left'}>
+                    <div className="font-bold text-gray-900">{mode === 'packet' ? t.selfService.franking.priority : t.selfService.letter.aPost}</div>
                     <div className="text-xs text-gray-500">{t.selfService.franking.duration1day}</div>
                  </div>
-                 <div className="font-bold text-lg">CHF {prices.prio.toFixed(2)}</div>
+                 <div className="font-bold text-lg mt-2 md:mt-0">CHF {mode === 'packet' ? getPacketPrices(weightGrams).prio.toFixed(2) : getLetterBasePrice('priority').toFixed(2)}</div>
               </button>
-
-              <div className="pt-4 border-t border-gray-100 mt-4">
-                  <h3 className="font-bold text-gray-900 mb-3">{t.selfService.franking.extras}</h3>
+              
+              {mode === 'letter' && (
                   <button 
-                    onClick={() => setHasSignature(!hasSignature)}
-                    className="flex items-center justify-between w-full"
+                    onClick={() => setShippingMethod('express')}
+                    className={`p-4 rounded-xl border-2 flex flex-col justify-between items-center transition-all text-center ${shippingMethod === 'express' ? 'border-[#FFCC00] bg-yellow-50/50' : 'border-gray-200 bg-white hover:border-black hover:text-black hover:shadow-md'}`}
                   >
-                     <div className="flex items-center gap-3">
-                        <div className={`w-6 h-6 rounded border flex items-center justify-center transition-colors ${hasSignature ? 'bg-black border-black text-white' : 'border-gray-300 bg-white'}`}>
-                           {hasSignature && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
-                        </div>
-                        <span className="text-gray-700 font-medium">{t.selfService.franking.signature}</span>
+                     <div className="w-full">
+                        <div className="font-bold text-gray-900">{t.selfService.letter.express}</div>
+                        <div className="text-xs text-gray-500">{t.selfService.franking.duration1day}</div>
                      </div>
-                     <span className="font-medium text-gray-900">CHF {PRICE_SIG.toFixed(2)}</span>
+                     <div className="font-bold text-lg mt-2">CHF {getLetterBasePrice('express').toFixed(2)}</div>
                   </button>
-              </div>
+              )}
 
-              <div className="bg-gray-900 text-white p-6 rounded-xl mt-6 flex justify-between items-center">
-                 <span className="text-gray-300 font-medium">{t.selfService.franking.total}</span>
-                 <span className="text-2xl font-bold">CHF {totalPrice.toFixed(2)}</span>
-              </div>
+              {mode === 'packet' && (
+                  <div className="pt-4 border-t border-gray-100 mt-4">
+                      <h3 className="font-bold text-gray-900 mb-3">{t.selfService.franking.extras}</h3>
+                      <button 
+                        onClick={() => setHasSignature(!hasSignature)}
+                        className="flex items-center justify-between w-full"
+                      >
+                         <div className="flex items-center gap-3">
+                            <div className={`w-6 h-6 rounded border flex items-center justify-center transition-colors ${hasSignature ? 'bg-black border-black text-white' : 'border-gray-300 bg-white'}`}>
+                               {hasSignature && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                            </div>
+                            <span className="text-gray-700 font-medium">{t.selfService.franking.signature}</span>
+                         </div>
+                         <span className="font-medium text-gray-900">CHF 1.50</span>
+                      </button>
+                  </div>
+              )}
           </div>
        </div>
+       
+       {mode === 'packet' && (
+          <div className="bg-gray-900 text-white p-6 rounded-xl mt-2 flex justify-between items-center">
+             <span className="text-gray-300 font-medium">{t.selfService.franking.total}</span>
+             <span className="text-2xl font-bold">CHF {totalPrice.toFixed(2)}</span>
+          </div>
+       )}
     </div>
+  );
+
+  const renderExtrasView = () => (
+     <div className="flex flex-col gap-8 min-h-[400px]">
+        <h2 className="text-xl font-bold text-gray-900 text-center">{t.selfService.letter.extrasQuestion}</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button 
+               onClick={() => setLetterExtras(p => ({...p, registered: !p.registered}))}
+               className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${letterExtras.registered ? 'bg-[#FFCC00] border-[#FFCC00]' : 'bg-white border-gray-200 hover:border-black hover:text-black'}`}
+            >
+               <span className="font-bold text-lg">{t.selfService.letter.extraRegistered}</span>
+               <span className="text-sm font-semibold">CHF 5.30</span>
+            </button>
+
+            <button 
+               onClick={() => setLetterExtras(p => ({...p, prepaid: !p.prepaid}))}
+               className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${letterExtras.prepaid ? 'bg-[#FFCC00] border-[#FFCC00]' : 'bg-white border-gray-200 hover:border-black hover:text-black'}`}
+            >
+               <span className="font-bold text-lg">{t.selfService.letter.extraPrepaid}</span>
+               <span className="text-sm font-semibold">CHF 1.50</span>
+            </button>
+
+             <button 
+               onClick={() => setLetterExtras(p => ({...p, formatSurcharge: !p.formatSurcharge}))}
+               className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${letterExtras.formatSurcharge ? 'bg-[#FFCC00] border-[#FFCC00]' : 'bg-white border-gray-200 hover:border-black hover:text-black'}`}
+            >
+               <span className="font-bold text-lg">{t.selfService.letter.extraFormat}</span>
+               <span className="text-sm font-semibold">CHF 2.00</span>
+            </button>
+        </div>
+     </div>
   );
 
   const renderPaymentView = () => (
     <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.selfService.franking.payTerminal}</h2>
         
-        {/* Simulated Terminal Card */}
         <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-lg my-8 max-w-md w-full relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-yellow-400 to-red-500"></div>
+            
+            {mode === 'letter' && (
+                <div className="mb-6 text-left text-sm text-gray-600 space-y-1 border-b border-gray-100 pb-4">
+                    <div className="flex justify-between">
+                        <span>{t.selfService.letter.shippingTitle}</span>
+                        <span>CHF {getLetterBasePrice(shippingMethod).toFixed(2)}</span>
+                    </div>
+                    {letterExtras.registered && <div className="flex justify-between"><span>{t.selfService.letter.extraRegistered}</span><span>CHF 5.30</span></div>}
+                    {letterExtras.prepaid && <div className="flex justify-between"><span>{t.selfService.letter.extraPrepaid}</span><span>CHF 1.50</span></div>}
+                    {letterExtras.formatSurcharge && <div className="flex justify-between"><span>{t.selfService.letter.extraFormat}</span><span>CHF 2.00</span></div>}
+                </div>
+            )}
+
+            {mode === 'payment' && (
+                <div className="mb-6 text-left text-sm text-gray-600 space-y-1 border-b border-gray-100 pb-4">
+                    <div className="flex justify-between font-bold text-gray-800">
+                        <span>{t.selfService.payment.summaryTitle}</span>
+                        <span>CHF {totalPrice.toFixed(2)}</span>
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1 truncate">Ref: {paymentData.reference}</div>
+                </div>
+            )}
+
             <div className="w-32 h-48 mx-auto bg-gray-800 rounded-xl border-4 border-gray-700 shadow-inner flex flex-col items-center p-4 mb-6">
                <div className="w-full h-20 bg-white/10 rounded mb-4 flex items-center justify-center text-white font-mono text-lg">
                   CHF {totalPrice.toFixed(2)}
@@ -398,7 +791,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack }) =
 
         <button
             onClick={() => setStep('success')}
-            className="w-full max-w-sm py-4 rounded-2xl font-bold text-gray-900 bg-[#FFCC00] hover:bg-yellow-400 shadow-lg shadow-yellow-400/20 transition-all active:scale-95 text-lg"
+            className="w-full max-w-sm py-4 rounded-2xl font-bold text-gray-900 bg-[#FFCC00] hover:bg-black hover:text-white shadow-lg shadow-yellow-400/20 transition-all active:scale-95 text-lg"
         >
            {t.selfService.franking.payButton}
         </button>
@@ -466,44 +859,152 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack }) =
         {renderProgressBar()}
 
         <div className="p-6 md:p-10 min-h-[400px]">
-            {step === 'destination' && renderDestinationView()}
-            {step === 'weigh' && renderWeighView()}
-            {step === 'address' && renderAddressView()}
-            {step === 'options' && renderOptionsView()}
-            {step === 'payment' && renderPaymentView()}
-            {(step === 'success' || step === 'feedback') && renderSuccessView()} 
+            {/* Mode specific views */}
+            {mode === 'general_chat' ? renderGeneralChatView() : (
+                <>
+                    {step === 'destination' && renderDestinationView()}
+                    {step === 'weigh' && renderWeighView()}
+                    {step === 'addressCheck' && renderAddressCheckView()}
+                    {step === 'address' && renderAddressView()}
+                    {step === 'format' && renderFormatView()}
+                    {step === 'options' && renderOptionsView()}
+                    {step === 'extras' && renderExtrasView()}
+                    
+                    {/* Payment Mode Steps */}
+                    {step === 'scan' && renderScanView()}
+                    {step === 'payDetails' && renderPaymentDetailsView()}
+                    {step === 'payReceiver' && renderPaymentReceiverView()}
+                    {step === 'payConfirm' && renderPaymentConfirmView()}
+                    {step === 'paySummary' && renderPaymentSummaryView()}
+                    
+                    {step === 'payment' && renderPaymentView()}
+                    {(step === 'success' || step === 'feedback') && renderSuccessView()} 
+                </>
+            )}
         </div>
 
         {/* Footer Navigation */}
-        {step !== 'success' && step !== 'feedback' && (
-            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between gap-4">
-                {step === 'destination' ? (
-                     <button
-                        onClick={onBack}
-                        className="px-8 py-3 rounded-xl text-sm font-bold text-gray-600 bg-white border border-gray-200 hover:bg-gray-100 transition-colors"
-                    >
-                        {t.ui.back}
-                    </button>
-                ) : (
+        {mode === 'general_chat' ? (
+             <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-start">
+                <button
+                    onClick={onBack}
+                    className="px-8 py-3 rounded-xl text-sm font-bold text-gray-600 bg-white border border-gray-200 hover:bg-gray-100 transition-colors"
+                >
+                    {t.ui.back}
+                </button>
+            </div>
+        ) : (
+            step !== 'success' && step !== 'feedback' && (
+                <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between gap-4">
                     <button
                         onClick={() => {
-                            // Custom back logic
-                            if (step === 'weigh') setStep('destination');
-                            if (step === 'address') setStep('weigh');
-                            if (step === 'options') setStep('address');
-                            if (step === 'payment') setStep('options');
+                            if (mode === 'packet') {
+                                if (step === 'destination') onBack();
+                                if (step === 'weigh') setStep('destination');
+                                if (step === 'address') setStep('weigh');
+                                if (step === 'options') setStep('address');
+                                if (step === 'payment') setStep('options');
+                            } else if (mode === 'letter') {
+                                if (step === 'destination') onBack();
+                                if (step === 'addressCheck') setStep('destination');
+                                if (step === 'address') setStep('addressCheck');
+                                if (step === 'format') setStep('addressCheck');
+                                if (step === 'options') setStep('format');
+                                if (step === 'extras') setStep('options');
+                                if (step === 'payment') setStep('extras');
+                            } else if (mode === 'payment') {
+                                // Payment Back Logic
+                                if (step === 'scan') onBack();
+                                if (step === 'payDetails') setStep('scan');
+                                if (step === 'payReceiver') setStep('payDetails');
+                                if (step === 'payConfirm') setStep('payReceiver');
+                                if (step === 'paySummary') setStep('payConfirm');
+                                if (step === 'payment') setStep('paySummary');
+                            }
                         }}
                         className="px-8 py-3 rounded-xl text-sm font-bold text-gray-600 bg-white border border-gray-200 hover:bg-gray-100 transition-colors"
                     >
                         {t.ui.back}
                     </button>
-                )}
 
-                {step === 'address' && (
-                    <button
-                        onClick={() => setStep('options')}
-                        disabled={!canProceedAddress()}
-                        className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-gray-900 hover:bg-black shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                    >
-                        {t.ui.next}
+                    {/* Next Buttons */}
+                    {step === 'address' && (
+                        <button
+                            onClick={() => {
+                                if (mode === 'packet') setStep('options');
+                                else setStep('format'); 
+                            }}
+                            disabled={mode === 'packet' && !receiver.name}
+                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-gray-900 hover:bg-black shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            {t.ui.next}
+                        </button>
+                    )}
                     
+                    {step === 'options' && (
+                        <button
+                            onClick={() => {
+                                if (mode === 'packet') setStep('payment');
+                                else setStep('extras');
+                            }}
+                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-gray-900 hover:bg-black shadow-lg transition-all"
+                        >
+                            {t.ui.next}
+                        </button>
+                    )}
+
+                    {step === 'extras' && (
+                        <button
+                            onClick={() => setStep('payment')}
+                            className="px-8 py-3 rounded-xl text-sm font-bold text-gray-900 bg-[#FFCC00] hover:bg-black hover:text-white shadow-lg transition-all"
+                        >
+                            {t.ui.pay}
+                        </button>
+                    )}
+                    
+                    {step === 'payDetails' && (
+                        <button
+                            onClick={() => setStep('payReceiver')}
+                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-gray-900 hover:bg-black shadow-lg transition-all"
+                        >
+                            {t.ui.next}
+                        </button>
+                    )}
+                    
+                    {step === 'payReceiver' && (
+                        <button
+                            onClick={() => setStep('payConfirm')}
+                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-gray-900 hover:bg-black shadow-lg transition-all"
+                        >
+                            {t.ui.next}
+                        </button>
+                    )}
+                    
+                    {step === 'paySummary' && (
+                        <button
+                            onClick={() => setStep('payment')}
+                            className="px-8 py-3 rounded-xl text-sm font-bold text-gray-900 bg-[#FFCC00] hover:bg-black hover:text-white shadow-lg transition-all"
+                        >
+                            {t.ui.pay}
+                        </button>
+                    )}
+
+                </div>
+            )
+        )}
+        
+        {(step === 'success' || step === 'feedback') && (
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-center">
+                 <button
+                    onClick={onBack}
+                    className="px-12 py-4 rounded-xl text-base font-bold text-white bg-gray-900 hover:bg-black shadow-lg transition-all"
+                >
+                    {t.ui.finish}
+                </button>
+            </div>
+        )}
+
+      </div>
+    </section>
+  );
+};
