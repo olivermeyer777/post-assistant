@@ -37,6 +37,7 @@ export interface TranslationData {
     errorMicrophone: string;
     retry: string;
     pay: string;
+    accessibility: string; // New
   };
   selfService: {
     title: string;

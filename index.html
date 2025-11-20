@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="de">
   <head>
@@ -30,6 +31,108 @@
         opacity: 1;
         transform: translateY(0);
         transition: opacity 300ms, transform 300ms;
+      }
+
+      /* --- ACCESSIBILITY MODE (High Contrast / Colorblind Safe) --- */
+      body.accessibility-mode {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+      }
+
+      body.accessibility-mode * {
+        /* Ensure text contrast */
+        border-color: #000000 !important;
+      }
+
+      /* Override Yellow Buttons/Backgrounds */
+      body.accessibility-mode .bg-\[\#FFCC00\],
+      body.accessibility-mode .bg-yellow-50, 
+      body.accessibility-mode .bg-yellow-100,
+      body.accessibility-mode .bg-yellow-400 {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+        border: 2px solid #000000 !important;
+      }
+
+      /* Text colors on yellow elements */
+      body.accessibility-mode .text-yellow-600,
+      body.accessibility-mode .text-yellow-700 {
+        color: #000000 !important;
+      }
+
+      /* Primary Buttons (Usually Black in design, keep them black but ensure border) */
+      body.accessibility-mode .bg-gray-900,
+      body.accessibility-mode .bg-black {
+        background-color: #000000 !important;
+        border: 2px solid #000000 !important;
+        color: #ffffff !important;
+      }
+
+      /* Secondary Buttons / Inputs */
+      body.accessibility-mode .bg-white {
+        background-color: #ffffff !important;
+        border: 2px solid #000000 !important;
+        color: #000000 !important;
+      }
+
+      /* Text Overrides */
+      body.accessibility-mode .text-gray-500,
+      body.accessibility-mode .text-gray-400,
+      body.accessibility-mode .text-gray-600 {
+        color: #000000 !important;
+        font-weight: 500 !important;
+      }
+
+      /* Green (Success) overrides -> Checkered or B&W */
+      body.accessibility-mode .bg-green-100,
+      body.accessibility-mode .bg-green-500,
+      body.accessibility-mode .bg-green-50 {
+        background-color: #ffffff !important;
+        background-image: repeating-linear-gradient(45deg, #000 0, #000 1px, #fff 0, #fff 50%);
+        background-size: 10px 10px;
+        color: #000000 !important;
+        border: 2px solid #000000 !important;
+      }
+      
+      body.accessibility-mode .text-green-600,
+      body.accessibility-mode .text-green-800 {
+        color: #000000 !important;
+        text-decoration: underline;
+      }
+
+      /* Red (Error) overrides -> Dashed or B&W */
+      body.accessibility-mode .bg-red-100,
+      body.accessibility-mode .bg-red-500,
+      body.accessibility-mode .bg-red-50 {
+        background-color: #ffffff !important;
+        border: 2px dashed #000000 !important;
+        color: #000000 !important;
+      }
+      body.accessibility-mode .text-red-500,
+      body.accessibility-mode .text-red-600,
+      body.accessibility-mode .text-red-700 {
+        color: #000000 !important;
+        font-weight: bold !important;
+      }
+      
+      /* Specific Component Tweaks */
+      body.accessibility-mode input {
+        border-width: 2px !important;
+        background-color: #fff !important;
+        color: #000 !important;
+      }
+
+      /* Remove shadows in accessible mode for clarity */
+      body.accessibility-mode .shadow-lg,
+      body.accessibility-mode .shadow-xl,
+      body.accessibility-mode .shadow-sm {
+        box-shadow: none !important;
+      }
+
+      /* Progress Bars */
+      body.accessibility-mode .bg-gray-100 {
+         background-color: #ffffff !important;
+         border: 1px solid #000 !important;
       }
     </style>
   <script type="importmap">

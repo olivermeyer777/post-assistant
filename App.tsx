@@ -22,6 +22,12 @@ const SwissPostLogo = () => (
   </svg>
 );
 
+const AssistantIcon = () => (
+  <svg className="w-10 h-10 mb-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+  </svg>
+);
+
 const ServiceIcon = () => (
   <svg className="w-10 h-10 mb-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -36,7 +42,7 @@ const VideoIcon = () => (
 
 // Button Icons
 const PacketIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
     <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
     <line x1="12" y1="22.08" x2="12" y2="12"></line>
@@ -44,21 +50,21 @@ const PacketIcon = () => (
 );
 
 const LetterIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect width="20" height="16" x="2" y="4" rx="2"></rect>
     <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
   </svg>
 );
 
 const CreditCardIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect width="20" height="14" x="2" y="5" rx="2"></rect>
     <line x1="2" x2="22" y1="10" y2="10"></line>
   </svg>
 );
 
 const TrackingIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
     <line x1="3.29" y1="7" x2="12" y2="12"></line>
     <line x1="12" y1="12" x2="20.71" y2="7"></line>
@@ -99,6 +105,9 @@ const App: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [isVideoCallLoading, setIsVideoCallLoading] = useState(false);
   
+  // Accessibility State
+  const [isAccessibilityMode, setIsAccessibilityMode] = useState(false);
+  
   // Chat State
   const [messages, setMessages] = useState<Message[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -128,14 +137,22 @@ const App: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Toggle Body Class for Accessibility Mode
+  useEffect(() => {
+    if (isAccessibilityMode) {
+      document.body.classList.add('accessibility-mode');
+    } else {
+      document.body.classList.remove('accessibility-mode');
+    }
+  }, [isAccessibilityMode]);
+
   // Initial Welcome Message
   useEffect(() => {
       // Only add if messages are empty
       if (messages.length === 0) {
           setMessages([{ id: generateId(), sender: 'assistant', text: t.ui.welcomeChat }]);
       }
-  }, [t.ui.welcomeChat]); // Re-run when language changes to update greeting? 
-  // Actually better to only do it once or update existing ID. For now simple re-add if empty is fine.
+  }, [t.ui.welcomeChat]);
 
   // --- Logic ---
 
@@ -195,7 +212,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen font-sans text-gray-900 bg-gray-50/50 selection:bg-yellow-200 pb-32">
+    <div className={`min-h-screen font-sans text-gray-900 bg-gray-50/50 selection:bg-yellow-200 pb-32 transition-colors duration-300 ${isAccessibilityMode ? 'accessibility-mode-active' : ''}`}>
       {/* Modern Light Header */}
       <header 
         className={`fixed top-0 w-full z-50 transition-all duration-300 ${
@@ -247,75 +264,74 @@ const App: React.FC = () => {
                </div>
             </section>
 
-            {/* Tiles Grid */}
+            {/* Tiles Grid (2/3 and 1/3 split) */}
             <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Self-Service Tile - Expanded (Takes 2 Columns) */}
-                <div className="md:col-span-2 group bg-white rounded-[2rem] p-8 md:p-10 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-white hover:border-black transition-all duration-300 hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)] flex flex-col text-left">
-                  <div className="flex flex-col md:flex-row gap-8 h-full">
-                    <div className="flex-1 flex flex-col">
+                
+                {/* 1. Self-Service Tile (Takes 2 cols on medium screens) */}
+                <div className="md:col-span-2 group bg-white rounded-[2rem] p-8 md:p-10 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-white hover:border-black transition-all duration-300 hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)] text-left">
+                    <div className="flex flex-col md:flex-row gap-8 h-full">
+                      {/* Left Content: Icon, Title, Desc */}
+                      <div className="flex-1 flex flex-col items-start">
                         <div className="w-16 h-16 rounded-2xl bg-yellow-50 flex items-center justify-center mb-6 text-yellow-600 group-hover:scale-110 transition-transform duration-300">
                           <ServiceIcon />
                         </div>
                         <h2 className="text-2xl font-bold mb-3 text-gray-900">{t.tiles.self.title}</h2>
-                        <p className="text-gray-500 leading-relaxed text-base max-w-xs">
+                        <p className="text-gray-500 leading-relaxed text-base flex-1">
                           {t.tiles.self.desc}
                         </p>
-                    </div>
-                    
-                    <div className="flex-1 flex flex-col gap-3 justify-end">
-                         {/* Packet */}
-                         <button 
-                           onClick={() => handleSelfServiceClick('packet')}
-                           className="w-full py-4 px-6 rounded-2xl text-left font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all flex items-center gap-4 shadow-lg group/btn"
-                         >
-                           <PacketIcon />
-                           <span>{t.tiles.self.btnPacket}</span>
-                         </button>
+                      </div>
 
-                         {/* Letter */}
-                         <button 
-                           onClick={() => handleSelfServiceClick('letter')}
-                           className="w-full py-4 px-6 rounded-2xl text-left font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all flex items-center gap-4 shadow-lg group/btn"
-                         >
-                           <LetterIcon />
-                           <span>{t.tiles.self.btnLetter}</span>
-                         </button>
-                         
-                         {/* Payment */}
-                         <button 
-                           onClick={() => handleSelfServiceClick('payment')}
-                           className="w-full py-4 px-6 rounded-2xl text-left font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all flex items-center gap-4 shadow-lg group/btn"
-                         >
-                           <CreditCardIcon />
-                           <span>{t.tiles.self.btnPayment}</span>
-                         </button>
+                      {/* Right Content: Buttons Stack */}
+                      <div className="w-full md:w-64 flex flex-col gap-3 shrink-0 mt-4 md:mt-0 justify-end">
+                           <button 
+                             onClick={() => handleSelfServiceClick('packet')}
+                             className="py-3 px-5 rounded-xl text-left font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all flex items-center gap-3 shadow-sm"
+                           >
+                             <PacketIcon />
+                             <span className="text-sm">{t.tiles.self.btnPacket}</span>
+                           </button>
 
-                         {/* Tracking */}
-                         <button 
-                           onClick={() => handleSelfServiceClick('tracking')}
-                           className="w-full py-4 px-6 rounded-2xl text-left font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all flex items-center gap-4 shadow-lg group/btn"
-                         >
-                           <TrackingIcon />
-                           <span>{t.tiles.self.btnTracking}</span>
-                         </button>
+                           <button 
+                             onClick={() => handleSelfServiceClick('letter')}
+                             className="py-3 px-5 rounded-xl text-left font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all flex items-center gap-3 shadow-sm"
+                           >
+                             <LetterIcon />
+                             <span className="text-sm">{t.tiles.self.btnLetter}</span>
+                           </button>
+                           
+                           <button 
+                             onClick={() => handleSelfServiceClick('payment')}
+                             className="py-3 px-5 rounded-xl text-left font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all flex items-center gap-3 shadow-sm"
+                           >
+                             <CreditCardIcon />
+                             <span className="text-sm">{t.tiles.self.btnPayment}</span>
+                           </button>
+
+                           <button 
+                             onClick={() => handleSelfServiceClick('tracking')}
+                             className="py-3 px-5 rounded-xl text-left font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all flex items-center gap-3 shadow-sm"
+                           >
+                             <TrackingIcon />
+                             <span className="text-sm">{t.tiles.self.btnTracking}</span>
+                           </button>
+                      </div>
                     </div>
-                  </div>
                 </div>
 
-                {/* Video Tile - UNBLU */}
+                {/* 2. Video Tile (Takes 1 col on medium screens) */}
                 <button 
                   onClick={handleVideoClick}
                   disabled={isVideoCallLoading}
-                  className="group bg-white rounded-[2rem] p-8 md:p-10 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-white hover:border-black flex flex-col text-left transition-all duration-300 hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)] relative overflow-hidden"
+                  className="md:col-span-1 group bg-white rounded-[2rem] p-8 md:p-10 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-white hover:border-black flex flex-col text-left transition-all duration-300 hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)] relative overflow-hidden h-full"
                 >
                   <div className="w-16 h-16 rounded-2xl bg-yellow-50 flex items-center justify-center mb-6 text-yellow-600 group-hover:scale-110 transition-transform duration-300">
                      <VideoIcon />
                   </div>
-                  <h2 className="text-xl font-bold mb-3 text-gray-900">{t.tiles.video.title}</h2>
-                  <p className="text-gray-500 leading-relaxed text-sm mb-8 flex-1">
+                  <h2 className="text-2xl font-bold mb-3 text-gray-900">{t.tiles.video.title}</h2>
+                  <p className="text-gray-500 leading-relaxed text-base mb-8 flex-1">
                     {t.tiles.video.desc}
                   </p>
-                  <div className="w-full py-4 px-6 rounded-2xl text-center font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all shadow-lg flex items-center justify-center gap-3">
+                  <div className="w-full py-3 px-5 rounded-xl text-center font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all shadow-lg flex items-center justify-center gap-3 mt-auto text-sm">
                     {isVideoCallLoading ? (
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                     ) : (
@@ -338,7 +354,21 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Floating Elements */}
+      {/* Floating Chat Button (Restored) */}
+      {isChatMinimized && (
+        <button
+          onClick={() => {
+             setIsChatMinimized(false);
+             setIsChatOpen(true);
+          }}
+          className="fixed right-4 sm:right-6 bottom-24 z-[990] w-16 h-16 rounded-full bg-[#FFCC00] text-gray-900 shadow-xl flex items-center justify-center hover:scale-110 transition-transform duration-300 border-4 border-white/50"
+          aria-label="Chat öffnen"
+        >
+           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+           </svg>
+        </button>
+      )}
       
       {/* Standard Chat */}
       <ChatBox 
@@ -354,21 +384,13 @@ const App: React.FC = () => {
           onToggleSound={() => setIsSoundEnabled(!isSoundEnabled)}
           currentLang={currentLang}
       />
-      
-      {/* Chat Bubble Trigger (Only visible when minimized) */}
-      {isChatMinimized && (
-         <button 
-           onClick={() => setIsChatMinimized(false)}
-           className="fixed right-6 bottom-24 w-14 h-14 bg-[#FFCC00] rounded-full shadow-xl flex items-center justify-center text-gray-900 z-[990] hover:scale-110 transition-transform"
-         >
-             <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white"></div>
-             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-               <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-             </svg>
-         </button>
-      )}
 
-      <LanguageBar currentLang={currentLang} setLanguage={setCurrentLang} />
+      <LanguageBar 
+        currentLang={currentLang} 
+        setLanguage={setCurrentLang} 
+        isAccessibilityMode={isAccessibilityMode}
+        toggleAccessibility={() => setIsAccessibilityMode(!isAccessibilityMode)}
+      />
     </div>
   );
 };

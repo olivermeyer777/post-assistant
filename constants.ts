@@ -64,7 +64,8 @@ const DE_DEFAULTS: TranslationData = {
       errorGeneric: "Es ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
       errorMicrophone: "Mikrofonzugriff fehlgeschlagen. Bitte überprüfen Sie die Berechtigungen.",
       retry: "Erneut versuchen",
-      pay: "Bezahlen"
+      pay: "Bezahlen",
+      accessibility: "Barrierefreiheit"
     },
     selfService: {
       title: "Paket frankieren",
@@ -215,6 +216,7 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
       thinking: "Je réfléchis...",
       errorGeneric: "Une erreur est survenue.",
       errorMicrophone: "Erreur microphone.",
+      accessibility: "Accessibilité"
     },
     selfService: {
       title: "Affranchir un colis",
@@ -278,6 +280,7 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
       thinking: "Sto pensando...",
       errorGeneric: "Si è verificato un errore.",
       errorMicrophone: "Errore microfono.",
+      accessibility: "Accessibilità"
     },
     selfService: {
       title: "Affrancare pacco",
@@ -341,6 +344,7 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
       thinking: "Thinking...",
       errorGeneric: "An error occurred.",
       errorMicrophone: "Microphone error.",
+      accessibility: "Accessibility"
     },
     selfService: {
        title: "Frank a parcel",
@@ -411,7 +415,8 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
       welcomeChat: "¡Hola! Soy tu PostAssistant. ¿Cómo puedo ayudarte?",
       errorGeneric: "Ha ocurrido un error.",
       errorMicrophone: "Error de micrófono.",
-      retry: "Reintentar"
+      retry: "Reintentar",
+      accessibility: "Accesibilidad"
     },
     selfService: {
       title: "Franquear paquete",
@@ -482,7 +487,8 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
       welcomeChat: "Olá! Sou o seu PostAssistant. Como posso ajudar?",
       errorGeneric: "Ocorreu um erro.",
       errorMicrophone: "Erro no microfone.",
-      retry: "Tentar novamente"
+      retry: "Tentar novamente",
+      accessibility: "Acessibilidade"
     },
     selfService: {
       title: "Franquear encomenda",

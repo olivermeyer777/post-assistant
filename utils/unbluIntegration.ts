@@ -4,7 +4,7 @@
  * Documentation reference: https://www.unblu.com/en/doc/latest/
  */
 
-const UNBLU_SERVER = "https://post-self-service.dev.unblu-test.com/app"; 
+const UNBLU_SERVER = "https://post-self-service.dev.unblu-test.com"; 
 const UNBLU_API_KEY: string = "CECkwTtITwyICpnbrABAyg"; 
 
 declare global {
@@ -23,11 +23,15 @@ export const triggerUnbluVideoCall = async (): Promise<void> => {
     return Promise.reject("Configuration missing");
   }
 
+  // Configure Unblu via global object before loading script
+  // This is often more robust than query parameters
+  window.unblu = window.unblu || {};
+  window.unblu.apiKey = UNBLU_API_KEY;
+
   // Case 1: Unblu is fully loaded and ready
   if (window.unblu && window.unblu.api) {
     console.log("Unblu already active. Toggling window...");
     try {
-       // Depending on configuration, this opens the conversation UI or the start view
        window.unblu.api.toggleConversationWindow(true);
        return Promise.resolve();
     } catch (e) {
@@ -49,7 +53,9 @@ export const triggerUnbluVideoCall = async (): Promise<void> => {
   // Case 3: Start initialization
   console.log("Starting Unblu initialization...");
   initPromise = new Promise((resolve, reject) => {
-    const scriptUrl = `${UNBLU_SERVER}/unblu/visitor.js?x-unblu-apikey=${encodeURIComponent(UNBLU_API_KEY)}`;
+    // Standard Unblu Cloud Path is usually at root /unblu/visitor.js
+    // We rely on window.unblu.apiKey for auth
+    const scriptUrl = `${UNBLU_SERVER}/unblu/visitor.js`;
     console.log("Loading Unblu script from:", scriptUrl);
 
     // Check if script is already in DOM to avoid duplicates
