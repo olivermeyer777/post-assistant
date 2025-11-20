@@ -9,7 +9,7 @@ export interface TileContent {
   btnPacket?: string;
   btnLetter?: string;
   btnPayment?: string;
-  btnOther?: string;
+  btnTracking?: string; // Renamed from btnOther
 }
 
 export interface TranslationData {
@@ -42,7 +42,7 @@ export interface TranslationData {
     title: string;
     titleLetter: string;
     titlePayment: string;
-    titleChat: string; // New
+    titleTracking: string; // New
     steps: {
       start: string;
       weigh: string;
@@ -54,6 +54,8 @@ export interface TranslationData {
       scan: string;
       details: string;
       check: string;
+      trackInput: string; // New
+      trackStatus: string; // New
     };
     franking: {
       destCH: string;
@@ -134,13 +136,16 @@ export interface TranslationData {
       summaryTitle: string;
       summaryAccount: string;
     };
-    // New section for General Chat / Assistant
-    chat: {
-      introTitle: string;
-      introDesc: string;
-      listening: string;
-      sources: string;
-      tryAgain: string;
+    // New section for Tracking
+    tracking: {
+      searchLabel: string;
+      searchButton: string;
+      placeholder: string;
+      errorRequired: string;
+      statusTitle: string;
+      statusLabel: string;
+      currentStatus: string;
+      history: string;
     };
   }
 }

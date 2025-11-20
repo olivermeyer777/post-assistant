@@ -6,8 +6,6 @@ import { sendMessageToGemini } from './services/geminiService';
 import { LanguageBar } from './components/LanguageBar';
 import { ChatBox } from './components/ChatBox';
 import { SelfServiceView } from './components/SelfServiceView';
-import { VoiceControl } from './components/VoiceControl';
-import { useLiveGemini } from './hooks/useLiveGemini';
 import { useTTS } from './hooks/useTTS';
 import { triggerUnbluVideoCall } from './utils/unbluIntegration';
 
@@ -59,9 +57,14 @@ const CreditCardIcon = () => (
   </svg>
 );
 
-const ChatIcon = () => (
+const TrackingIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
+    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+    <line x1="3.29" y1="7" x2="12" y2="12"></line>
+    <line x1="12" y1="12" x2="20.71" y2="7"></line>
+    <line x1="12" y1="22" x2="12" y2="12"></line>
+    <circle cx="18.5" cy="18.5" r="2.5" className="fill-white stroke-gray-900" />
+    <line x1="20.5" y1="20.5" x2="22" y2="22" />
   </svg>
 );
 
@@ -92,9 +95,9 @@ const App: React.FC = () => {
   // --- State ---
   const [currentLang, setCurrentLang] = useState<Language>('de');
   const [currentView, setCurrentView] = useState<'home' | 'self-service'>('home');
-  const [selfServiceMode, setSelfServiceMode] = useState<'packet' | 'letter' | 'payment' | 'general_chat'>('packet');
+  const [selfServiceMode, setSelfServiceMode] = useState<'packet' | 'letter' | 'payment' | 'tracking'>('packet');
   const [scrolled, setScrolled] = useState(false);
-  const [isVideoCallActive, setIsVideoCallActive] = useState(false);
+  const [isVideoCallLoading, setIsVideoCallLoading] = useState(false);
   
   // Chat State
   const [messages, setMessages] = useState<Message[]>([]);
@@ -125,17 +128,36 @@ const App: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Initial Welcome Message
+  useEffect(() => {
+      // Only add if messages are empty
+      if (messages.length === 0) {
+          setMessages([{ id: generateId(), sender: 'assistant', text: t.ui.welcomeChat }]);
+      }
+  }, [t.ui.welcomeChat]); // Re-run when language changes to update greeting? 
+  // Actually better to only do it once or update existing ID. For now simple re-add if empty is fine.
+
   // --- Logic ---
 
-  const handleSelfServiceClick = (mode: 'packet' | 'letter' | 'payment' | 'general_chat') => {
+  const handleSelfServiceClick = (mode: 'packet' | 'letter' | 'payment' | 'tracking') => {
     setSelfServiceMode(mode);
     setCurrentView('self-service');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleVideoClick = () => {
-    setIsVideoCallActive(true); // Hide voice agent button
-    triggerUnbluVideoCall().catch(() => setIsVideoCallActive(false));
+  const handleVideoClick = async () => {
+    if (isVideoCallLoading) return;
+    setIsVideoCallLoading(true);
+    cancelTTS();
+    try {
+        await triggerUnbluVideoCall();
+        // We don't set isVideoCallLoading false immediately as Unblu might take a second to appear
+        setTimeout(() => setIsVideoCallLoading(false), 2000);
+    } catch (e) {
+        console.error("Video call failed", e);
+        setGlobalError(t.ui.errorGeneric);
+        setIsVideoCallLoading(false);
+    }
   };
 
   const navigateToHome = () => {
@@ -149,6 +171,7 @@ const App: React.FC = () => {
     cancelTTS();
     const userMsg: Message = { id: generateId(), sender: 'user', text };
     setMessages(prev => [...prev, userMsg]);
+    setIsChatOpen(true); // Ensure open
     setIsChatMinimized(false); 
     setIsThinking(true);
     setGlobalError(null);
@@ -168,54 +191,6 @@ const App: React.FC = () => {
       setIsThinking(false);
       setMessages(prev => [...prev, { id: generateId(), sender: 'assistant', text: t.ui.errorGeneric }]);
       setGlobalError(t.ui.errorGeneric);
-    }
-  };
-
-  // --- Voice Hook Integration ---
-  const { isConnected, isSpeaking: isAgentSpeaking, connect, disconnect, error: liveError } = useLiveGemini({
-    onConnect: () => {
-      cancelTTS();
-      // Use local TTS to greet the user immediately. 
-      // This bridges the silence since we can't easily force Gemini to speak first without a user turn in some SDK versions.
-      speak(t.ui.welcomeChat, currentLang);
-
-      setIsChatOpen(true);
-      setIsChatMinimized(true); 
-      setGlobalError(null);
-    },
-    onNavigateOracle: () => {
-       // For visual feedback if needed, or logic to switch views
-       setIsChatOpen(true);
-       setIsChatMinimized(false);
-    },
-    onNavigateHome: () => {
-      navigateToHome();
-    },
-    onChangeLanguage: (lang) => {
-      setCurrentLang(lang);
-    },
-    onMessageUpdate: (text, sender) => {
-        setMessages(prev => [...prev, { id: generateId(), sender, text }]);
-    }
-  });
-
-  useEffect(() => {
-    if (liveError) {
-      if (liveError === 'microphone') {
-        setGlobalError(t.ui.errorMicrophone);
-      } else {
-        setGlobalError(t.ui.errorGeneric);
-      }
-    }
-  }, [liveError, t.ui]);
-
-  const handleVoiceToggle = () => {
-    setGlobalError(null);
-    if (isConnected) {
-        disconnect();
-    } else {
-        cancelTTS(); 
-        connect(currentLang);
     }
   };
 
@@ -315,13 +290,13 @@ const App: React.FC = () => {
                            <span>{t.tiles.self.btnPayment}</span>
                          </button>
 
-                         {/* General Chat */}
+                         {/* Tracking */}
                          <button 
-                           onClick={() => handleSelfServiceClick('general_chat')}
+                           onClick={() => handleSelfServiceClick('tracking')}
                            className="w-full py-4 px-6 rounded-2xl text-left font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all flex items-center gap-4 shadow-lg group/btn"
                          >
-                           <ChatIcon />
-                           <span>{t.tiles.self.btnOther}</span>
+                           <TrackingIcon />
+                           <span>{t.tiles.self.btnTracking}</span>
                          </button>
                     </div>
                   </div>
@@ -330,7 +305,8 @@ const App: React.FC = () => {
                 {/* Video Tile - UNBLU */}
                 <button 
                   onClick={handleVideoClick}
-                  className="group bg-white rounded-[2rem] p-8 md:p-10 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-white hover:border-black flex flex-col text-left transition-all duration-300 hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)]"
+                  disabled={isVideoCallLoading}
+                  className="group bg-white rounded-[2rem] p-8 md:p-10 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-white hover:border-black flex flex-col text-left transition-all duration-300 hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)] relative overflow-hidden"
                 >
                   <div className="w-16 h-16 rounded-2xl bg-yellow-50 flex items-center justify-center mb-6 text-yellow-600 group-hover:scale-110 transition-transform duration-300">
                      <VideoIcon />
@@ -340,8 +316,12 @@ const App: React.FC = () => {
                     {t.tiles.video.desc}
                   </p>
                   <div className="w-full py-4 px-6 rounded-2xl text-center font-bold text-white bg-gray-900 hover:bg-black hover:scale-[1.02] transition-all shadow-lg flex items-center justify-center gap-3">
-                    <VideoCallIcon />
-                    <span>{t.tiles.video.btnText}</span>
+                    {isVideoCallLoading ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    ) : (
+                        <VideoCallIcon />
+                    )}
+                    <span>{isVideoCallLoading ? "Lade..." : t.tiles.video.btnText}</span>
                   </div>
                 </button>
             </section>
@@ -353,37 +333,40 @@ const App: React.FC = () => {
             t={t} 
             onBack={navigateToHome} 
             mode={selfServiceMode} 
-            currentLang={currentLang} // Pass lang for speech
+            currentLang={currentLang} 
           />
         )}
       </main>
 
       {/* Floating Elements */}
       
-      {/* Standard Chat (Hidden when using Agent Voice Mode, effectively) */}
-      {selfServiceMode !== 'general_chat' && (
-        <ChatBox 
-            isOpen={isChatOpen}
-            isMinimized={isChatMinimized}
-            setMinimized={setIsChatMinimized}
-            messages={messages}
-            onSendMessage={handleSendMessage}
-            isThinking={isThinking}
-            t={t}
-            isVoiceActive={isConnected}
-            isSoundEnabled={isSoundEnabled}
-            onToggleSound={() => setIsSoundEnabled(!isSoundEnabled)}
-            currentLang={currentLang}
-        />
-      )}
-
-      {/* Agentic Voice Control - Global Floating */}
-      <VoiceControl 
-          isConnected={isConnected}
-          isSpeaking={isAgentSpeaking}
-          onToggle={handleVoiceToggle}
-          isVideoCallActive={isVideoCallActive}
+      {/* Standard Chat */}
+      <ChatBox 
+          isOpen={true} // Always mounted but toggled by minimize state
+          isMinimized={isChatMinimized}
+          setMinimized={setIsChatMinimized}
+          messages={messages}
+          onSendMessage={handleSendMessage}
+          isThinking={isThinking}
+          t={t}
+          isVoiceActive={false} // No global voice anymore
+          isSoundEnabled={isSoundEnabled}
+          onToggleSound={() => setIsSoundEnabled(!isSoundEnabled)}
+          currentLang={currentLang}
       />
+      
+      {/* Chat Bubble Trigger (Only visible when minimized) */}
+      {isChatMinimized && (
+         <button 
+           onClick={() => setIsChatMinimized(false)}
+           className="fixed right-6 bottom-24 w-14 h-14 bg-[#FFCC00] rounded-full shadow-xl flex items-center justify-center text-gray-900 z-[990] hover:scale-110 transition-transform"
+         >
+             <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white"></div>
+             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+               <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+             </svg>
+         </button>
+      )}
 
       <LanguageBar currentLang={currentLang} setLanguage={setCurrentLang} />
     </div>

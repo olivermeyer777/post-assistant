@@ -1,18 +1,15 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { TranslationData, Language, Message } from '../types';
-import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
-import { sendMessageToGemini } from '../services/geminiService';
-import { useTTS } from '../hooks/useTTS';
+import { TranslationData, Language } from '../types';
 
 interface SelfServiceViewProps {
   t: TranslationData;
   onBack: () => void;
-  mode?: 'packet' | 'letter' | 'payment' | 'general_chat';
+  mode?: 'packet' | 'letter' | 'payment' | 'tracking';
   currentLang?: Language;
 }
 
-type Step = 'destination' | 'weigh' | 'addressCheck' | 'address' | 'format' | 'options' | 'extras' | 'payment' | 'success' | 'feedback' | 'scan' | 'payDetails' | 'payReceiver' | 'payConfirm' | 'paySummary';
+type Step = 'destination' | 'weigh' | 'addressCheck' | 'address' | 'format' | 'options' | 'extras' | 'payment' | 'success' | 'feedback' | 'scan' | 'payDetails' | 'payReceiver' | 'payConfirm' | 'paySummary' | 'trackInput' | 'trackStatus';
 
 interface ReceiverData {
   type: 'private' | 'company';
@@ -61,11 +58,9 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
     receiverCity: 'Grosshöchstetten'
   });
 
-  // Chat / Assistant Specific
-  const [chatMessages, setChatMessages] = useState<Message[]>([]);
-  const [isProcessingChat, setIsProcessingChat] = useState(false);
-  const { isListening, startListening, stopListening } = useSpeechRecognition();
-  const { speak, cancel: cancelTTS } = useTTS();
+  // Tracking Specific
+  const [trackingCode, setTrackingCode] = useState('');
+  const [trackingError, setTrackingError] = useState(false);
 
   const [feedbackScore, setFeedbackScore] = useState<number | null>(null);
 
@@ -73,6 +68,8 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
   useEffect(() => {
     if (mode === 'payment') {
         setStep('scan');
+    } else if (mode === 'tracking') {
+        setStep('trackInput');
     } else {
         setStep('destination');
     }
@@ -206,41 +203,13 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
       }, 2000);
   };
 
-  // --- Chat Logic ---
-  const handleMicClick = () => {
-    if (isListening) {
-        stopListening();
-    } else {
-        startListening(currentLang, (text, isFinal) => {
-            if (isFinal) {
-                handleUserQuery(text);
-            }
-        });
-    }
-  };
-
-  const handleUserQuery = async (text: string) => {
-     cancelTTS();
-     setChatMessages(prev => [...prev, { id: Date.now().toString(), sender: 'user', text }]);
-     setIsProcessingChat(true);
-     
-     try {
-        const response = await sendMessageToGemini(text, currentLang);
-        const cleanText = response.text.replace(/BUTTONS:.*$/im, '').trim();
-        
-        setChatMessages(prev => [...prev, { 
-            id: Date.now().toString(), 
-            sender: 'assistant', 
-            text: cleanText,
-            sources: response.sources 
-        }]);
-        
-        speak(cleanText, currentLang);
-     } catch (e) {
-         setChatMessages(prev => [...prev, { id: Date.now().toString(), sender: 'assistant', text: t.ui.errorGeneric }]);
-     } finally {
-         setIsProcessingChat(false);
-     }
+  const handleTrackingSearch = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!trackingCode.trim()) {
+          setTrackingError(true);
+          return;
+      }
+      setStep('trackStatus');
   };
 
   // --- RENDER FUNCTIONS ---
@@ -258,14 +227,9 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
     } else if (mode === 'payment') {
         title = t.selfService.titlePayment;
         stepsList = ['scan', 'payDetails', 'payReceiver', 'payConfirm', 'paySummary', 'payment', 'success'];
-    } else {
-        // General Chat
-        title = t.selfService.titleChat;
-        return (
-             <div className="bg-white border-b border-gray-100 pt-6 px-4 md:px-8 pb-4">
-                <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">{title}</h1>
-             </div>
-        );
+    } else if (mode === 'tracking') {
+        title = t.selfService.titleTracking;
+        stepsList = ['trackInput', 'trackStatus'];
     }
 
     let currentIndex = stepsList.indexOf(step);
@@ -328,100 +292,104 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
     );
   };
 
-  // --- General Chat View (Alles andere) ---
-  const renderGeneralChatView = () => {
-      const lastMessage = chatMessages.length > 0 ? chatMessages[chatMessages.length - 1] : null;
-      const showIntro = chatMessages.length === 0;
+  // --- Tracking Views ---
+  
+  const renderTrackInputView = () => (
+    <div className="flex flex-col gap-8 min-h-[400px]">
+        {/* Yellow Banner Input - Inspired by Screenshot */}
+        <div className="w-full bg-[#FFCC00] p-8 md:p-12 rounded-[2rem] shadow-lg relative overflow-hidden">
+             <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
+             
+             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-8">{t.selfService.titleTracking}</h2>
+             
+             <form onSubmit={handleTrackingSearch} className="flex flex-col md:flex-row items-stretch gap-0 shadow-2xl rounded-sm overflow-hidden">
+                 <div className="flex-1 relative">
+                    <input
+                        type="text"
+                        value={trackingCode}
+                        onChange={(e) => {
+                            setTrackingCode(e.target.value);
+                            if (e.target.value.trim()) setTrackingError(false);
+                        }}
+                        className={`w-full h-16 px-6 text-lg outline-none bg-white text-gray-900 placeholder-gray-400 ${trackingError ? 'border-l-8 border-red-700' : ''}`}
+                        placeholder={t.selfService.tracking.placeholder}
+                    />
+                    {trackingError && (
+                        <div className="absolute -bottom-8 left-0 text-xs font-bold bg-red-700 text-white px-2 py-1 rounded-b-md animate-fade-in">
+                           {t.selfService.tracking.errorRequired}
+                        </div>
+                    )}
+                 </div>
+                 <button 
+                    type="submit"
+                    className="bg-gray-800 hover:bg-black text-white font-bold px-8 py-4 h-16 transition-colors flex items-center justify-center gap-2"
+                 >
+                    <span>{t.selfService.tracking.searchButton}</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                 </button>
+             </form>
+             
+             {trackingError && (
+                 <div className="bg-red-800 text-white px-4 py-2 mt-2 text-sm font-medium flex items-center gap-2 animate-fade-in shadow-inner">
+                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                     {t.selfService.tracking.errorRequired}
+                 </div>
+             )}
 
-      return (
-          <div className="flex flex-col items-center justify-center min-h-[400px] w-full max-w-3xl mx-auto">
-              
-              {showIntro && (
-                  <div className="text-center animate-fade-in mb-12">
-                      <h2 className="text-3xl font-bold text-gray-900 mb-4">{t.selfService.chat.introTitle}</h2>
-                      <p className="text-gray-500 text-lg">{t.selfService.chat.introDesc}</p>
-                  </div>
-              )}
+             <div className="mt-6 flex items-center gap-4 text-yellow-900/60 text-sm font-medium">
+                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                 <div className="opacity-80">
+                    99.00.123450.12345678
+                 </div>
+             </div>
+        </div>
+    </div>
+  );
 
-              {/* Result Display Area */}
-              {!showIntro && (
-                  <div className="w-full space-y-6 mb-8 animate-fade-in">
-                      {/* Only show the last Q&A interaction for clarity in this specific view */}
-                      {chatMessages.slice(-2).map((msg) => (
-                          <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                              {msg.sender === 'user' ? (
-                                  <div className="bg-gray-100 text-gray-600 px-6 py-3 rounded-2xl rounded-tr-none max-w-[80%] text-lg">
-                                      "{msg.text}"
-                                  </div>
-                              ) : (
-                                  <div className="bg-white border border-gray-200 shadow-lg rounded-3xl p-6 w-full relative">
-                                      <div className="prose prose-lg max-w-none text-gray-800 leading-relaxed whitespace-pre-wrap">
-                                          {msg.text}
-                                      </div>
-                                      
-                                      {/* Sources / Grounding Chips */}
-                                      {msg.sources && msg.sources.length > 0 && (
-                                          <div className="mt-6 pt-6 border-t border-gray-100">
-                                              <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{t.selfService.chat.sources}</div>
-                                              <div className="flex flex-wrap gap-2">
-                                                  {msg.sources.map((src, idx) => (
-                                                      <a 
-                                                        key={idx} 
-                                                        href={src.uri} 
-                                                        target="_blank" 
-                                                        rel="noreferrer"
-                                                        className="flex items-center gap-2 bg-gray-50 hover:bg-black hover:text-white border border-gray-200 px-3 py-2 rounded-lg text-sm text-blue-600 transition-colors truncate max-w-[250px]"
-                                                      >
-                                                          <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                                                          <span className="truncate">{src.title}</span>
-                                                      </a>
-                                                  ))}
-                                              </div>
-                                          </div>
-                                      )}
-                                  </div>
-                              )}
-                          </div>
-                      ))}
-                      {isProcessingChat && (
-                           <div className="flex justify-start">
-                               <div className="bg-white border border-gray-200 shadow-sm rounded-3xl p-6 flex items-center gap-3">
-                                   <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
-                                   <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-75"></span>
-                                   <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-150"></span>
-                               </div>
-                           </div>
-                      )}
-                  </div>
-              )}
+  const renderTrackStatusView = () => (
+      <div className="flex flex-col gap-8 min-h-[400px]">
+          <div className="bg-white border border-gray-200 rounded-[2rem] p-8 shadow-lg">
+             <div className="flex justify-between items-start border-b border-gray-100 pb-6 mb-6">
+                 <div>
+                     <div className="text-sm text-gray-500 font-bold uppercase tracking-wider mb-1">{t.selfService.tracking.searchLabel}</div>
+                     <div className="text-2xl font-mono font-bold text-gray-900">{trackingCode || "99.00.384059.20394"}</div>
+                 </div>
+                 <div className="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-bold">
+                     {t.selfService.tracking.currentStatus}: {t.selfService.tracking.statusLabel}
+                 </div>
+             </div>
 
-              {/* Mic Button Area */}
-              <div className="relative mt-auto">
-                  {isListening && (
-                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-red-100 rounded-full animate-ping opacity-75"></div>
-                  )}
-                  <button
-                      onClick={handleMicClick}
-                      disabled={isProcessingChat}
-                      className={`
-                        relative z-10 w-24 h-24 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 transform hover:scale-110
-                        ${isListening ? 'bg-red-600 text-white' : (chatMessages.length > 0 ? 'bg-black text-white' : 'bg-[#FFCC00] text-gray-900 hover:bg-black hover:text-white')}
-                      `}
-                  >
-                      {isListening ? (
-                           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><line x1="6" y1="12" x2="18" y2="12"></line></svg> // Stop Icon
-                      ) : (
-                           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-                      )}
-                  </button>
-              </div>
-              
-              <div className="mt-6 text-gray-400 font-medium text-sm h-6">
-                  {isListening ? t.selfService.chat.listening : (chatMessages.length > 0 ? t.selfService.chat.tryAgain : "")}
-              </div>
+             {/* Mock Timeline */}
+             <div className="relative pl-8 space-y-8 before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
+                 <div className="relative">
+                     <div className="absolute -left-8 w-6 h-6 rounded-full bg-green-500 border-4 border-white shadow-sm"></div>
+                     <div className="font-bold text-gray-900 text-lg">{t.selfService.tracking.currentStatus}</div>
+                     <div className="text-gray-500 text-sm">Heute, 08:30 – Härkingen</div>
+                 </div>
+                 <div className="relative opacity-60">
+                     <div className="absolute -left-8 w-6 h-6 rounded-full bg-gray-300 border-4 border-white shadow-sm"></div>
+                     <div className="font-bold text-gray-900 text-lg">Unterwegs</div>
+                     <div className="text-gray-500 text-sm">Gestern, 18:45 – Daillens</div>
+                 </div>
+                 <div className="relative opacity-40">
+                     <div className="absolute -left-8 w-6 h-6 rounded-full bg-gray-200 border-4 border-white shadow-sm"></div>
+                     <div className="font-bold text-gray-900 text-lg">Aufgabe</div>
+                     <div className="text-gray-500 text-sm">Gestern, 14:20 – 3000 Bern</div>
+                 </div>
+             </div>
+             
+             <div className="mt-10 pt-6 border-t border-gray-100 flex justify-end">
+                 <button 
+                    onClick={() => setStep('trackInput')}
+                    className="text-sm font-bold text-blue-600 hover:underline"
+                 >
+                     {t.selfService.tracking.searchButton}
+                 </button>
+             </div>
           </div>
-      );
-  };
+      </div>
+  );
+
 
   // --- Common Steps ---
   const renderDestinationView = () => (
@@ -1047,148 +1015,132 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ t, onBack, mod
 
         <div className="p-6 md:p-10 min-h-[400px]">
             {/* Mode specific views */}
-            {mode === 'general_chat' ? renderGeneralChatView() : (
-                <>
-                    {step === 'destination' && renderDestinationView()}
-                    {step === 'weigh' && renderWeighView()}
-                    {step === 'addressCheck' && renderAddressCheckView()}
-                    {step === 'address' && renderAddressView()}
-                    {step === 'format' && renderFormatView()}
-                    {step === 'options' && renderOptionsView()}
-                    {step === 'extras' && renderExtrasView()}
-                    
-                    {/* Payment Mode Steps */}
-                    {step === 'scan' && renderScanView()}
-                    {step === 'payDetails' && renderPaymentDetailsView()}
-                    {step === 'payReceiver' && renderPaymentReceiverView()}
-                    {step === 'payConfirm' && renderPaymentConfirmView()}
-                    {step === 'paySummary' && renderPaymentSummaryView()}
-                    
-                    {step === 'payment' && renderPaymentView()}
-                    {(step === 'success' || step === 'feedback') && renderSuccessView()} 
-                </>
-            )}
+            {/* Packet/Letter/Payment Logic */}
+            {step === 'destination' && renderDestinationView()}
+            {step === 'weigh' && renderWeighView()}
+            {step === 'addressCheck' && renderAddressCheckView()}
+            {step === 'address' && renderAddressView()}
+            {step === 'format' && renderFormatView()}
+            {step === 'options' && renderOptionsView()}
+            {step === 'extras' && renderExtrasView()}
+            
+            {/* Payment Mode Steps */}
+            {step === 'scan' && renderScanView()}
+            {step === 'payDetails' && renderPaymentDetailsView()}
+            {step === 'payReceiver' && renderPaymentReceiverView()}
+            {step === 'payConfirm' && renderPaymentConfirmView()}
+            {step === 'paySummary' && renderPaymentSummaryView()}
+            
+            {/* Tracking Steps */}
+            {step === 'trackInput' && renderTrackInputView()}
+            {step === 'trackStatus' && renderTrackStatusView()}
+
+            {step === 'payment' && renderPaymentView()}
+            {(step === 'success' || step === 'feedback') && renderSuccessView()} 
         </div>
 
         {/* Footer Navigation */}
-        {mode === 'general_chat' ? (
-             <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-start">
+        {step !== 'success' && step !== 'feedback' && (
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between gap-4">
                 <button
-                    onClick={onBack}
+                    onClick={() => {
+                        if (mode === 'packet') {
+                            if (step === 'destination') onBack();
+                            if (step === 'weigh') setStep('destination');
+                            if (step === 'address') setStep('weigh');
+                            if (step === 'options') setStep('address');
+                            if (step === 'payment') setStep('options');
+                        } else if (mode === 'letter') {
+                            if (step === 'destination') onBack();
+                            if (step === 'addressCheck') setStep('destination');
+                            if (step === 'address') setStep('addressCheck');
+                            if (step === 'format') setStep('addressCheck');
+                            if (step === 'options') setStep('format');
+                            if (step === 'extras') setStep('options');
+                            if (step === 'payment') setStep('extras');
+                        } else if (mode === 'payment') {
+                            // Payment Back Logic
+                            if (step === 'scan') onBack();
+                            if (step === 'payDetails') setStep('scan');
+                            if (step === 'payReceiver') setStep('payDetails');
+                            if (step === 'payConfirm') setStep('payReceiver');
+                            if (step === 'paySummary') setStep('payConfirm');
+                            if (step === 'payment') setStep('paySummary');
+                        } else if (mode === 'tracking') {
+                            if (step === 'trackInput') onBack();
+                            if (step === 'trackStatus') setStep('trackInput');
+                        }
+                    }}
                     className="px-8 py-3 rounded-xl text-sm font-bold text-gray-600 bg-white border border-gray-200 hover:bg-gray-100 transition-colors"
                 >
                     {t.ui.back}
                 </button>
-            </div>
-        ) : (
-            step !== 'success' && step !== 'feedback' && (
-                <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between gap-4">
+
+                {/* Next Buttons */}
+                {step === 'address' && (
                     <button
                         onClick={() => {
-                            if (mode === 'packet') {
-                                if (step === 'destination') onBack();
-                                if (step === 'weigh') setStep('destination');
-                                if (step === 'address') setStep('weigh');
-                                if (step === 'options') setStep('address');
-                                if (step === 'payment') setStep('options');
-                            } else if (mode === 'letter') {
-                                if (step === 'destination') onBack();
-                                if (step === 'addressCheck') setStep('destination');
-                                if (step === 'address') setStep('addressCheck');
-                                if (step === 'format') setStep('addressCheck');
-                                if (step === 'options') setStep('format');
-                                if (step === 'extras') setStep('options');
-                                if (step === 'payment') setStep('extras');
-                            } else if (mode === 'payment') {
-                                // Payment Back Logic
-                                if (step === 'scan') onBack();
-                                if (step === 'payDetails') setStep('scan');
-                                if (step === 'payReceiver') setStep('payDetails');
-                                if (step === 'payConfirm') setStep('payReceiver');
-                                if (step === 'paySummary') setStep('payConfirm');
-                                if (step === 'payment') setStep('paySummary');
+                            if (validateAddress()) {
+                                if (mode === 'packet') setStep('options');
+                                else setStep('format');
                             }
                         }}
-                        className="px-8 py-3 rounded-xl text-sm font-bold text-gray-600 bg-white border border-gray-200 hover:bg-gray-100 transition-colors"
+                        className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
                     >
-                        {t.ui.back}
+                        {t.ui.next}
                     </button>
+                )}
+                
+                {step === 'options' && (
+                    <button
+                        onClick={() => {
+                            if (mode === 'packet') setStep('payment');
+                            else setStep('extras');
+                        }}
+                        className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
+                    >
+                        {t.ui.next}
+                    </button>
+                )}
 
-                    {/* Next Buttons */}
-                    {step === 'address' && (
-                        <button
-                            onClick={() => {
-                                if (validateAddress()) {
-                                    if (mode === 'packet') setStep('options');
-                                    else setStep('format');
-                                }
-                            }}
-                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
-                        >
-                            {t.ui.next}
-                        </button>
-                    )}
-                    
-                    {step === 'options' && (
-                        <button
-                            onClick={() => {
-                                if (mode === 'packet') setStep('payment');
-                                else setStep('extras');
-                            }}
-                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
-                        >
-                            {t.ui.next}
-                        </button>
-                    )}
+                {step === 'extras' && (
+                    <button
+                        onClick={() => setStep('payment')}
+                        className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
+                    >
+                        {t.ui.pay}
+                    </button>
+                )}
+                
+                {step === 'payDetails' && (
+                    <button
+                        onClick={() => setStep('payReceiver')}
+                        className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
+                    >
+                        {t.ui.next}
+                    </button>
+                )}
+                
+                {step === 'payReceiver' && (
+                    <button
+                        onClick={() => setStep('payConfirm')}
+                        className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
+                    >
+                        {t.ui.next}
+                    </button>
+                )}
+                
+                {step === 'paySummary' && (
+                    <button
+                        onClick={() => setStep('payment')}
+                        className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
+                    >
+                        {t.ui.pay}
+                    </button>
+                )}
+                
+                {/* Tracking Input has its own button inside the form, but we can add a redundant next or just rely on the form submit */}
 
-                    {step === 'extras' && (
-                        <button
-                            onClick={() => setStep('payment')}
-                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
-                        >
-                            {t.ui.pay}
-                        </button>
-                    )}
-                    
-                    {step === 'payDetails' && (
-                        <button
-                            onClick={() => setStep('payReceiver')}
-                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
-                        >
-                            {t.ui.next}
-                        </button>
-                    )}
-                    
-                    {step === 'payReceiver' && (
-                        <button
-                            onClick={() => setStep('payConfirm')}
-                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
-                        >
-                            {t.ui.next}
-                        </button>
-                    )}
-                    
-                    {step === 'paySummary' && (
-                        <button
-                            onClick={() => setStep('payment')}
-                            className="px-8 py-3 rounded-xl text-sm font-bold text-white bg-black hover:bg-gray-800 shadow-lg transition-all"
-                        >
-                            {t.ui.pay}
-                        </button>
-                    )}
-
-                </div>
-            )
-        )}
-        
-        {(step === 'success' || step === 'feedback') && (
-            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-center">
-                 <button
-                    onClick={onBack}
-                    className="px-12 py-4 rounded-xl text-base font-bold text-white bg-black hover:bg-gray-900 shadow-lg transition-all"
-                >
-                    {t.ui.finish}
-                </button>
             </div>
         )}
 

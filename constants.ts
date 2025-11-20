@@ -19,7 +19,7 @@ const mergeTranslations = (base: TranslationData, update: any): TranslationData 
       },
       letter: { ...base.selfService.letter, ...update.selfService?.letter },
       payment: { ...base.selfService.payment, ...update.selfService?.payment },
-      chat: { ...base.selfService.chat, ...update.selfService?.chat }
+      tracking: { ...base.selfService.tracking, ...update.selfService?.tracking }
     }
   };
 };
@@ -45,7 +45,7 @@ const DE_DEFAULTS: TranslationData = {
         btnPacket: "Paket aufgeben",
         btnLetter: "Brief versenden",
         btnPayment: "Einzahlung (mit Karte)",
-        btnOther: "Alles andere"
+        btnTracking: "Paket verfolgen"
       },
       video: {
         title: "Video-Beratung",
@@ -70,7 +70,7 @@ const DE_DEFAULTS: TranslationData = {
       title: "Paket frankieren",
       titleLetter: "Brief versenden",
       titlePayment: "Einzahlung",
-      titleChat: "Post Info",
+      titleTracking: "Sendung verfolgen",
       steps: {
         start: "Start",
         weigh: "Wiegen",
@@ -81,7 +81,9 @@ const DE_DEFAULTS: TranslationData = {
         done: "Abschluss",
         scan: "Scan",
         details: "Details",
-        check: "Prüfung"
+        check: "Prüfung",
+        trackInput: "Eingabe",
+        trackStatus: "Status"
       },
       franking: {
         destCH: "Schweiz / Liechtenstein",
@@ -162,12 +164,15 @@ const DE_DEFAULTS: TranslationData = {
         summaryTitle: "Bestätigung Einzahlung",
         summaryAccount: "auf Konto"
       },
-      chat: {
-        introTitle: "Wie kann ich helfen?",
-        introDesc: "Tippen Sie auf das Mikrofon und stellen Sie Ihre Frage.",
-        listening: "Ich höre zu...",
-        sources: "Quellen:",
-        tryAgain: "Neue Frage stellen"
+      tracking: {
+        searchLabel: "Sendungsnummer",
+        searchButton: "Suchen",
+        placeholder: "Sendungsnummer",
+        errorRequired: "Feld ist erforderlich.",
+        statusTitle: "Sendungsstatus",
+        statusLabel: "Aktueller Status",
+        currentStatus: "Sortierung",
+        history: "Verlauf"
       }
     }
 };
@@ -192,7 +197,7 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         btnPacket: "Expédier un colis",
         btnLetter: "Envoyer une lettre",
         btnPayment: "Versement (par carte)",
-        btnOther: "Tout le reste"
+        btnTracking: "Suivre un envoi"
       },
       video: {
         title: "Conseil vidéo",
@@ -215,7 +220,7 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
       title: "Affranchir un colis",
       titleLetter: "Envoyer une lettre",
       titlePayment: "Versement",
-      titleChat: "Info Poste",
+      titleTracking: "Suivre un envoi",
       steps: {
         start: "Démarrer",
         weigh: "Peser",
@@ -226,90 +231,19 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         done: "Fin",
         scan: "Scan",
         details: "Détails",
-        check: "Contrôle"
+        check: "Contrôle",
+        trackInput: "Saisie",
+        trackStatus: "Statut"
       },
-      franking: {
-        destCH: "Suisse / Liechtenstein",
-        destInt: "Étranger",
-        destIntNote: "Expédition à l'étranger non disponible ici.",
-        weighIntro: "Placez votre colis sur la balance.",
-        weighAction: "Peser le colis",
-        weighing: "Analyse du colis...",
-        detectedLabel: "Poids et dimensions détectés",
-        weight: "Poids",
-        addressSender: "Expéditeur",
-        addressReceiver: "Saisir le destinataire",
-        isCompany: "Entreprise",
-        isPrivate: "Particulier",
-        fields: {
-          name: "Nom, Prénom",
-          street: "Rue, N°",
-          zip: "NPA",
-          city: "Localité"
-        },
-        shippingMethod: "Choisir le mode d'expédition",
-        economy: "PostPac Economy",
-        priority: "PostPac Priority",
-        duration2days: "2 jours ouvrables",
-        duration1day: "Jour ouvrable suivant",
-        extras: "Ajouter des prestations complémentaires",
-        signature: "Signature",
-        total: "Total",
-        payTerminal: "Veuillez utiliser le terminal de paiement.",
-        payInstruction: "Paiement espèces/TWINT impossible",
-        payButton: "Confirmer le paiement",
-        successTitle: "Opération réussie",
-        instruction1: "Prendre la quittance.",
-        instruction2: "Conserver le justificatif.",
-        instruction3: "Opération terminée.",
-        feedbackTitle: "Êtes-vous satisfait ?",
-        feedbackThanks: "Merci de votre visite !"
-      },
-      letter: {
-        addressCheckTitle: "Envoyer une lettre - Adresse",
-        addressCheckQuestion: "L'adresse figure-t-elle déjà sur la lettre ?",
-        addressCheckYes: "Oui\nAdresse présente",
-        addressCheckNo: "Non\nSaisir l'adresse",
-        formatTitle: "Envoyer une lettre - Format",
-        formatQuestion: "Quel est le format de votre envoi ?",
-        formatSmall: "Lettre standard",
-        formatSmallDesc: "25 x 17cm / max 100g / < 2cm",
-        formatBig: "Grande lettre",
-        formatBigDesc: "35 x 25 cm / max 1000g / < 2cm",
-        shippingTitle: "Envoyer une lettre - Mode d'expédition",
-        shippingQuestion: "Comment souhaitez-vous expédier votre envoi ?",
-        bPost: "Courrier B",
-        aPost: "Courrier A",
-        express: "Express",
-        extrasTitle: "Envoyer une lettre - Prestations",
-        extrasQuestion: "Veuillez sélectionner les prestations complémentaires :",
-        extraRegistered: "Recommandé",
-        extraPrepaid: "Déjà affranchi",
-        extraFormat: "Supplément format"
-      },
-      payment: {
-        scanTitle: "Verser",
-        scanInstruction: "Placez le code QR sous la caméra.",
-        scanAction: "Scanner le code QR",
-        detailsTitle: "Détails du paiement",
-        detailsIntro: "Veuillez vérifier les détails.",
-        fieldIban: "Compte / IBAN",
-        fieldAmount: "Montant CHF",
-        fieldRef: "Référence",
-        receiverTitle: "Bénéficiaire",
-        confirmTitle: "Confirmation",
-        confirmQuestion: "Les données sont-elles correctes ?",
-        confirmYes: "Oui\nContinuer",
-        confirmNo: "Non\nCorriger",
-        summaryTitle: "Confirmation versement",
-        summaryAccount: "sur le compte"
-      },
-      chat: {
-        introTitle: "Comment puis-je vous aider ?",
-        introDesc: "Appuyez sur le micro et posez votre question.",
-        listening: "J'écoute...",
-        sources: "Sources :",
-        tryAgain: "Nouvelle question"
+      tracking: {
+        searchLabel: "Numéro d'envoi",
+        searchButton: "Rechercher",
+        placeholder: "Numéro d'envoi",
+        errorRequired: "Champ obligatoire.",
+        statusTitle: "Statut de l'envoi",
+        statusLabel: "Statut actuel",
+        currentStatus: "Tri",
+        history: "Historique"
       }
     }
   }),
@@ -326,7 +260,7 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         btnPacket: "Spedire un pacco",
         btnLetter: "Inviare una lettera",
         btnPayment: "Versamento (con carta)",
-        btnOther: "Tutto il resto"
+        btnTracking: "Tracciare un invio"
        },
        video: {
         title: "Consulenza video",
@@ -349,7 +283,7 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
       title: "Affrancare pacco",
       titleLetter: "Inviare lettera",
       titlePayment: "Versamento",
-      titleChat: "Info Posta",
+      titleTracking: "Tracciare invio",
       steps: {
         start: "Inizio",
         weigh: "Pesare",
@@ -360,90 +294,19 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         done: "Fine",
         scan: "Scansione",
         details: "Dettagli",
-        check: "Verifica"
+        check: "Verifica",
+        trackInput: "Inserimento",
+        trackStatus: "Stato"
       },
-      franking: {
-        destCH: "Svizzera / Liechtenstein",
-        destInt: "Estero",
-        destIntNote: "Spedizione all'estero non disponibile qui.",
-        weighIntro: "Posizionate il pacco sulla bilancia.",
-        weighAction: "Pesare pacco",
-        weighing: "Analisi del pacco...",
-        detectedLabel: "Peso e dimensioni rilevati",
-        weight: "Peso",
-        addressSender: "Mittente",
-        addressReceiver: "Inserire destinatario",
-        isCompany: "Ditta",
-        isPrivate: "Privato",
-        fields: {
-          name: "Cognome, Nome",
-          street: "Via, N.",
-          zip: "NPA",
-          city: "Località"
-        },
-        shippingMethod: "Scegliere modalità di spedizione",
-        economy: "PostPac Economy",
-        priority: "PostPac Priority",
-        duration2days: "2 giorni lavorativi",
-        duration1day: "Giorno lavorativo successivo",
-        extras: "Aggiungi prestazioni complementari",
-        signature: "Signature",
-        total: "Totale",
-        payTerminal: "Utilizzare il terminale di pagamento.",
-        payInstruction: "Pagamento in contanti/TWINT non possibile",
-        payButton: "Confermare pagamento",
-        successTitle: "Operazione riuscita",
-        instruction1: "Ritirare la ricevuta.",
-        instruction2: "Conservare la ricevuta.",
-        instruction3: "Operazione terminata.",
-        feedbackTitle: "Siete soddisfatti?",
-        feedbackThanks: "Grazie per la visita!"
-      },
-      letter: {
-        addressCheckTitle: "Inviare lettera - Indirizzo",
-        addressCheckQuestion: "L'indirizzo è già presente sulla lettera?",
-        addressCheckYes: "Sì\nIndirizzo presente",
-        addressCheckNo: "No\nInserire indirizzo",
-        formatTitle: "Inviare lettera - Formato",
-        formatQuestion: "Qual è il formato dell'invio?",
-        formatSmall: "Lettera standard",
-        formatSmallDesc: "25 x 17cm / max 100g / < 2cm",
-        formatBig: "Lettera grande",
-        formatBigDesc: "35 x 25 cm / max 1000g / < 2cm",
-        shippingTitle: "Inviare lettera - Spedizione",
-        shippingQuestion: "Come desiderate spedire l'invio?",
-        bPost: "Posta B",
-        aPost: "Posta A",
-        express: "Express",
-        extrasTitle: "Inviare lettera - Prestazioni",
-        extrasQuestion: "Selezionare le prestazioni complementari:",
-        extraRegistered: "Raccomandata",
-        extraPrepaid: "Già affrancato",
-        extraFormat: "Supplemento formato"
-      },
-      payment: {
-        scanTitle: "Versamento",
-        scanInstruction: "Posizionare il codice QR sotto la telecamera.",
-        scanAction: "Scansionare codice QR",
-        detailsTitle: "Dettagli pagamento",
-        detailsIntro: "Verificare i dettagli.",
-        fieldIban: "Conto / IBAN",
-        fieldAmount: "Importo CHF",
-        fieldRef: "Riferimento",
-        receiverTitle: "Beneficiario",
-        confirmTitle: "Conferma",
-        confirmQuestion: "I dati sono corretti?",
-        confirmYes: "Sì\nAvanti",
-        confirmNo: "No\nCorreggere",
-        summaryTitle: "Conferma versamento",
-        summaryAccount: "sul conto"
-      },
-      chat: {
-        introTitle: "Come posso aiutare?",
-        introDesc: "Tocca il microfono e fai la tua domanda.",
-        listening: "Ascolto...",
-        sources: "Fonti:",
-        tryAgain: "Nuova domanda"
+      tracking: {
+        searchLabel: "Numero d'invio",
+        searchButton: "Cercare",
+        placeholder: "Numero d'invio",
+        errorRequired: "Campo obbligatorio.",
+        statusTitle: "Stato dell'invio",
+        statusLabel: "Stato attuale",
+        currentStatus: "Smistamento",
+        history: "Cronologia"
       }
     }
   }),
@@ -460,7 +323,7 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         btnPacket: "Send a parcel",
         btnLetter: "Send a letter",
         btnPayment: "Payment (card)",
-        btnOther: "Everything else"
+        btnTracking: "Track a package"
        },
        video: {
         title: "Video Consultation",
@@ -483,7 +346,7 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
        title: "Frank a parcel",
        titleLetter: "Send a letter",
        titlePayment: "Payment",
-       titleChat: "Post Info",
+       titleTracking: "Track package",
        steps: {
         start: "Start",
         weigh: "Weigh",
@@ -494,90 +357,19 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         done: "Done",
         scan: "Scan",
         details: "Details",
-        check: "Check"
+        check: "Check",
+        trackInput: "Input",
+        trackStatus: "Status"
       },
-      franking: {
-        destCH: "Switzerland / Liechtenstein",
-        destInt: "International",
-        destIntNote: "International shipping not available here.",
-        weighIntro: "Place your parcel on the scale to start.",
-        weighAction: "Weigh parcel",
-        weighing: "Analyzing parcel...",
-        detectedLabel: "Weight and dimensions detected",
-        weight: "Weight",
-        addressSender: "Sender",
-        addressReceiver: "Enter recipient",
-        isCompany: "Company",
-        isPrivate: "Private",
-        fields: {
-          name: "Name, First name",
-          street: "Street, No.",
-          zip: "ZIP",
-          city: "City"
-        },
-        shippingMethod: "Select shipping method",
-        economy: "PostPac Economy",
-        priority: "PostPac Priority",
-        duration2days: "2 working days",
-        duration1day: "Next working day",
-        extras: "Add extra services",
-        signature: "Signature",
-        total: "Total",
-        payTerminal: "Please use the card terminal for payment.",
-        payInstruction: "Cash/TWINT payment not possible",
-        payButton: "Confirm payment",
-        successTitle: "Operation successful",
-        instruction1: "Take receipt.",
-        instruction2: "Keep payment proof.",
-        instruction3: "Process finished.",
-        feedbackTitle: "How satisfied are you?",
-        feedbackThanks: "Thanks for visiting!"
-      },
-      letter: {
-        addressCheckTitle: "Send Letter - Address",
-        addressCheckQuestion: "Is the address already on the letter?",
-        addressCheckYes: "Yes\nAddress present",
-        addressCheckNo: "No\nEnter address",
-        formatTitle: "Send Letter - Format",
-        formatQuestion: "What is the format of your item?",
-        formatSmall: "Standard Letter",
-        formatSmallDesc: "25 x 17cm / max 100g / < 2cm",
-        formatBig: "Large Letter",
-        formatBigDesc: "35 x 25 cm / max 1000g / < 2cm",
-        shippingTitle: "Send Letter - Shipping",
-        shippingQuestion: "How would you like to ship your item?",
-        bPost: "B-Mail",
-        aPost: "A-Mail",
-        express: "Express",
-        extrasTitle: "Send Letter - Extras",
-        extrasQuestion: "Please select any extra services:",
-        extraRegistered: "Registered",
-        extraPrepaid: "Already franked",
-        extraFormat: "Format surcharge"
-      },
-      payment: {
-        scanTitle: "Deposit",
-        scanInstruction: "Please place the QR code under the camera.",
-        scanAction: "Scan QR Code",
-        detailsTitle: "Payment Details",
-        detailsIntro: "Please verify the details.",
-        fieldIban: "Account / IBAN",
-        fieldAmount: "Amount CHF",
-        fieldRef: "Reference",
-        receiverTitle: "Beneficiary",
-        confirmTitle: "Confirmation",
-        confirmQuestion: "Are the details correct?",
-        confirmYes: "Yes\nContinue",
-        confirmNo: "No\nCorrect",
-        summaryTitle: "Deposit Confirmation",
-        summaryAccount: "to account"
-      },
-      chat: {
-        introTitle: "How can I help?",
-        introDesc: "Tap the microphone and ask your question.",
-        listening: "Listening...",
-        sources: "Sources:",
-        tryAgain: "Ask new question"
+      tracking: {
+        searchLabel: "Consignment number",
+        searchButton: "Search",
+        placeholder: "Consignment number",
+        errorRequired: "Field is required.",
+        statusTitle: "Shipment status",
+        statusLabel: "Current status",
+        currentStatus: "Sorting",
+        history: "History"
       }
     }
   }),
@@ -600,7 +392,7 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         btnPacket: "Enviar paquete",
         btnLetter: "Enviar carta",
         btnPayment: "Pago (con tarjeta)",
-        btnOther: "Todo lo demás"
+        btnTracking: "Rastrear paquete"
       },
       video: {
         title: "Videoconsulta",
@@ -625,7 +417,7 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
       title: "Franquear paquete",
       titleLetter: "Enviar carta",
       titlePayment: "Pago",
-      titleChat: "Info Correos",
+      titleTracking: "Rastrear envío",
       steps: {
         start: "Inicio",
         weigh: "Pesar",
@@ -636,93 +428,19 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         done: "Fin",
         scan: "Escanear",
         details: "Detalles",
-        check: "Revisión"
+        check: "Revisión",
+        trackInput: "Entrada",
+        trackStatus: "Estado"
       },
-      franking: {
-        destCH: "Suiza / Liechtenstein",
-        destInt: "Extranjero",
-        destIntNote: "Envío al extranjero no disponible aquí.",
-        weighIntro: "Coloque su paquete en la balanza.",
-        weighAction: "Pesar paquete",
-        weighing: "Analizando paquete...",
-        detectedLabel: "Peso y dimensiones detectados",
-        weight: "Peso",
-        length: "Largo",
-        width: "Ancho",
-        height: "Alto",
-        addressSender: "Remitente",
-        addressReceiver: "Registrar destinatario",
-        isCompany: "Empresa",
-        isPrivate: "Particular",
-        fields: {
-          name: "Nombre, Apellido",
-          street: "Calle, Nº",
-          zip: "CP",
-          city: "Ciudad"
-        },
-        shippingMethod: "Seleccionar envío",
-        economy: "PostPac Economy",
-        priority: "PostPac Priority",
-        duration2days: "2 días laborables",
-        duration1day: "Siguiente día laborable",
-        extras: "Añadir servicios adicionales",
-        signature: "Firma",
-        total: "Total",
-        payTerminal: "Por favor, use el terminal de pago.",
-        payInstruction: "No se admite efectivo/TWINT",
-        payButton: "Confirmar pago",
-        successTitle: "Operación exitosa",
-        instruction1: "Tome el recibo.",
-        instruction2: "Guarde el comprobante.",
-        instruction3: "Proceso finalizado.",
-        feedbackTitle: "¿Está satisfecho?",
-        feedbackThanks: "¡Gracias por su visita!"
-      },
-      letter: {
-        addressCheckTitle: "Enviar carta - Dirección",
-        addressCheckQuestion: "¿La dirección ya está en la carta?",
-        addressCheckYes: "Sí\nDirección presente",
-        addressCheckNo: "No\nIntroducir dirección",
-        formatTitle: "Enviar carta - Formato",
-        formatQuestion: "¿Cuál es el formato de su envío?",
-        formatSmall: "Carta estándar",
-        formatSmallDesc: "25 x 17cm / máx 100g / < 2cm",
-        formatBig: "Carta grande",
-        formatBigDesc: "35 x 25 cm / máx 1000g / < 2cm",
-        shippingTitle: "Enviar carta - Envío",
-        shippingQuestion: "¿Cómo desea enviar su correspondencia?",
-        bPost: "Correo B",
-        aPost: "Correo A",
-        express: "Express",
-        extrasTitle: "Enviar carta - Extras",
-        extrasQuestion: "Seleccione servicios adicionales:",
-        extraRegistered: "Certificado",
-        extraPrepaid: "Ya franqueado",
-        extraFormat: "Suplemento formato"
-      },
-      payment: {
-        scanTitle: "Ingresar",
-        scanInstruction: "Coloque el código QR bajo la cámara.",
-        scanAction: "Escanear código QR",
-        detailsTitle: "Detalles del pago",
-        detailsIntro: "Verifique los detalles.",
-        fieldIban: "Cuenta / IBAN",
-        fieldAmount: "Importe CHF",
-        fieldRef: "Referencia",
-        receiverTitle: "Beneficiario",
-        confirmTitle: "Confirmación",
-        confirmQuestion: "¿Son correctos los datos?",
-        confirmYes: "Sí\nContinuar",
-        confirmNo: "No\nCorregir",
-        summaryTitle: "Confirmación ingreso",
-        summaryAccount: "en cuenta"
-      },
-      chat: {
-        introTitle: "¿Cómo puedo ayudar?",
-        introDesc: "Toque el micrófono y haga su pregunta.",
-        listening: "Escuchando...",
-        sources: "Fuentes:",
-        tryAgain: "Nueva pregunta"
+      tracking: {
+        searchLabel: "Número de envío",
+        searchButton: "Buscar",
+        placeholder: "Número de envío",
+        errorRequired: "Campo obligatorio.",
+        statusTitle: "Estado del envío",
+        statusLabel: "Estado actual",
+        currentStatus: "Clasificación",
+        history: "Historial"
       }
     }
   }),
@@ -745,7 +463,7 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         btnPacket: "Enviar encomenda",
         btnLetter: "Enviar carta",
         btnPayment: "Pagamento (cartão)",
-        btnOther: "Tudo o resto"
+        btnTracking: "Rastrear encomenda"
       },
       video: {
         title: "Videoconsulta",
@@ -770,7 +488,7 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
       title: "Franquear encomenda",
       titleLetter: "Enviar carta",
       titlePayment: "Pagamento",
-      titleChat: "Info Correios",
+      titleTracking: "Rastrear",
       steps: {
         start: "Início",
         weigh: "Pesar",
@@ -781,93 +499,19 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
         done: "Fim",
         scan: "Digitalizar",
         details: "Detalhes",
-        check: "Verificação"
+        check: "Verificação",
+        trackInput: "Entrada",
+        trackStatus: "Estado"
       },
-      franking: {
-        destCH: "Suíça / Liechtenstein",
-        destInt: "Estrangeiro",
-        destIntNote: "Envio para o estrangeiro não disponível aqui.",
-        weighIntro: "Coloque a sua encomenda na balança.",
-        weighAction: "Pesar encomenda",
-        weighing: "A analisar encomenda...",
-        detectedLabel: "Peso e dimensões detetados",
-        weight: "Peso",
-        length: "Comprimento",
-        width: "Largura",
-        height: "Altura",
-        addressSender: "Remetente",
-        addressReceiver: "Registar destinatário",
-        isCompany: "Empresa",
-        isPrivate: "Particular",
-        fields: {
-          name: "Nome, Apelido",
-          street: "Rua, Nº",
-          zip: "CP",
-          city: "Localidade"
-        },
-        shippingMethod: "Selecionar envio",
-        economy: "PostPac Economy",
-        priority: "PostPac Priority",
-        duration2days: "2 dias úteis",
-        duration1day: "Dia útil seguinte",
-        extras: "Adicionar serviços extra",
-        signature: "Assinatura",
-        total: "Total",
-        payTerminal: "Por favor, use o terminal de pagamento.",
-        payInstruction: "Não é possível pagar em dinheiro/TWINT",
-        payButton: "Confirmar pagamento",
-        successTitle: "Operação com sucesso",
-        instruction1: "Retirar o recibo.",
-        instruction2: "Guardar o comprovativo.",
-        instruction3: "Processo terminado.",
-        feedbackTitle: "Está satisfeito?",
-        feedbackThanks: "Obrigado pela visita!"
-      },
-      letter: {
-        addressCheckTitle: "Enviar carta - Endereço",
-        addressCheckQuestion: "O endereço já está na carta?",
-        addressCheckYes: "Sim\nEndereço presente",
-        addressCheckNo: "Não\nInserir endereço",
-        formatTitle: "Enviar carta - Formato",
-        formatQuestion: "Qual é o formato do seu envio?",
-        formatSmall: "Carta padrão",
-        formatSmallDesc: "25 x 17cm / máx 100g / < 2cm",
-        formatBig: "Carta grande",
-        formatBigDesc: "35 x 25 cm / máx 1000g / < 2cm",
-        shippingTitle: "Enviar carta - Envio",
-        shippingQuestion: "Como deseja enviar o seu correio?",
-        bPost: "Correio B",
-        aPost: "Correio A",
-        express: "Expresso",
-        extrasTitle: "Enviar carta - Extras",
-        extrasQuestion: "Selecione serviços adicionais:",
-        extraRegistered: "Registado",
-        extraPrepaid: "Já franqueado",
-        extraFormat: "Suplemento formato"
-      },
-      payment: {
-        scanTitle: "Depositar",
-        scanInstruction: "Coloque o código QR sob a câmara.",
-        scanAction: "Ler código QR",
-        detailsTitle: "Detalhes do pagamento",
-        detailsIntro: "Verifique os detalhes.",
-        fieldIban: "Conta / IBAN",
-        fieldAmount: "Montante CHF",
-        fieldRef: "Referência",
-        receiverTitle: "Beneficiário",
-        confirmTitle: "Confirmação",
-        confirmQuestion: "Os dados estão corretos?",
-        confirmYes: "Sim\nContinuar",
-        confirmNo: "Não\nCorrigir",
-        summaryTitle: "Confirmação depósito",
-        summaryAccount: "na conta"
-      },
-      chat: {
-        introTitle: "Como posso ajudar?",
-        introDesc: "Toque no microfone e faça a sua pergunta.",
-        listening: "A ouvir...",
-        sources: "Fontes:",
-        tryAgain: "Nova pergunta"
+      tracking: {
+        searchLabel: "Número de envio",
+        searchButton: "Pesquisar",
+        placeholder: "Número de envio",
+        errorRequired: "Campo obrigatório.",
+        statusTitle: "Estado do envio",
+        statusLabel: "Estado atual",
+        currentStatus: "Triagem",
+        history: "Histórico"
       }
     }
   })
