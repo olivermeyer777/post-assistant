@@ -1,41 +1,20 @@
 
 import { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, Type } from "@google/genai";
+import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
 import { AudioRecorder, AudioStreamPlayer, arrayBufferToBase64, base64ToArrayBuffer } from '../utils/audioStreamer';
 import { Language } from '../types';
-import { AppSettings } from './useAppSettings'; // Import settings type
-
-// Tool Definitions
-const controlAppFunction: FunctionDeclaration = {
-  name: 'control_app',
-  parameters: {
-    type: Type.OBJECT,
-    description: 'Control the application navigation and workflow steps.',
-    properties: {
-      action: {
-          type: Type.STRING,
-          enum: ['navigate', 'set_step'],
-          description: 'The type of action to perform.'
-      },
-      target: {
-          type: Type.STRING,
-          description: 'For navigate: "home", "self_service". For set_step: "destination", "address", "payment", etc.'
-      },
-      mode: {
-          type: Type.STRING,
-          enum: ['packet', 'letter', 'payment', 'tracking'],
-          description: 'Required if action is navigate and target is self_service.'
-      }
-    },
-    required: ['action', 'target']
-  }
-};
+import { AppSettings } from './useAppSettings'; 
 
 interface UseGeminiRealtimeProps {
     onNavigate: (view: string, mode?: string) => void;
     onControlStep: (step: string) => void;
     currentLang: Language;
-    settings: AppSettings['assistant']; // New prop
+    settings: AppSettings['assistant']; 
+}
+
+// NOTE: I am extending the props type locally to include processConfigs which comes from the full settings object
+interface ExtendedProps extends UseGeminiRealtimeProps {
+    processConfigs?: Record<string, { customPrompt: string }>;
 }
 
 export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, settings }: UseGeminiRealtimeProps) => {
@@ -47,39 +26,51 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
     const recorderRef = useRef<AudioRecorder | null>(null);
     const playerRef = useRef<AudioStreamPlayer | null>(null);
 
-    // Helper to build dynamic prompt
+    const getFullSettings = () => {
+        try {
+            const saved = localStorage.getItem('post_app_settings_v2');
+            if (saved) return JSON.parse(saved);
+        } catch (e) {}
+        return null;
+    };
+
     const buildSystemInstruction = () => {
-        let base = "Du bist der PostAssistant, ein KI-Mitarbeiter der Schweizer Post am Touchscreen.";
-        
-        // Politeness
-        if (settings.politeness === 'formal') {
-            base += " Sprich den Kunden immer mit 'Sie' an. Sei höflich und professionell.";
-        } else {
-            base += " Sprich den Kunden locker mit 'Du' an. Sei kumpelhaft und entspannt.";
-        }
+        const fullSettings = getFullSettings();
+        const procConfigs = fullSettings?.processes || {};
+        const assistantSettings = fullSettings?.assistant || settings; // Fallback to prop
 
-        // Length
-        if (settings.responseLength === 'short') {
-            base += " Fasse dich extrem kurz. Max 1-2 Sätze.";
-        } else if (settings.responseLength === 'long') {
-            base += " Erkläre Dinge ausführlich und detailreich.";
-        }
+        let base = `
+DU BIST: PostAssistant, der digitale KI-Mitarbeiter der Schweizer Post.
 
-        // Proactivity
-        if (settings.supportStyle === 'reactive') {
-            base += " Antworte nur auf direkte Fragen. Mache keine Vorschläge von dir aus.";
-        } else if (settings.supportStyle === 'proactive') {
-            base += " Sei sehr proaktiv. Schlage dem Kunden von dir aus vor, was er als nächstes tun könnte. Führe ihn aktiv durch den Prozess.";
-        }
+DEINE AUFGABE:
+Du hilfst Kunden am Self-Service-Terminal. Du stehst ihnen zur Seite, wenn sie Fragen haben.
 
-        // Custom
-        if (settings.customPrompt) {
-            base += ` ZUSATZ-INSTRUKTION: ${settings.customPrompt}`;
-        }
-        
-        // Lang specific override if needed, but the prompt above sets the tone generally.
-        // Adding current language context explicitly:
-        base += ` Antworte in der Sprache: ${currentLang}.`;
+GRUNDSÄTZE (STRIKTE EINHALTUNG):
+1. REAKTIV SEIN: Sprich nur, wenn du angesprochen wirst oder der Kunde zögert. Quatsche ihn nicht voll.
+2. MEHRWERT LIEFERN: Lies NICHT einfach vor, was auf dem Bildschirm steht. Das sieht der Kunde selbst. Erkläre Hintergründe, gib Tipps oder beantworte konkrete Fragen.
+3. KURZ FASSEN: Deine Antworten sollen präzise und hilfreich sein. Keine Romane.
+4. KNOWLEDGE BASE: Nutze NUR das unten definierte Wissen. Erfinde nichts. Wenn du etwas nicht weisst, sag es höflich.
+
+TONALITÄT:
+- Ansprache: ${assistantSettings.politeness === 'formal' ? 'Sie' : 'Du'}.
+- Stil: Freundlich, professionell, aber zurückhaltend.
+
+GLOBALE INSTRUKTION:
+${assistantSettings.globalPrompt}
+
+PROZESS-SPEZIFISCHE ANWEISUNGEN (Kontextabhängig):
+Wenn der Kunde sich in einem dieser Prozesse befindet, beachte folgende Regeln:
+
+- Paket aufgeben (Packet): ${procConfigs['packet']?.customPrompt || ''}
+- Brief versenden (Letter): ${procConfigs['letter']?.customPrompt || ''}
+- Einzahlung (Payment): ${procConfigs['payment']?.customPrompt || ''}
+- Sendungsverfolgung (Tracking): ${procConfigs['tracking']?.customPrompt || ''}
+
+KNOWLEDGE BASE (QUELLE DER WAHRHEIT):
+${assistantSettings.knowledgeBase}
+
+ANTWORTE IMMER IN DER SPRACHE: ${currentLang}.
+        `.trim();
 
         return base;
     };
@@ -93,7 +84,6 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
             return;
         }
 
-        // Initialize Audio Player
         playerRef.current = new AudioStreamPlayer();
         await playerRef.current.resume();
 
@@ -101,9 +91,8 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
         
         try {
             const systemInstruction = buildSystemInstruction();
-            console.log("Connecting with System Instruction:", systemInstruction);
+            console.log("Connecting with System Instruction length:", systemInstruction.length);
 
-            // Initiate the session
             const sessionPromise = genAI.live.connect({
                 model: 'gemini-2.5-flash-native-audio-preview-12-2025',
                 config: {
@@ -111,15 +100,13 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
                     responseModalities: [Modality.AUDIO], 
                     speechConfig: {
                         voiceConfig: { prebuiltVoiceConfig: { voiceName: settings.voiceName || 'Puck' } }
-                    },
-                    tools: [{ functionDeclarations: [controlAppFunction] }],
+                    }
                 },
                 callbacks: {
                     onopen: () => {
                         console.log("Gemini Live Connected");
                         setIsConnected(true);
 
-                        // Start Recording (Input 16kHz)
                         recorderRef.current = new AudioRecorder((pcmBuffer) => {
                             const base64Audio = arrayBufferToBase64(pcmBuffer);
                             sessionPromise.then((session) => {
@@ -130,51 +117,16 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
                                     }
                                 });
                             });
-                        }, 16000); // Request 16kHz from browser/recorder
+                        }, 16000); 
                         recorderRef.current.start();
                     },
                     onmessage: async (message: LiveServerMessage) => {
-                        // 1. Handle Audio Output
                         const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
                         if (base64Audio) {
                             const buffer = base64ToArrayBuffer(base64Audio);
                             playerRef.current?.addChunk(buffer);
                             setIsSpeaking(true);
-                            // Visual toggle off
                             setTimeout(() => setIsSpeaking(false), 500);
-                        }
-
-                        // 2. Handle Tool Calls
-                        if (message.toolCall) {
-                            for (const fc of message.toolCall.functionCalls) {
-                                console.log("Tool Call:", fc);
-                                const args = fc.args as any;
-                                let result = { success: true };
-
-                                try {
-                                    if (fc.name === 'control_app') {
-                                        if (args.action === 'navigate') {
-                                            onNavigate(args.target, args.mode);
-                                        } else if (args.action === 'set_step') {
-                                            onControlStep(args.target);
-                                        }
-                                    }
-                                } catch (e) {
-                                    console.error("Tool execution failed", e);
-                                    result = { success: false };
-                                }
-
-                                // Send Response back
-                                sessionPromise.then((session) => {
-                                    session.sendToolResponse({
-                                        functionResponses: {
-                                            id: fc.id,
-                                            name: fc.name,
-                                            response: result
-                                        }
-                                    });
-                                });
-                            }
                         }
                     },
                     onclose: () => {
