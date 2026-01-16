@@ -9,73 +9,85 @@ interface AssistantTileProps {
 
 export const AssistantTile: React.FC<AssistantTileProps> = ({ isConnected, isSpeaking, onToggle }) => {
   return (
-    <div 
-        onClick={onToggle}
-        className={`
-            lg:col-span-1 group relative overflow-hidden rounded-3xl p-8 cursor-pointer transition-all duration-500
-            flex flex-col items-center justify-center text-center gap-6 shadow-xl border
-            ${isConnected 
-                ? 'bg-black border-black shadow-2xl scale-[1.02]' 
-                : 'bg-white border-gray-100 hover:border-black hover:shadow-2xl'
-            }
-        `}
-    >
-        {/* Background Effects */}
-        {isConnected ? (
-             <>
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black z-0"></div>
-                {/* Animated Gradient Blob */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-20 blur-3xl animate-[spin_8s_linear_infinite]"></div>
-             </>
-        ) : (
-             <div className="absolute inset-0 bg-gradient-to-br from-white to-gray-50 z-0"></div>
-        )}
-
-        {/* Visualizer / Icon */}
-        <div className="relative z-10 w-32 h-32 flex items-center justify-center">
-            {isConnected ? (
-                // Active Visualizer
-                <div className="flex items-center gap-2">
-                     <div className={`w-3 bg-gradient-to-t from-yellow-400 to-red-500 rounded-full transition-all duration-150 ${isSpeaking ? 'h-24 animate-[bounce_0.4s_infinite]' : 'h-8 animate-pulse'}`}></div>
-                     <div className={`w-3 bg-gradient-to-t from-red-500 to-purple-500 rounded-full transition-all duration-150 delay-75 ${isSpeaking ? 'h-32 animate-[bounce_0.5s_infinite]' : 'h-12 animate-pulse'}`}></div>
-                     <div className={`w-3 bg-gradient-to-t from-purple-500 to-blue-500 rounded-full transition-all duration-150 delay-150 ${isSpeaking ? 'h-20 animate-[bounce_0.6s_infinite]' : 'h-6 animate-pulse'}`}></div>
-                     <div className={`w-3 bg-gradient-to-t from-blue-500 to-teal-400 rounded-full transition-all duration-150 delay-100 ${isSpeaking ? 'h-28 animate-[bounce_0.45s_infinite]' : 'h-10 animate-pulse'}`}></div>
-                </div>
-            ) : (
-                // Idle Icon (Innovative Sparkle)
-                <div className="relative w-24 h-24">
-                    <div className="absolute inset-0 bg-gradient-to-tr from-[#FFCC00] to-orange-400 rounded-full opacity-20 group-hover:scale-125 transition-transform duration-500"></div>
-                    <svg className="w-full h-full text-gray-900 group-hover:scale-110 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                        <path d="M12 7v6"></path>
-                        <path d="M9 10h6"></path>
-                    </svg>
-                    {/* Sparkles */}
-                    <div className="absolute -top-2 -right-2 text-yellow-500">
-                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6-4.8-6 4.8 2.4-7.2-6-4.8h7.6z"/></svg>
+    <div className="lg:col-span-1 flex flex-col items-center justify-center h-full gap-6 p-4">
+        
+        {/* The Clickable Trigger Area - Vertical Pill Shape */}
+        <button 
+            onClick={onToggle}
+            className={`
+                relative group w-full max-w-[160px] aspect-[1/2.4] rounded-[10rem] 
+                flex flex-col items-center justify-center
+                transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] outline-none
+                ${isConnected 
+                    ? 'bg-black scale-105 shadow-2xl' 
+                    : 'bg-white hover:scale-105 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.08)] hover:shadow-[0_25px_50px_-10px_rgba(0,0,0,0.12)] border border-white'
+                }
+            `}
+        >
+             {/* Background Effects for Active State */}
+             {isConnected && (
+                 <>
+                    <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-black rounded-[10rem] overflow-hidden">
+                         {/* Animated Speaking Gradient */}
+                         <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] bg-gradient-to-t from-indigo-500 via-purple-500 to-orange-500 opacity-40 blur-3xl transition-all duration-200 ${isSpeaking ? 'scale-125' : 'scale-100 animate-pulse'}`}></div>
                     </div>
-                </div>
-            )}
-        </div>
+                 </>
+             )}
 
-        {/* Text Content */}
-        <div className="relative z-10">
-            <h2 className={`text-2xl font-bold mb-2 transition-colors ${isConnected ? 'text-white' : 'text-gray-900'}`}>
-                {isConnected ? (isSpeaking ? "Ich höre zu..." : "Ich höre...") : "Frag den Assistenten"}
-            </h2>
-            <p className={`text-sm font-medium transition-colors ${isConnected ? 'text-gray-300' : 'text-gray-500'}`}>
-                {isConnected 
-                  ? "Sprechen Sie jetzt einfach..." 
-                  : "Klicken zum Starten. Unser KI-Agent hilft sofort."}
-            </p>
-        </div>
+            {/* Icon / Visualizer */}
+            <div className="relative z-10 flex-1 flex flex-col items-center justify-center w-full">
+                 {isConnected ? (
+                     // Visualizer
+                     <div className="flex flex-col items-center gap-6">
+                         <div className="flex gap-1.5 items-center justify-center h-16">
+                             <div className={`w-1.5 bg-white rounded-full transition-all duration-150 ${isSpeaking ? 'h-10' : 'h-3 animate-pulse'}`}></div>
+                             <div className={`w-1.5 bg-white rounded-full transition-all duration-150 delay-75 ${isSpeaking ? 'h-14' : 'h-6 animate-pulse'}`}></div>
+                             <div className={`w-1.5 bg-white rounded-full transition-all duration-150 delay-150 ${isSpeaking ? 'h-8' : 'h-3 animate-pulse'}`}></div>
+                             <div className={`w-1.5 bg-white rounded-full transition-all duration-150 delay-100 ${isSpeaking ? 'h-12' : 'h-4 animate-pulse'}`}></div>
+                         </div>
+                         <div className="text-white text-xs font-medium opacity-80 animate-pulse">
+                             {isSpeaking ? 'Ich spreche...' : 'Ich höre...'}
+                         </div>
+                     </div>
+                 ) : (
+                     // THE NEW ICON (Robot + Sparkle)
+                     <div className="relative">
+                        {/* Main Icon Box - Purple/Pink Gradient Squircle */}
+                        <div className="w-20 h-20 bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-purple-500/20 transform transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3">
+                             {/* Robot Face SVG */}
+                             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                {/* Head */}
+                                <rect x="4" y="8" width="16" height="12" rx="4" />
+                                {/* Eyes */}
+                                <path d="M9 13v.01" strokeWidth="3" />
+                                <path d="M15 13v.01" strokeWidth="3" />
+                                {/* Antenna */}
+                                <path d="M12 8V4" />
+                                <path d="M12 4H15" />
+                                {/* Ears */}
+                                <path d="M2 14H4" />
+                                <path d="M20 14H22" />
+                             </svg>
+                        </div>
 
-        {/* Action Button Indicator */}
+                        {/* Sparkle Badge */}
+                        <div className="absolute -top-2 -right-2 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center animate-[bounce_4s_infinite] border border-gray-50">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="#FFCC00"/>
+                                <path d="M18 17L19 20L22 21L19 22L18 25L17 22L14 21L17 20L18 17Z" fill="#FFCC00" transform="scale(0.4) translate(20,20)"/>
+                            </svg>
+                        </div>
+                     </div>
+                 )}
+            </div>
+        </button>
+
+        {/* Red Hint Text Below */}
         {!isConnected && (
-            <div className="relative z-10 mt-4">
-                <div className="bg-black text-white px-6 py-3 rounded-full font-bold shadow-lg group-hover:bg-[#FFCC00] group-hover:text-black transition-colors flex items-center gap-2">
-                    <span>Starten</span>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            <div className="text-center animate-fade-in -mt-2">
+                <div className="bg-red-50 text-red-600 font-bold px-4 py-1.5 rounded-full border border-red-100 shadow-sm inline-flex items-center gap-2 text-sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="text-red-500"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    Ich helfe Ihnen gerne weiter!
                 </div>
             </div>
         )}

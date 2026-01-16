@@ -228,13 +228,11 @@ export default function App() {
       <header className="w-full bg-[#FFCC00] text-black py-6 px-8 shadow-sm z-50 relative">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
            <div className="flex items-center gap-4 cursor-pointer" onClick={() => setView('home')}>
-              <SwissPostLogo />
-              <div className="hidden sm:block h-8 w-px bg-black/10 mx-2"></div>
-              <span className="hidden sm:block text-xl font-bold tracking-tight opacity-90">{t.topTitle}</span>
+              {/* Logo removed */}
+              <span className="hidden sm:block text-xl font-bold tracking-tight opacity-90">Post Self-Service</span>
            </div>
            <div className="flex items-center gap-4">
-               {/* Clock */}
-               <div className="text-sm font-bold opacity-60 hidden md:block mr-2">{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+               {/* Time removed */}
                
                {/* Settings Button */}
                <a 
