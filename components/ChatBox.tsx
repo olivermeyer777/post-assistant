@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Message, TranslationData, Language } from '../types';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
@@ -77,9 +76,10 @@ export const ChatBox: React.FC<ChatBoxProps> = ({
 
   if (!isOpen) return null;
 
-  // If minimized, do NOT render the bubble button (as per new requirements)
+  // The yellow floating button (FAB) has been removed as requested.
+  // The ChatBox now only renders when NOT minimized, or implicitly relies on other triggers to open.
   if (isMinimized) {
-    return null;
+    return null; 
   }
 
   return (

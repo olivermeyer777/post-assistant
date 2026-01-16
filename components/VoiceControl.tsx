@@ -38,17 +38,28 @@ export const VoiceControl: React.FC<VoiceControlProps> = ({
   const IconGradient = () => (
     <defs>
       <linearGradient id="voiceGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#4338ca" /> {/* Indigo-700 */}
-        <stop offset="50%" stopColor="#db2777" /> {/* Pink-600 */}
-        <stop offset="100%" stopColor="#d97706" /> {/* Amber-600 */}
+        <stop offset="0%" stopColor="#FFCC00" /> 
+        <stop offset="100%" stopColor="#F59E0B" /> 
       </linearGradient>
     </defs>
   );
 
   return (
-    <div className="fixed right-6 top-1/2 transform -translate-y-1/2 z-[1000] flex flex-col items-end gap-4">
+    // Moved to bottom-right to replace the chat button
+    <div className="fixed right-6 bottom-24 z-[1000] flex flex-col items-end gap-2">
       
-      {/* Status Label - Floating to the left of the button */}
+      {/* Label / Tooltip - Always visible when idle to invite user */}
+      <div className={`
+        bg-black text-white px-4 py-2 rounded-xl shadow-lg border border-gray-800
+        font-bold text-sm mb-2 transition-all duration-300 cursor-pointer
+        ${isConnected ? 'opacity-0 translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'}
+      `}
+      onClick={handleClick}
+      >
+        Frag den Assistenten
+      </div>
+
+      {/* Status Label (When Active) */}
       <div className={`
         absolute right-24 top-1/2 -translate-y-1/2
         whitespace-nowrap px-4 py-2 rounded-xl bg-white/90 backdrop-blur-sm shadow-lg border border-gray-100
@@ -57,7 +68,7 @@ export const VoiceControl: React.FC<VoiceControlProps> = ({
         ${isConnected ? 'opacity-100 scale-100 translate-x-0' : 'opacity-0 scale-90 translate-x-4 pointer-events-none'}
       `}>
         <span className="bg-gradient-to-r from-indigo-600 via-pink-600 to-amber-600 bg-clip-text text-transparent">
-           {isSpeaking ? 'Spreche...' : 'Höre zu...'}
+           {isSpeaking ? 'Ich spreche...' : 'Ich höre zu...'}
         </span>
       </div>
 
@@ -65,32 +76,28 @@ export const VoiceControl: React.FC<VoiceControlProps> = ({
         onClick={handleClick}
         className={`
           relative flex items-center justify-center 
-          /* Tile Shape & Style Matching */
-          rounded-2xl border transition-all duration-300
+          rounded-full border transition-all duration-300
           ${isConnected 
-            ? 'w-20 h-20 bg-white border-black shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] scale-110' 
+            ? 'w-20 h-20 bg-white border-black shadow-[0_0_40px_rgba(0,0,0,0.2)] scale-100' 
             : showDisconnectFeedback 
               ? 'w-16 h-16 bg-red-50 border-red-200 shadow-lg' 
-              : 'w-16 h-16 bg-white border-white hover:border-black shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)]'
+              : 'w-16 h-16 bg-[#FFCC00] border-white shadow-xl hover:scale-105'
           }
         `}
         aria-label="Voice Agent Control"
       >
-        {/* Active State Glow (Updated shape) */}
+        {/* Active State Glow */}
         {isConnected && (
-          <div className="absolute inset-0 rounded-2xl opacity-20 pointer-events-none">
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tr from-indigo-500 via-pink-500 to-amber-500 rounded-2xl animate-pulse"></div>
+          <div className="absolute inset-0 rounded-full opacity-20 pointer-events-none">
+            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tr from-indigo-500 via-pink-500 to-amber-500 rounded-full animate-pulse"></div>
+            <div className="absolute -inset-4 rounded-full border border-indigo-500/30 animate-[spin_4s_linear_infinite]"></div>
           </div>
         )}
 
         {/* Icons */}
-        <div className="relative z-10">
-            <svg width="0" height="0" className="absolute">
-               <IconGradient />
-            </svg>
-
+        <div className="relative z-10 text-gray-900">
             {showDisconnectFeedback ? (
-                // Disconnected (Red Crossed Out)
+                // Disconnected
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-in zoom-in duration-300">
                     <line x1="1" y1="1" x2="23" y2="23"></line>
                     <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path>
@@ -99,20 +106,19 @@ export const VoiceControl: React.FC<VoiceControlProps> = ({
                     <line x1="8" y1="23" x2="16" y2="23"></line>
                 </svg>
             ) : isConnected ? (
-                // Active (Visualizer Icon)
-                <div className="flex gap-1 items-end justify-center h-8">
+                // Active (Waveform Visualizer)
+                <div className="flex gap-1 items-center justify-center h-8">
                     <div className={`w-1.5 rounded-full bg-gradient-to-t from-indigo-600 to-pink-600 transition-all duration-150 ${isSpeaking ? 'h-8 animate-[bounce_0.8s_infinite]' : 'h-4 animate-[pulse_1s_infinite]'}`}></div>
                     <div className={`w-1.5 rounded-full bg-gradient-to-t from-pink-600 to-amber-600 transition-all duration-150 delay-75 ${isSpeaking ? 'h-10 animate-[bounce_0.8s_infinite_0.1s]' : 'h-6 animate-[pulse_1s_infinite_0.2s]'}`}></div>
                     <div className={`w-1.5 rounded-full bg-gradient-to-t from-amber-600 to-indigo-600 transition-all duration-150 delay-200 ${isSpeaking ? 'h-6 animate-[bounce_0.8s_infinite_0.2s]' : 'h-3 animate-[pulse_1s_infinite_0.4s]'}`}></div>
                 </div>
             ) : (
-                // Idle (Microphone)
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="url(#voiceGradient)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-300 group-hover:scale-105">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                    <line x1="12" y1="19" x2="12" y2="23"></line>
-                    <line x1="8" y1="23" x2="16" y2="23"></line>
-                </svg>
+                // Idle (Digital Assistant Sparkle Icon)
+                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    <path d="M9 10a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z" fill="currentColor" stroke="none" />
+                    <path d="M19 10a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z" fill="currentColor" stroke="none" />
+                 </svg>
             )}
         </div>
       </button>

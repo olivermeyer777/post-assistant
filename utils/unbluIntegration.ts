@@ -1,11 +1,8 @@
 
 /**
  * Utility to initialize Unblu Video Consulting
- * Documentation reference: https://www.unblu.com/en/doc/latest/
+ * The scripts are loaded statically in index.html
  */
-
-const UNBLU_SERVER = "https://post-self-service.dev.unblu-test.com"; 
-const UNBLU_API_KEY: string = "CECkwTtITwyICpnbrABAyg"; 
 
 declare global {
   interface Window {
@@ -13,110 +10,111 @@ declare global {
   }
 }
 
-// Singleton promise to track initialization status and prevent double-loading
-let initPromise: Promise<void> | null = null;
+// Helper to wait for the API to become available
+// Increased timeout to 30s to allow for slower networks and prevent premature timeout errors
+const waitForUnbluApi = (timeoutMs: number = 30000): Promise<any> => {
+    return new Promise((resolve, reject) => {
+        // Function to check availability
+        const check = () => {
+             try {
+                if (window.unblu && window.unblu.api) {
+                    // If the API exposes an isInitialized check, use it (v5+ specific, but good safety)
+                    if (typeof window.unblu.api.isInitialized === 'function') {
+                        return window.unblu.api.isInitialized() ? window.unblu.api : null;
+                    }
+                    return window.unblu.api;
+                }
+             } catch (e) {
+                 // Ignore access errors during init
+             }
+            return null;
+        };
 
-export const triggerUnbluVideoCall = async (): Promise<void> => {
-  if (!UNBLU_API_KEY || UNBLU_API_KEY === "YOUR_API_KEY_HERE") {
-    console.error("Unblu API Key Missing");
-    alert("Konfiguration unvollständig: Bitte Unblu API Key in 'utils/unbluIntegration.ts' eintragen.");
-    return Promise.reject("Configuration missing");
-  }
-
-  // Configure Unblu via global object before loading script
-  // This is often more robust than query parameters
-  window.unblu = window.unblu || {};
-  window.unblu.apiKey = UNBLU_API_KEY;
-
-  // Case 1: Unblu is fully loaded and ready
-  if (window.unblu && window.unblu.api) {
-    console.log("Unblu already active. Toggling window...");
-    try {
-       window.unblu.api.toggleConversationWindow(true);
-       return Promise.resolve();
-    } catch (e) {
-       console.error("Unblu API toggle error:", e);
-       return Promise.reject(e);
-    }
-  }
-
-  // Case 2: Initialization is already in progress
-  if (initPromise) {
-    console.log("Unblu initialization in progress, waiting...");
-    return initPromise.then(() => {
-        if (window.unblu?.api) {
-            window.unblu.api.toggleConversationWindow(true);
+        // Check immediately
+        const api = check();
+        if (api) {
+            resolve(api);
+            return;
         }
+
+        const startTime = Date.now();
+        const intervalId = setInterval(() => {
+            const api = check();
+            if (api) {
+                clearInterval(intervalId);
+                resolve(api);
+            } else if (Date.now() - startTime > timeoutMs) {
+                clearInterval(intervalId);
+                // Return a simple string error, not a complex object
+                reject(new Error("Video service initialization timed out. Please check your connection."));
+            }
+        }, 500);
     });
-  }
-
-  // Case 3: Start initialization
-  console.log("Starting Unblu initialization...");
-  initPromise = new Promise((resolve, reject) => {
-    // Standard Unblu Cloud Path is usually at root /unblu/visitor.js
-    // We rely on window.unblu.apiKey for auth
-    const scriptUrl = `${UNBLU_SERVER}/unblu/visitor.js`;
-    console.log("Loading Unblu script from:", scriptUrl);
-
-    // Check if script is already in DOM to avoid duplicates
-    const existing = document.querySelector(`script[src="${scriptUrl}"]`);
-    if (existing) {
-        console.log("Unblu script tag found, waiting for API...");
-        waitForApi(resolve, reject);
-        return;
-    }
-
-    const script = document.createElement('script');
-    script.src = scriptUrl;
-    script.async = true;
-    
-    script.onload = () => {
-      console.log("Unblu script loaded, polling for API...");
-      waitForApi(resolve, reject);
-    };
-    
-    script.onerror = (e) => {
-      console.error("Failed to load Unblu script from URL:", scriptUrl);
-      initPromise = null; // Reset promise so we can retry later
-      
-      // Remove failed script to allow clean retry
-      try {
-        if (document.head.contains(script)) {
-            document.head.removeChild(script);
-        }
-      } catch (cleanupError) {
-          console.warn("Could not remove failed script tag", cleanupError);
-      }
-
-      reject(new Error(`Failed to load Unblu script resource from ${scriptUrl}. Check network or API key.`));
-    };
-
-    document.head.appendChild(script);
-  });
-
-  return initPromise.then(() => {
-      if (window.unblu?.api) {
-         window.unblu.api.toggleConversationWindow(true);
-      }
-  });
 };
 
-/**
- * Polls for window.unblu.api availability
- */
-function waitForApi(resolve: () => void, reject: (err: Error) => void) {
-    let attempts = 0;
-    const maxAttempts = 150; // 15 seconds max
-    const interval = setInterval(() => {
-        attempts++;
-        if (window.unblu && window.unblu.api) {
-            clearInterval(interval);
-            console.log("Unblu API ready.");
-            resolve();
-        } else if (attempts >= maxAttempts) {
-            clearInterval(interval);
-            console.error("Unblu API timeout.");
-            reject(new Error("Unblu API failed to initialize in time."));
-        }
-    }, 100);
-}
+export const triggerUnbluVideoCall = async (): Promise<void> => {
+  try {
+      // 1. Wait for API to be ready (polls window.unblu.api)
+      const api = await waitForUnbluApi();
+
+      // 2. Interact with API
+      // Wrap specific Unblu calls in their own try-catch to sanitize the complex error objects immediately
+      try {
+          // Check for existing conversation first
+          const conversation = await api.getActiveConversation();
+          
+          if (!conversation) {
+              console.log("No active conversation, starting new one...");
+              // This call can throw INITIALIZATION_TIMEOUT if the backend isn't ready yet
+              await api.startConversation("VIDEO_REQUEST");
+              console.log("Conversation started.");
+          } else {
+              console.log("Active conversation detected, opening UI.");
+          }
+
+          // 3. Open UI
+          if (api.ui && api.ui.openIndividualUi) {
+              api.ui.openIndividualUi();
+          }
+
+      } catch (innerError: any) {
+          // CRITICAL: Convert complex/circular error objects to simple strings immediately.
+          // The error "Converting circular structure to JSON" happens because the Unblu error object is circular.
+          // We must NOT log 'innerError' directly or pass it to any function that might stringify it.
+          
+          let safeMsg = "Video call failed.";
+          
+          try {
+            if (innerError) {
+                // Handle specific Unblu error types safely
+                if (innerError.type === 'INITIALIZATION_TIMEOUT' || 
+                    (innerError.detail && typeof innerError.detail === 'string' && innerError.detail.includes('Timeout'))) {
+                    safeMsg = "Video service is warming up. Please try again in a few seconds.";
+                } 
+                else if (typeof innerError.message === 'string') {
+                    safeMsg = innerError.message;
+                }
+                else if (typeof innerError === 'string') {
+                    safeMsg = innerError;
+                }
+            }
+          } catch (e) {
+              // Fallback if property access fails
+              safeMsg = "Unknown video service error.";
+          }
+          
+          // Throw a clean Error object with ONLY a string message
+          throw new Error(safeMsg);
+      }
+
+  } catch (e: any) {
+      // This catch block guarantees that 'e' is either the timeout Error from waitForUnbluApi 
+      // or the clean Error from the inner catch block.
+      
+      const logMsg = e instanceof Error ? e.message : String(e);
+      // Ensure we only log strings
+      console.error(`Unblu integration error: ${logMsg}`);
+      
+      throw new Error(logMsg);
+  }
+};

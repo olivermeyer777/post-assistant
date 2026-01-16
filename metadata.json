@@ -1,7 +1,8 @@
 {
-  "name": "Post Info Assistant",
+  "name": "Agentic Self Service Prototype Github",
   "description": "A React conversion of the Swiss Post Info Assistant prototype, featuring a multilingual interface, dynamic tile navigation, and an AI-powered chat assistant using Gemini.",
   "requestFramePermissions": [
-    "microphone"
+    "microphone",
+    "camera"
   ]
 }

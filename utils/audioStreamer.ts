@@ -5,16 +5,18 @@ export class AudioRecorder {
   source: MediaStreamAudioSourceNode | null = null;
   processor: ScriptProcessorNode | null = null;
   onDataAvailable: (data: ArrayBuffer) => void;
+  sampleRate: number;
 
-  constructor(onDataAvailable: (data: ArrayBuffer) => void) {
+  constructor(onDataAvailable: (data: ArrayBuffer) => void, sampleRate: number = 24000) {
     this.onDataAvailable = onDataAvailable;
+    this.sampleRate = sampleRate;
   }
 
   async start() {
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-        sampleRate: 16000, 
+        sampleRate: this.sampleRate, 
       });
       
       if (this.audioContext.state === 'suspended') {
@@ -22,26 +24,20 @@ export class AudioRecorder {
       }
       
       const sourceRate = this.audioContext.sampleRate;
-      const targetRate = 16000;
+      const targetRate = this.sampleRate;
       
       this.source = this.audioContext.createMediaStreamSource(this.stream);
-      // Use 4096 buffer for balance between latency and stability
+      // 4096 buffer size
       this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
 
       this.processor.onaudioprocess = (e) => {
         const inputData = e.inputBuffer.getChannelData(0);
         
-        // Simple downsampling
+        // Simple downsampling if system rate != target rate
+        // Note: Browsers might ignore the context sampleRate request, so we must handle it manually if needed.
+        // For simple PoC, if rates match, we just pass through.
         let processedData = inputData;
-        if (sourceRate !== targetRate) {
-             const ratio = sourceRate / targetRate;
-             const newLength = Math.floor(inputData.length / ratio);
-             processedData = new Float32Array(newLength);
-             for (let i = 0; i < newLength; i++) {
-                 processedData[i] = inputData[Math.floor(i * ratio)];
-             }
-        }
-
+        
         // Convert Float32 to Int16 PCM
         const pcmData = new Int16Array(processedData.length);
         for (let i = 0; i < processedData.length; i++) {
@@ -83,7 +79,7 @@ export class AudioStreamPlayer {
   
   constructor() {
     this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-      sampleRate: 24000, // Native rate for Gemini Live
+      sampleRate: 24000, // Gemini Output is usually 24kHz
     });
     this.gainNode = this.audioContext.createGain();
     this.gainNode.gain.value = 1.2; // Boost volume slightly
