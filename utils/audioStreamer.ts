@@ -76,6 +76,7 @@ export class AudioStreamPlayer {
   audioContext: AudioContext | null = null;
   gainNode: GainNode | null = null;
   nextStartTime: number = 0;
+  scheduledSources: AudioBufferSourceNode[] = [];
   
   constructor() {
     this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
@@ -123,15 +124,34 @@ export class AudioStreamPlayer {
       this.nextStartTime = currentTime;
     }
     
+    source.onended = () => {
+        this.scheduledSources = this.scheduledSources.filter(s => s !== source);
+    };
+
+    this.scheduledSources.push(source);
     source.start(this.nextStartTime);
     this.nextStartTime += audioBuffer.duration;
   }
   
+  // New method to stop playback immediately without closing context
+  interrupt() {
+      this.scheduledSources.forEach(source => {
+          try { source.stop(); } catch(e) {}
+      });
+      this.scheduledSources = [];
+      this.nextStartTime = 0;
+      
+      // Reset next start time to current time to avoid sync issues on resume
+      if (this.audioContext) {
+          this.nextStartTime = this.audioContext.currentTime;
+      }
+  }
+
   stop() {
+    this.interrupt();
     if (this.audioContext) {
         this.audioContext.close().catch(e => console.warn("AudioContext close error:", e));
     }
-    this.nextStartTime = 0;
   }
 }
 

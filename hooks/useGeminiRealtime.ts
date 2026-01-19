@@ -132,12 +132,20 @@ ANTWORTE IMMER IN DER SPRACHE: ${currentLang}.
                         recorderRef.current.start();
                     },
                     onmessage: async (message: LiveServerMessage) => {
+                        // Handle Audio Output
                         const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
                         if (base64Audio) {
                             const buffer = base64ToArrayBuffer(base64Audio);
                             playerRef.current?.addChunk(buffer);
                             setIsSpeaking(true);
                             setTimeout(() => setIsSpeaking(false), 500);
+                        }
+
+                        // Handle Interruption (Critical for natural feel)
+                        if (message.serverContent?.interrupted) {
+                            console.log("Model interrupted by user");
+                            playerRef.current?.interrupt();
+                            setIsSpeaking(false);
                         }
                     },
                     onclose: () => {
