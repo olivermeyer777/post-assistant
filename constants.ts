@@ -199,10 +199,36 @@ const createTranslation = (lang: string, overrides: any = {}): TranslationData =
 export const TRANSLATIONS: Record<Language, TranslationData> = {
   de: DE_DEFAULTS,
   fr: createTranslation('fr', {
+    pageTitle: "Bienvenue à la Poste",
+    orakelViewSubtitle: "Choisissez un sujet ou décrivez votre demande.",
+    tiles: {
+        self: {
+            title: "Assistant libre-service",
+            desc: "Effectuez vos opérations postales directement ici, avec l'aide d'un assistant numérique si nécessaire.",
+            btnPacket: "Envoyer un colis",
+            btnLetter: "Envoyer une lettre",
+            btnPayment: "Paiement",
+            btnTracking: "Suivi de colis"
+        }
+    },
+    ui: {
+        back: "Retour",
+        next: "Suivant",
+        pay: "Payer",
+        accessibility: "Accessibilité",
+        welcomeChat: "Bonjour ! Je suis votre Assistant Poste. Comment puis-je vous aider ?"
+    },
     selfService: {
+        title: "Affranchir un colis",
+        titleLetter: "Envoyer une lettre",
+        titlePayment: "Paiement",
+        titleTracking: "Suivi de l'envoi",
         franking: {
             packetAddressCheckQuestion: "L'adresse du destinataire figure-t-elle déjà sur le colis ?",
-            feedbackQuestion: "Quelle est la probabilité que vous recommandiez ce service ?"
+            feedbackQuestion: "Quelle est la probabilité que vous recommandiez ce service ?",
+            destCH: "Suisse / Liechtenstein",
+            weighAction: "Peser le colis",
+            payButton: "Confirmer le paiement"
         },
         letter: {
             formatSmall: "Lettre Standard (B5)",
@@ -211,6 +237,8 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
             formatBig: "Grande Lettre (B4)",
             formatBigDesc: "Jusqu'à 1000g, < 2cm",
             formatBigDim: "35.3 x 25 cm",
+            addressCheckYes: "Oui, adresse présente",
+            addressCheckNo: "Non, saisir l'adresse"
         },
         tracking: {
             step1: "Déposé",
@@ -221,10 +249,36 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
     }
   }),
   it: createTranslation('it', {
+     pageTitle: "Benvenuti alla Posta",
+     orakelViewSubtitle: "Scegli un argomento o descrivi la tua richiesta.",
+     tiles: {
+        self: {
+            title: "Assistente Self-Service",
+            desc: "Svolgete le vostre operazioni postali direttamente qui, se necessario con l'aiuto di un assistente digitale.",
+            btnPacket: "Inviare un pacco",
+            btnLetter: "Inviare una lettera",
+            btnPayment: "Pagamento",
+            btnTracking: "Tracciare un pacco"
+        }
+     },
+     ui: {
+        back: "Indietro",
+        next: "Avanti",
+        pay: "Pagare",
+        accessibility: "Accessibilità",
+        welcomeChat: "Buongiorno! Sono il vostro Assistente Posta. Come posso aiutarvi?"
+    },
      selfService: {
+        title: "Affrancare un pacco",
+        titleLetter: "Inviare una lettera",
+        titlePayment: "Pagamento",
+        titleTracking: "Traccia la spedizione",
         franking: {
             packetAddressCheckQuestion: "L'indirizzo del destinatario è già sul pacco?",
-            feedbackQuestion: "Con quale probabilità raccomanderebbe questo servizio?"
+            feedbackQuestion: "Con quale probabilità raccomanderebbe questo servizio?",
+            destCH: "Svizzera / Liechtenstein",
+            weighAction: "Pesare il pacco",
+            payButton: "Confermare pagamento"
         },
         letter: {
             formatSmall: "Lettera Standard (B5)",
@@ -233,6 +287,8 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
             formatBig: "Lettera Grande (B4)",
             formatBigDesc: "Fino a 1000g, < 2cm",
             formatBigDim: "35.3 x 25 cm",
+            addressCheckYes: "Sì, indirizzo presente",
+            addressCheckNo: "No, inserire indirizzo"
         },
         tracking: {
             step1: "Impostato",
@@ -243,10 +299,36 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
     }
   }),
   en: createTranslation('en', {
+     pageTitle: "Welcome to Swiss Post",
+     orakelViewSubtitle: "Choose a topic or describe your request.",
+     tiles: {
+        self: {
+            title: "Self-Service Assistant",
+            desc: "Take care of your postal business right here in self-service, with the support of a digital assistant if needed.",
+            btnPacket: "Send a parcel",
+            btnLetter: "Send a letter",
+            btnPayment: "Payment",
+            btnTracking: "Track parcel"
+        }
+     },
+     ui: {
+        back: "Back",
+        next: "Next",
+        pay: "Pay",
+        accessibility: "Accessibility",
+        welcomeChat: "Hello! I am your PostAssistant. How can I help you today?"
+    },
      selfService: {
+        title: "Frank a parcel",
+        titleLetter: "Send a letter",
+        titlePayment: "Bill Payment",
+        titleTracking: "Track Shipment",
         franking: {
             packetAddressCheckQuestion: "Is the recipient address already on the parcel?",
-            feedbackQuestion: "How likely are you to recommend this service?"
+            feedbackQuestion: "How likely are you to recommend this service?",
+            destCH: "Switzerland / Liechtenstein",
+            weighAction: "Weigh parcel",
+            payButton: "Confirm Payment"
         },
         letter: {
             formatSmall: "Standard Letter (B5)",
@@ -255,6 +337,8 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
             formatBig: "Large Letter (B4)",
             formatBigDesc: "Up to 1000g, < 2cm",
             formatBigDim: "35.3 x 25 cm",
+            addressCheckYes: "Yes, address present",
+            addressCheckNo: "No, enter address"
         },
         tracking: {
             step1: "Posted",
@@ -265,6 +349,8 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
     }
   }),
   es: createTranslation('es', {
+      pageTitle: "Bienvenido a Correos",
+      ui: { back: "Atrás", next: "Siguiente", pay: "Pagar", accessibility: "Accesibilidad", welcomeChat: "¡Hola! Soy tu asistente." },
       selfService: {
           franking: {
                packetAddressCheckQuestion: "¿La dirección del destinatario ya está en el paquete?",
@@ -279,10 +365,12 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
       }
   }),
   pt: createTranslation('pt', {
+      pageTitle: "Bem-vindo aos Correios",
+      ui: { back: "Voltar", next: "Seguinte", pay: "Pagar", accessibility: "Acessibilidade", welcomeChat: "Olá! Sou o seu assistente." },
       selfService: {
           franking: {
-              packetAddressCheckQuestion: "O endereço do destinatário já está na encomenda?",
-              feedbackQuestion: "Qual a probabilidade de recomendar este serviço?"
+               packetAddressCheckQuestion: "O endereço do destinatário já está na encomenda?",
+               feedbackQuestion: "Qual a probabilidade de recomendar este serviço?"
           },
           tracking: {
               step1: "Aceite",

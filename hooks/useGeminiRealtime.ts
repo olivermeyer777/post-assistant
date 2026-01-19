@@ -111,8 +111,11 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
     const sessionRef = useRef<any>(null);
     const recorderRef = useRef<AudioRecorder | null>(null);
     const playerRef = useRef<AudioStreamPlayer | null>(null);
-    const isConnectedRef = useRef(false); // Ref to track status inside callbacks without deps
+    const isConnectedRef = useRef(false); 
     
+    // Keep track of the language currently active in the session to detect changes
+    const activeSessionLangRef = useRef<Language>(currentLang);
+
     // Refs for callbacks to avoid closure staleness
     const actionsRef = useRef({ onNavigate, onControlStep });
     useEffect(() => {
@@ -128,39 +131,26 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
         // Pick the correct language template, fallback to German
         const tmpl = PROMPT_TEMPLATES[currentLang] || PROMPT_TEMPLATES['de'];
 
-        // Helper to format documents
         const formatDocs = (docs: KnowledgeDocument[]) => {
             if (!docs || docs.length === 0) return '---';
             return docs.map(d => `SOURCE "${d.title}": ${d.content}`).join('\n');
         };
 
-        // Helper: Map settings to Prompt Instructions
         const getLengthInstr = (len: string) => {
             if (len === 'short') return "EXTREMELY BRIEF. Telegraph style. Max 10 words.";
             if (len === 'long') return "Detailed and explanatory. Use bullet points if needed.";
-            return "Concise. 1-2 natural sentences."; // Medium
+            return "Concise. 1-2 natural sentences."; 
         };
 
         const getIntensityInstr = (int: string) => {
             if (int === 'passive') return "PASSIVE. Wait for user to ask. Do NOT volunteer next steps.";
-            return "PROACTIVE. Lead the conversation. Ask for missing info immediately."; // Proactive
+            return "PROACTIVE. Lead the conversation. Ask for missing info immediately."; 
         };
 
-        // Helper to format process rules
         const formatRule = (key: string, name: string) => {
             const conf = procConfigs[key];
             if (!conf || !conf.isEnabled) return '';
-            
-            return `
-=== PROCESS: ${name} (ID: ${key}) ===
-GOAL: ${conf.customPrompt || 'Help the user complete this task.'}
-BEHAVIOR RULES:
-1. RESPONSE LENGTH: ${getLengthInstr(conf.responseLength)}
-2. INTENSITY: ${getIntensityInstr(conf.supportIntensity)}
-SPECIFIC KNOWLEDGE:
-${formatDocs(conf.documents)}
--------------------------------------
-            `.trim();
+            return `=== PROCESS: ${name} (ID: ${key}) ===\nGOAL: ${conf.customPrompt || 'Help the user.'}\nRULES: Length=${getLengthInstr(conf.responseLength)}, Intensity=${getIntensityInstr(conf.supportIntensity)}\nKNOWLEDGE:\n${formatDocs(conf.documents)}\n-------------------------------------`;
         };
 
         let base = `
@@ -168,69 +158,33 @@ ${tmpl.role}
 ${tmpl.style}
 ${tmpl.strictRule}
 ${tmpl.toolRule}
-
-GLOBAL SETTINGS:
-- Persona: ${assistantSettings.globalPrompt}
-- Formality: ${assistantSettings.politeness === 'formal' ? 'Formal (Sie/Vous)' : 'Casual (Du/Tu)'}
-
+GLOBAL SETTINGS: Persona: ${assistantSettings.globalPrompt} | Formality: ${assistantSettings.politeness}
 ${tmpl.contextIntro}
-
-GLOBAL KNOWLEDGE (Apply to all queries):
+GLOBAL KNOWLEDGE:
 ${formatDocs(globalDocs)}
-
-AVAILABLE PROCESSES (Use navigate_app tool to start these):
+AVAILABLE PROCESSES:
 ${formatRule('packet', 'Paket aufgeben')}
 ${formatRule('letter', 'Brief versenden')}
 ${formatRule('payment', 'Einzahlung')}
 ${formatRule('tracking', 'Sendungsverfolgung')}
-
 ${tmpl.outputRule}
         `.trim();
 
         return base;
     }, [settings, currentLang]);
 
-    // Live Update Effect
-    useEffect(() => {
-        // Only run if we are connected AND we have a valid session object (not just a promise)
-        if (isConnected && sessionRef.current && typeof sessionRef.current.send === 'function') {
-            console.log(`Context/Settings Update. Sending to Gemini...`);
-            const newInstruction = buildSystemInstruction();
-            
-            try {
-                // Send a text part to update the model context, behaving like a system injection
-                sessionRef.current.send({
-                    parts: [{
-                        text: `[SYSTEM_UPDATE]
-                        Configuration changed. 
-                        NEW INSTRUCTION: ${newInstruction}
-                        
-                        REMEMBER: Use tools proactively.`
-                    }]
-                });
-            } catch (e) {
-                console.warn("Failed to send live update to Gemini:", e);
-            }
-        }
-    }, [settings, currentLang, isConnected, buildSystemInstruction]);
-
     const connect = async () => {
-        if (isConnected) return;
+        if (isConnectedRef.current) return;
 
-        // Use safe access to process.env
         let apiKey = '';
-        try {
-            apiKey = process.env.API_KEY || '';
-        } catch (e) {
-            console.error("process.env access failed. Vite config might be missing 'define'.");
-        }
+        try { apiKey = process.env.API_KEY || ''; } catch (e) {}
 
         if (!apiKey) {
-            alert("API Key fehlt! Bitte fügen Sie 'API_KEY' in die .env Datei ein.");
             console.error("No API Key found");
             return;
         }
 
+        // Initialize Audio Output
         playerRef.current = new AudioStreamPlayer();
         await playerRef.current.resume();
 
@@ -238,9 +192,10 @@ ${tmpl.outputRule}
         
         try {
             const systemInstruction = buildSystemInstruction();
-            console.log("Connecting with Agent Persona...");
+            console.log("Connecting with Language:", currentLang);
 
-            // Create the session promise but DO NOT assign it to sessionRef.current yet
+            activeSessionLangRef.current = currentLang;
+
             const sessionPromise = genAI.live.connect({
                 model: 'gemini-2.5-flash-native-audio-preview-12-2025',
                 config: {
@@ -249,7 +204,7 @@ ${tmpl.outputRule}
                     speechConfig: {
                         voiceConfig: { prebuiltVoiceConfig: { voiceName: settings.assistant.voiceName || 'Puck' } }
                     },
-                    tools: [{ functionDeclarations: toolsDef }] // Inject Tools
+                    tools: [{ functionDeclarations: toolsDef }]
                 },
                 callbacks: {
                     onopen: () => {
@@ -258,13 +213,13 @@ ${tmpl.outputRule}
                         isConnectedRef.current = true;
 
                         recorderRef.current = new AudioRecorder((pcmBuffer) => {
-                            // Check if still connected before sending to avoid WebSocket CLOSED errors
+                            // CRITICAL: Stop sending if we are disconnected or connecting to a new session
                             if (!isConnectedRef.current) return;
                             
                             const base64Audio = arrayBufferToBase64(pcmBuffer);
                             
-                            // Use the resolved session promise safely
                             sessionPromise.then((session) => {
+                                // Double check connection status inside the promise resolution
                                 if (isConnectedRef.current) {
                                     try {
                                         session.sendRealtimeInput({
@@ -274,7 +229,7 @@ ${tmpl.outputRule}
                                             }
                                         });
                                     } catch (err) {
-                                        // Ignore send errors during close
+                                        // Silent catch for WebSocket closing errors
                                     }
                                 }
                             });
@@ -282,7 +237,7 @@ ${tmpl.outputRule}
                         recorderRef.current.start();
                     },
                     onmessage: async (message: LiveServerMessage) => {
-                        // 1. Handle Audio Output
+                        // Handle Audio
                         const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
                         if (base64Audio) {
                             const buffer = base64ToArrayBuffer(base64Audio);
@@ -291,31 +246,23 @@ ${tmpl.outputRule}
                             setTimeout(() => setIsSpeaking(false), 500);
                         }
 
-                        // 2. Handle Tool Calls (Agentic Behavior)
+                        // Handle Tools
                         if (message.toolCall) {
-                            console.log("Agent Tool Call Received:", message.toolCall);
-                            
-                            // We might have multiple calls in one turn
                             for (const fc of message.toolCall.functionCalls) {
-                                let result: { success: boolean; error?: string } = { success: true };
-                                
+                                let result = { success: true };
                                 try {
                                     if (fc.name === 'navigate_app') {
                                         const { view, mode } = fc.args as any;
-                                        console.log(`Agent navigating to: ${view}/${mode}`);
                                         actionsRef.current.onNavigate(view, mode);
                                     } 
                                     else if (fc.name === 'control_step') {
                                         const { step } = fc.args as any;
-                                        console.log(`Agent setting step to: ${step}`);
                                         actionsRef.current.onControlStep(step);
                                     }
                                 } catch (err) {
-                                    console.error("Tool execution failed", err);
-                                    result = { success: false, error: String(err) };
+                                    console.error("Tool exec failed", err);
+                                    result = { success: false };
                                 }
-
-                                // Send Response back to Model (Required)
                                 sessionPromise.then(session => {
                                     if (isConnectedRef.current) {
                                         session.sendToolResponse({
@@ -330,9 +277,7 @@ ${tmpl.outputRule}
                             }
                         }
 
-                        // 3. Handle Interruption
                         if (message.serverContent?.interrupted) {
-                            console.log("Model interrupted by user");
                             playerRef.current?.interrupt();
                             setIsSpeaking(false);
                         }
@@ -341,7 +286,6 @@ ${tmpl.outputRule}
                         console.log("Gemini Live Closed");
                         setIsConnected(false);
                         isConnectedRef.current = false;
-                        cleanup();
                     },
                     onerror: (err) => {
                         console.error("Gemini Live Error:", err);
@@ -352,8 +296,6 @@ ${tmpl.outputRule}
                 }
             });
 
-            // Wait for the session to be fully resolved before assigning to ref
-            // This prevents "session.send is not a function" errors because we won't have a Promise in the ref
             const session = await sessionPromise;
             sessionRef.current = session;
 
@@ -364,18 +306,39 @@ ${tmpl.outputRule}
     };
 
     const cleanup = () => {
-        isConnectedRef.current = false; // Immediate flag for callbacks
-        recorderRef.current?.stop();
-        playerRef.current?.stop();
+        isConnectedRef.current = false;
+        if (recorderRef.current) {
+            recorderRef.current.stop();
+            recorderRef.current = null;
+        }
+        if (playerRef.current) {
+            playerRef.current.stop();
+            playerRef.current = null;
+        }
         setIsSpeaking(false);
         sessionRef.current = null;
+        setIsConnected(false);
     };
 
     const disconnect = () => {
         cleanup();
-        setIsConnected(false);
     };
 
+    // --- LANGUAGE SWITCH HANDLER ---
+    // Instead of trying to update the session live (which causes crashes),
+    // we simply restart the connection with the new language.
+    useEffect(() => {
+        if (isConnected && currentLang !== activeSessionLangRef.current) {
+            console.log("Language changed. Restarting Voice Agent...");
+            cleanup();
+            // Small timeout to allow cleanup to finish before reconnecting
+            setTimeout(() => {
+                connect();
+            }, 500);
+        }
+    }, [currentLang, isConnected]);
+
+    // Cleanup on unmount
     useEffect(() => {
         return () => disconnect();
     }, []);
