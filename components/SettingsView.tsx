@@ -1,12 +1,122 @@
 
 import React, { useState } from 'react';
-import { useAppSettings, ProcessConfig } from '../hooks/useAppSettings';
+import { useAppSettings, ProcessConfig, KnowledgeDocument } from '../hooks/useAppSettings';
+
+// --- Sub-Component for File Management ---
+const KnowledgeManager = ({ 
+    documents, 
+    onAdd, 
+    onRemove, 
+    title, 
+    description 
+}: { 
+    documents: KnowledgeDocument[], 
+    onAdd: (doc: KnowledgeDocument) => void, 
+    onRemove: (id: string) => void,
+    title: string,
+    description: string
+}) => {
+    const [isAdding, setIsAdding] = useState(false);
+    const [newTitle, setNewTitle] = useState('');
+    const [newContent, setNewContent] = useState('');
+
+    const handleSave = () => {
+        if (!newTitle.trim() || !newContent.trim()) return;
+        onAdd({
+            id: Math.random().toString(36).substr(2, 9),
+            title: newTitle,
+            content: newContent,
+            isActive: true
+        });
+        setNewTitle('');
+        setNewContent('');
+        setIsAdding(false);
+    };
+
+    return (
+        <section className="bg-white rounded-[2rem] shadow-sm border border-gray-200 p-8 flex flex-col h-full">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-3 text-gray-900">
+                <span className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center text-red-600">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                </span>
+                {title}
+            </h2>
+            <p className="text-sm text-gray-500 mb-6">{description}</p>
+
+            {/* List of Documents */}
+            <div className="space-y-3 mb-6 flex-1">
+                {documents.length === 0 && (
+                    <div className="text-center p-6 border-2 border-dashed border-gray-100 rounded-xl text-gray-400 text-sm">
+                        Keine Dokumente hinterlegt.
+                    </div>
+                )}
+                {documents.map(doc => (
+                    <div key={doc.id} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-xl group hover:border-gray-300 transition-colors">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-gray-200 shadow-sm flex-shrink-0">
+                                <span className="text-xs font-bold text-red-600">PDF</span>
+                            </div>
+                            <div className="min-w-0">
+                                <h4 className="font-bold text-gray-900 text-sm truncate">{doc.title}</h4>
+                                <p className="text-xs text-gray-500 truncate max-w-[200px]">{doc.content.substring(0, 40)}...</p>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={() => onRemove(doc.id)}
+                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Entfernen"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                    </div>
+                ))}
+            </div>
+
+            {/* Add New Area */}
+            {isAdding ? (
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 animate-fade-in">
+                    <input 
+                        className="w-full mb-3 p-3 text-sm font-bold border border-gray-200 rounded-lg focus:border-[#FFCC00] outline-none" 
+                        placeholder="Dokument Name (z.B. AGB.pdf)"
+                        value={newTitle}
+                        onChange={(e) => setNewTitle(e.target.value)}
+                    />
+                    <textarea 
+                        className="w-full mb-3 p-3 text-sm border border-gray-200 rounded-lg focus:border-[#FFCC00] outline-none min-h-[100px]" 
+                        placeholder="Inhalt des Dokuments hier einfügen..."
+                        value={newContent}
+                        onChange={(e) => setNewContent(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                        <button onClick={handleSave} className="flex-1 bg-black text-white py-2 rounded-lg text-sm font-bold hover:bg-gray-800">Speichern</button>
+                        <button onClick={() => setIsAdding(false)} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-200 rounded-lg">Abbrechen</button>
+                    </div>
+                </div>
+            ) : (
+                <button 
+                    onClick={() => setIsAdding(true)}
+                    className="w-full py-4 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 font-bold text-sm hover:border-[#FFCC00] hover:text-gray-600 hover:bg-[#FFCC00]/5 transition-all flex items-center justify-center gap-2"
+                >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                    Dokument hinzufügen / Upload
+                </button>
+            )}
+        </section>
+    );
+}
 
 export const SettingsView = () => {
-  const { settings, updateProcessConfig, updateAssistant } = useAppSettings();
+  const { 
+      settings, 
+      updateProcessConfig, 
+      updateAssistant, 
+      addGlobalDocument, 
+      removeGlobalDocument,
+      addProcessDocument,
+      removeProcessDocument 
+  } = useAppSettings();
+
   const [activeTab, setActiveTab] = useState<'global' | 'processes'>('global');
-  
-  // State for Master-Detail view in Processes tab
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>('packet');
 
   return (
@@ -56,7 +166,6 @@ export const SettingsView = () => {
                     </h2>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Voice */}
                         <div>
                             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Stimme (Global)</label>
                             <select 
@@ -71,8 +180,6 @@ export const SettingsView = () => {
                                 <option value="Aoede">Aoede (Soft/Female)</option>
                             </select>
                         </div>
-
-                        {/* Politeness */}
                         <div>
                             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Ansprache (Global)</label>
                             <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
@@ -83,9 +190,18 @@ export const SettingsView = () => {
                     </div>
                 </section>
 
-                {/* 2. Global Prompts & Knowledge */}
+                {/* 2. Global Documents & Prompts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* General Instructions */}
+                    {/* Replaced Knowledge Base Textarea with Document Manager */}
+                    <KnowledgeManager 
+                        title="Globale Dokumente (Knowledge Base)"
+                        description="Laden Sie hier PDFs hoch (z.B. AGB, Leitbilder), die für ALLE Prozesse gelten. Der Assistent greift immer darauf zu."
+                        documents={settings.globalDocuments}
+                        onAdd={addGlobalDocument}
+                        onRemove={removeGlobalDocument}
+                    />
+
+                    {/* General System Prompt */}
                     <section className="bg-white rounded-[2rem] shadow-sm border border-gray-200 p-8 flex flex-col h-full">
                         <h2 className="text-xl font-bold mb-4 flex items-center gap-3 text-gray-900">
                             <span className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
@@ -93,7 +209,7 @@ export const SettingsView = () => {
                             </span>
                             Genereller System Prompt
                         </h2>
-                        <p className="text-sm text-gray-500 mb-4">Definieren Sie hier das grundsätzliche Verhalten des Assistenten (z.B. "sei reaktiv", "lies nicht vor").</p>
+                        <p className="text-sm text-gray-500 mb-4">Definieren Sie hier das grundsätzliche Verhalten des Assistenten.</p>
                         <textarea 
                             value={settings.assistant.globalPrompt}
                             onChange={(e) => updateAssistant('globalPrompt', e.target.value)}
@@ -101,32 +217,15 @@ export const SettingsView = () => {
                             placeholder="Z.B. Sei immer freundlich..."
                         />
                     </section>
-
-                    {/* Knowledge Base */}
-                    <section className="bg-white rounded-[2rem] shadow-sm border border-gray-200 p-8 flex flex-col h-full">
-                        <h2 className="text-xl font-bold mb-4 flex items-center gap-3 text-gray-900">
-                            <span className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center text-green-600">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-                            </span>
-                            Knowledge Base (Wissen)
-                        </h2>
-                        <p className="text-sm text-gray-500 mb-4">Fakten, auf die sich der Assistent beschränken soll. Er darf nichts erfinden.</p>
-                        <textarea 
-                            value={settings.assistant.knowledgeBase}
-                            onChange={(e) => updateAssistant('knowledgeBase', e.target.value)}
-                            className="flex-1 w-full p-4 rounded-xl border border-gray-200 bg-gray-50 focus:border-[#FFCC00] outline-none min-h-[300px] text-sm font-mono leading-relaxed resize-none shadow-inner"
-                            placeholder="- Öffnungszeiten: ..."
-                        />
-                    </section>
                 </div>
             </div>
         )}
 
-        {/* --- PROCESS SETTINGS TAB (MASTER-DETAIL VIEW) --- */}
+        {/* --- PROCESS SETTINGS TAB --- */}
         {activeTab === 'processes' && (
              <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-250px)] animate-fade-in">
                  
-                 {/* 1. Sidebar List */}
+                 {/* 1. Sidebar */}
                  <div className="lg:w-1/3 bg-white rounded-[2rem] shadow-sm border border-gray-200 overflow-hidden flex flex-col">
                      <div className="p-6 border-b border-gray-100 bg-gray-50">
                          <h3 className="font-bold text-gray-900">Verfügbare Prozesse</h3>
@@ -160,7 +259,7 @@ export const SettingsView = () => {
                  <div className="lg:w-2/3 bg-white rounded-[2rem] shadow-sm border border-gray-200 flex flex-col overflow-hidden relative">
                      {selectedProcessId && settings.processes[selectedProcessId] ? (
                          <>
-                             {/* Detail Header */}
+                             {/* Header */}
                              <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                                  <div className="flex items-center gap-4">
                                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-sm border border-gray-100">
@@ -172,7 +271,6 @@ export const SettingsView = () => {
                                      </div>
                                  </div>
                                  
-                                 {/* Enable/Disable Toggle */}
                                  <div className="flex items-center gap-3">
                                      <span className="text-sm font-bold text-gray-500 uppercase">{settings.processes[selectedProcessId].isEnabled ? 'Aktiv' : 'Inaktiv'}</span>
                                      <label className="relative inline-flex items-center cursor-pointer">
@@ -187,36 +285,29 @@ export const SettingsView = () => {
                                  </div>
                              </div>
 
-                             {/* Detail Content */}
+                             {/* Content */}
                              <div className="flex-1 p-8 overflow-y-auto bg-white">
                                  {settings.processes[selectedProcessId].isEnabled ? (
                                      <div className="space-y-8 h-full flex flex-col">
                                          
-                                         {/* --- INHERITED GLOBAL SETTINGS (READ-ONLY) --- */}
+                                         {/* Inherited Info */}
                                          <div className="bg-gray-100/70 border border-gray-200 rounded-2xl p-6 relative overflow-hidden">
-                                            {/* Lock Icon Background */}
                                             <div className="absolute -right-4 -top-4 text-gray-200 opacity-50 rotate-12">
                                                 <svg width="100" height="100" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C9.243 2 7 4.243 7 7V10H6C4.897 10 4 10.897 4 12V20C4 21.103 4.897 22 6 22H18C19.103 22 20 21.103 20 20V12C20 10.897 19.103 10 18 10H17V7C17 4.243 14.757 2 12 2ZM15 10H9V7C9 5.346 10.346 4 12 4C13.654 4 15 5.346 15 7V10Z" /></svg>
                                             </div>
-
                                             <div className="relative z-10">
                                                 <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                                                     Geerbte Globale Konfiguration (Read-Only)
                                                 </h4>
-                                                
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div className="bg-white/60 p-3 rounded-lg border border-gray-200">
                                                         <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Stimme</span>
                                                         <span className="text-sm font-semibold text-gray-700">{settings.assistant.voiceName}</span>
                                                     </div>
                                                     <div className="bg-white/60 p-3 rounded-lg border border-gray-200">
-                                                        <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Ansprache</span>
-                                                        <span className="text-sm font-semibold text-gray-700 capitalize">{settings.assistant.politeness}</span>
-                                                    </div>
-                                                    <div className="col-span-1 md:col-span-2 bg-white/60 p-3 rounded-lg border border-gray-200">
-                                                        <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Globaler Prompt (Auszug)</span>
-                                                        <p className="text-xs text-gray-600 italic line-clamp-2">"{settings.assistant.globalPrompt}"</p>
+                                                        <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Globale Dokumente</span>
+                                                        <span className="text-sm font-semibold text-gray-700">{settings.globalDocuments.length} PDF(s) aktiv</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -224,60 +315,62 @@ export const SettingsView = () => {
 
                                          <div className="h-px bg-gray-100 w-full"></div>
 
-                                         {/* --- PROCESS SPECIFIC CONTROLS --- */}
-                                         <div>
-                                            <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                                <svg className="w-5 h-5 text-[#FFCC00]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
-                                                Prozess-Spezifische Anpassungen
-                                            </h4>
-
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                                {/* Verbosity Control */}
-                                                <div>
-                                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Antwortlänge</label>
-                                                    <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
-                                                        {(['short', 'medium', 'long'] as const).map((opt) => (
-                                                            <button 
-                                                                key={opt}
-                                                                onClick={() => updateProcessConfig(selectedProcessId, { responseLength: opt })}
-                                                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all uppercase ${settings.processes[selectedProcessId].responseLength === opt ? 'bg-black text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
-                                                            >
-                                                                {opt === 'short' ? 'Kurz' : opt === 'medium' ? 'Mittel' : 'Lang'}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-
-                                                {/* Intensity Control */}
-                                                <div>
-                                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Betreuungs-Intensität</label>
-                                                    <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
-                                                        <button 
-                                                            onClick={() => updateProcessConfig(selectedProcessId, { supportIntensity: 'passive' })}
-                                                            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all uppercase ${settings.processes[selectedProcessId].supportIntensity === 'passive' ? 'bg-white text-gray-600 shadow-sm border border-gray-200' : 'text-gray-400'}`}
-                                                        >
-                                                            Passiv
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => updateProcessConfig(selectedProcessId, { supportIntensity: 'proactive' })}
-                                                            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all uppercase ${settings.processes[selectedProcessId].supportIntensity === 'proactive' ? 'bg-[#FFCC00] text-black shadow-md' : 'text-gray-400'}`}
-                                                        >
-                                                            Proaktiv
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="relative">
-                                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Zusätzliche Instruktionen</label>
-                                                <textarea 
-                                                    value={settings.processes[selectedProcessId].customPrompt}
-                                                    onChange={(e) => updateProcessConfig(selectedProcessId, { customPrompt: e.target.value })}
-                                                    className="w-full p-4 rounded-xl border border-gray-200 bg-gray-50 focus:border-[#FFCC00] focus:ring-4 focus:ring-[#FFCC00]/10 outline-none min-h-[120px] text-sm leading-relaxed resize-none shadow-inner"
-                                                    placeholder="Spezifische Anweisungen für diesen Prozess..."
-                                                />
-                                            </div>
+                                         {/* Process Settings */}
+                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                              {/* Verbosity */}
+                                              <div>
+                                                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Antwortlänge</label>
+                                                  <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
+                                                      {(['short', 'medium', 'long'] as const).map((opt) => (
+                                                          <button 
+                                                              key={opt}
+                                                              onClick={() => updateProcessConfig(selectedProcessId, { responseLength: opt })}
+                                                              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all uppercase ${settings.processes[selectedProcessId].responseLength === opt ? 'bg-black text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                                                          >
+                                                              {opt === 'short' ? 'Kurz' : opt === 'medium' ? 'Mittel' : 'Lang'}
+                                                          </button>
+                                                      ))}
+                                                  </div>
+                                              </div>
+                                              {/* Intensity */}
+                                              <div>
+                                                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Betreuungs-Intensität</label>
+                                                  <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
+                                                      <button 
+                                                          onClick={() => updateProcessConfig(selectedProcessId, { supportIntensity: 'passive' })}
+                                                          className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all uppercase ${settings.processes[selectedProcessId].supportIntensity === 'passive' ? 'bg-white text-gray-600 shadow-sm border border-gray-200' : 'text-gray-400'}`}
+                                                      >
+                                                          Passiv
+                                                      </button>
+                                                      <button 
+                                                          onClick={() => updateProcessConfig(selectedProcessId, { supportIntensity: 'proactive' })}
+                                                          className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all uppercase ${settings.processes[selectedProcessId].supportIntensity === 'proactive' ? 'bg-[#FFCC00] text-black shadow-md' : 'text-gray-400'}`}
+                                                      >
+                                                          Proaktiv
+                                                      </button>
+                                                  </div>
+                                              </div>
                                          </div>
+
+                                         {/* Process Specific Documents */}
+                                         <KnowledgeManager 
+                                            title="Prozess-Spezifische Dokumente"
+                                            description="Laden Sie hier PDFs hoch, die NUR für diesen Prozess relevant sind (z.B. Zollformulare für Pakete)."
+                                            documents={settings.processes[selectedProcessId].documents}
+                                            onAdd={(doc) => addProcessDocument(selectedProcessId, doc)}
+                                            onRemove={(id) => removeProcessDocument(selectedProcessId, id)}
+                                         />
+
+                                         <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Zusätzliche Instruktionen</label>
+                                            <textarea 
+                                                value={settings.processes[selectedProcessId].customPrompt}
+                                                onChange={(e) => updateProcessConfig(selectedProcessId, { customPrompt: e.target.value })}
+                                                className="w-full p-4 rounded-xl border border-gray-200 bg-gray-50 focus:border-[#FFCC00] focus:ring-4 focus:ring-[#FFCC00]/10 outline-none min-h-[120px] text-sm leading-relaxed resize-none shadow-inner"
+                                                placeholder="Spezifische Anweisungen für diesen Prozess..."
+                                            />
+                                         </div>
+
                                      </div>
                                  ) : (
                                      <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-60">
@@ -287,7 +380,6 @@ export const SettingsView = () => {
                                             <line x1="9" y1="9" x2="15" y2="15"></line>
                                          </svg>
                                          <p className="text-lg font-medium">Dieser Prozess ist deaktiviert.</p>
-                                         <p className="text-sm">Aktivieren Sie ihn oben rechts, um Einstellungen vorzunehmen.</p>
                                      </div>
                                  )}
                              </div>

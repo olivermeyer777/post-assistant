@@ -3,18 +3,13 @@ import { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
 import { AudioRecorder, AudioStreamPlayer, arrayBufferToBase64, base64ToArrayBuffer } from '../utils/audioStreamer';
 import { Language } from '../types';
-import { AppSettings, ProcessConfig } from './useAppSettings'; 
+import { AppSettings, ProcessConfig, KnowledgeDocument } from './useAppSettings'; 
 
 interface UseGeminiRealtimeProps {
     onNavigate: (view: string, mode?: string) => void;
     onControlStep: (step: string) => void;
     currentLang: Language;
     settings: AppSettings['assistant']; 
-}
-
-// NOTE: I am extending the props type locally to include processConfigs which comes from the full settings object
-interface ExtendedProps extends UseGeminiRealtimeProps {
-    processConfigs?: Record<string, ProcessConfig>;
 }
 
 export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, settings }: UseGeminiRealtimeProps) => {
@@ -26,9 +21,9 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
     const recorderRef = useRef<AudioRecorder | null>(null);
     const playerRef = useRef<AudioStreamPlayer | null>(null);
 
-    const getFullSettings = () => {
+    const getFullSettings = (): AppSettings | null => {
         try {
-            const saved = localStorage.getItem('post_app_settings_v3');
+            const saved = localStorage.getItem('post_app_settings_v4');
             if (saved) return JSON.parse(saved);
         } catch (e) {}
         return null;
@@ -37,7 +32,14 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
     const buildSystemInstruction = () => {
         const fullSettings = getFullSettings();
         const procConfigs = fullSettings?.processes || {};
-        const assistantSettings = fullSettings?.assistant || settings; // Fallback to prop
+        const assistantSettings = fullSettings?.assistant || settings; 
+        const globalDocs = fullSettings?.globalDocuments || [];
+
+        // Helper to format documents
+        const formatDocs = (docs: KnowledgeDocument[]) => {
+            if (!docs || docs.length === 0) return 'Keine Dokumente.';
+            return docs.map(d => `DOKUMENT: "${d.title}"\nINHALT: ${d.content}`).join('\n\n');
+        };
 
         // Helper to format process rules
         const formatRule = (key: string, name: string) => {
@@ -45,10 +47,13 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
             if (!conf || !conf.isEnabled) return '';
             
             return `
-- PROZESS "${name}" (${key}):
-  * Instruktion: ${conf.customPrompt || 'Keine spezifische Instruktion.'}
-  * Antwortlänge: ${conf.responseLength === 'short' ? 'Sehr kurz (1 Satz)' : conf.responseLength === 'medium' ? 'Normal (2-3 Sätze)' : 'Ausführlich'}
-  * Intensität: ${conf.supportIntensity === 'proactive' ? 'Proaktiv (Biete Hilfe aktiv an, führe den User)' : 'Passiv (Antworte nur auf konkrete Fragen)'}
+=== PROZESS KONTEXT: "${name}" (${key}) ===
+* Basis Instruktion: ${conf.customPrompt || 'Keine spezifische Instruktion.'}
+* Antwortlänge: ${conf.responseLength === 'short' ? 'Sehr kurz (1 Satz)' : conf.responseLength === 'medium' ? 'Normal (2-3 Sätze)' : 'Ausführlich'}
+* Intensität: ${conf.supportIntensity === 'proactive' ? 'Proaktiv (Biete Hilfe aktiv an)' : 'Passiv (Warte auf Fragen)'}
+* PROZESS-SPEZIFISCHES WISSEN (Gilt NUR hier):
+${formatDocs(conf.documents)}
+===============================================
             `.trim();
         };
 
@@ -58,21 +63,22 @@ DU BIST: PostAssistant, der digitale KI-Mitarbeiter der Schweizer Post.
 DEINE AUFGABE:
 Du hilfst Kunden am Self-Service-Terminal.
 
-GLOBALE EINSTELLUNGEN (Immer gültig):
+STRIKTE REGEL:
+Antworte NUR basierend auf dem untenstehenden "GLOBALEN WISSEN" und dem aktuellen "PROZESS KONTEXT".
+Erfinde keine Fakten. Wenn etwas nicht in den Dokumenten steht, sage höflich, dass du es nicht weisst.
+
+GLOBALE EINSTELLUNGEN:
 1. Ansprache: ${assistantSettings.politeness === 'formal' ? 'Sie' : 'Du'}.
-2. Globaler Charakter: ${assistantSettings.globalPrompt}
-3. KNOWLEDGE BASE (Wissen): Nutze NUR das unten definierte Wissen.
+2. Charakter: ${assistantSettings.globalPrompt}
 
-PROZESS-SPEZIFISCHE REGELN (Kontextabhängig):
-Wenn der Kunde sich in einem dieser Prozesse befindet, beachte zwingend diese Abweichungen:
+GLOBALES WISSEN (Gilt IMMER):
+${formatDocs(globalDocs)}
 
+PROZESS-DEFINITIONEN (Wenn der Kunde in einem dieser Prozesse ist, nutze ZWINGEND dieses spezifische Wissen):
 ${formatRule('packet', 'Paket aufgeben')}
 ${formatRule('letter', 'Brief versenden')}
 ${formatRule('payment', 'Einzahlung')}
 ${formatRule('tracking', 'Sendungsverfolgung')}
-
-KNOWLEDGE BASE (QUELLE DER WAHRHEIT):
-${assistantSettings.knowledgeBase}
 
 ANTWORTE IMMER IN DER SPRACHE: ${currentLang}.
         `.trim();
