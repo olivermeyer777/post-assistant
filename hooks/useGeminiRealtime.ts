@@ -1,6 +1,5 @@
-
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, Type } from "@google/genai";
+import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
 import { AudioRecorder, AudioStreamPlayer, arrayBufferToBase64, base64ToArrayBuffer } from '../utils/audioStreamer';
 import { Language } from '../types';
 import { AppSettings } from './useAppSettings'; 
@@ -17,24 +16,22 @@ interface UseGeminiRealtimeProps {
     };
 }
 
-// Simplified Tools Definition to prevent Schema Errors (1007)
-// Using string literals for Types to avoid runtime enum issues
-const toolsDef: FunctionDeclaration[] = [
+// FIX 1007: Use raw string literals for types instead of SDK Enums to avoid build/runtime mismatches.
+// The API expects standard OpenAPI JSON Schema types.
+const toolsDef = [
   {
     name: "navigate_app",
-    description: "Navigiert zu einem Bereich.",
+    description: "Navigates the app to a specific view or mode.",
     parameters: {
-      type: "OBJECT" as Type,
+      type: "OBJECT",
       properties: {
         view: { 
-            type: "STRING" as Type, 
-            enum: ["home", "self", "oracle"],
-            description: "Target View"
+            type: "STRING", 
+            description: "Target view (home, self, oracle)"
         },
         mode: {
-            type: "STRING" as Type, 
-            enum: ["packet", "letter", "payment", "tracking"],
-            description: "Service Mode"
+            type: "STRING", 
+            description: "Service mode (packet, letter, payment, tracking)"
         }
       },
       required: ["view"]
@@ -42,12 +39,12 @@ const toolsDef: FunctionDeclaration[] = [
   },
   {
     name: "control_step",
-    description: "Steuert den Prozess-Schritt.",
+    description: "Controls the workflow step.",
     parameters: {
-      type: "OBJECT" as Type,
+      type: "OBJECT",
       properties: {
         step: {
-            type: "STRING" as Type, 
+            type: "STRING", 
             description: "Step ID"
         }
       },
@@ -95,27 +92,25 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
         if (isConnectedRef.current) return;
         setError(null);
 
-        // API Key Validation
         let apiKey = '';
         try { apiKey = process.env.API_KEY || ''; } catch (e) {}
-        apiKey = apiKey.replace(/["']/g, "").trim(); // Remove quotes if accidentially added
+        apiKey = apiKey.replace(/["']/g, "").trim();
 
         if (!apiKey || apiKey.length < 10) {
-            console.error("Invalid API Key:", apiKey);
-            setError("API Config Error (Key missing).");
+            console.error("Invalid API Key");
+            setError("API Key fehlt.");
             return;
         }
 
         setIsConnecting(true);
 
         try {
-             // Initialize Audio Context immediately (requires user gesture usually)
              playerRef.current = new AudioStreamPlayer();
              await playerRef.current.resume();
         } catch (e) {
              console.error("Audio Init Failed", e);
              setIsConnecting(false);
-             setError("Audio konnte nicht gestartet werden.");
+             setError("Audio-Fehler.");
              return;
         }
 
@@ -123,7 +118,7 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
         
         try {
             const systemInstruction = buildSystemInstruction();
-            console.log("Connecting to Gemini Live...", { lang: currentLang });
+            console.log("Connecting to Gemini Live...");
             activeSessionLangRef.current = currentLang;
 
             const sessionPromise = genAI.live.connect({
@@ -134,7 +129,8 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
                     speechConfig: {
                         voiceConfig: { prebuiltVoiceConfig: { voiceName: settings.assistant.voiceName || 'Puck' } }
                     },
-                    tools: [{ functionDeclarations: toolsDef }]
+                    // Explicitly cast toolsDef to any to bypass strict type check issues with raw strings
+                    tools: [{ functionDeclarations: toolsDef as any }],
                 },
                 callbacks: {
                     onopen: async () => {
@@ -143,12 +139,13 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
                         setIsConnecting(false);
                         isConnectedRef.current = true;
 
-                        // Start Recording only AFTER connection is established
                         try {
                             recorderRef.current = new AudioRecorder((pcmBuffer) => {
                                 if (!isConnectedRef.current) return;
                                 
-                                // Convert to Base64
+                                // Prevent empty frames (Code 1007 risk)
+                                if (pcmBuffer.byteLength === 0) return;
+
                                 const base64Audio = arrayBufferToBase64(pcmBuffer);
                                 
                                 sessionPromise.then((session) => {
@@ -158,17 +155,16 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
                                         });
                                     }
                                 }).catch(err => console.warn("Session Send Error:", err));
-                            }, 16000); // Enforce 16k target
+                            }, 16000); 
                             
                             await recorderRef.current.start();
                         } catch (recErr) {
                             console.error("Microphone failed", recErr);
-                            setError("Mikrofon-Zugriff verweigert.");
+                            setError("Mikrofon blockiert.");
                             disconnect();
                         }
                     },
                     onmessage: async (message: LiveServerMessage) => {
-                        // Audio Output
                         const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
                         if (base64Audio) {
                             const buffer = base64ToArrayBuffer(base64Audio);
@@ -177,9 +173,8 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
                             setTimeout(() => setIsSpeaking(false), 500);
                         }
 
-                        // Tool Calls
                         if (message.toolCall) {
-                           console.log("Tool Call received:", message.toolCall);
+                           console.log("Tool Call:", message.toolCall);
                            for (const fc of message.toolCall.functionCalls) {
                                 sessionPromise.then(session => {
                                     const args = fc.args as any;
@@ -188,7 +183,6 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
                                         if(fc.name === 'control_step') actionsRef.current.onControlStep(args.step);
                                     } catch(e) { console.error("Tool exec error", e); }
                                     
-                                    // Send result back
                                     session.sendToolResponse({
                                         functionResponses: [{ id: fc.id, name: fc.name, response: { result: { success: true } } }]
                                     });
@@ -197,26 +191,25 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
                         }
 
                         if (message.serverContent?.interrupted) {
-                            console.log("Interrupted by user");
                             playerRef.current?.interrupt();
                             setIsSpeaking(false);
                         }
                     },
                     onclose: (e) => {
-                        console.log("Gemini Live Closed. Code:", e.code, "Reason:", e.reason);
+                        console.log("Gemini Live Closed", e);
                         setIsConnected(false);
                         setIsConnecting(false);
                         isConnectedRef.current = false;
                         
                         if (e.code === 1007) {
-                            setError("Verbindung abgelehnt (Format-Fehler 1007). Bitte Seite neu laden.");
+                            setError("Verbindungsfehler (1007).");
                         } else if (e.code !== 1000) {
-                            setError(`Verbindung getrennt (Code: ${e.code})`);
+                            setError(`Getrennt (${e.code})`);
                         }
                     },
                     onerror: (err) => {
-                        console.error("Gemini Live Error:", err);
-                        setError("Verbindungsfehler.");
+                        console.error("Gemini Error:", err);
+                        setError("Fehler aufgetreten.");
                         cleanup();
                     }
                 }
@@ -225,8 +218,8 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
             sessionRef.current = await sessionPromise;
 
         } catch (e: any) {
-            console.error("Connection Init Failed", e);
-            setError("Verbindung fehlgeschlagen.");
+            console.error("Connection Failed", e);
+            setError("Konnte nicht verbinden.");
             setIsConnecting(false);
             cleanup();
         }
@@ -247,7 +240,6 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
         sessionRef.current = null;
     };
 
-    // Reconnect on language change (with delay)
     useEffect(() => {
         if (isConnected && currentLang !== activeSessionLangRef.current) {
             cleanup();
@@ -256,7 +248,6 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
         }
     }, [currentLang, isConnected]);
 
-    // Cleanup on unmount
     useEffect(() => {
         return () => disconnect();
     }, []);

@@ -26,7 +26,7 @@ export class AudioRecorder {
       const sourceSampleRate = this.audioContext.sampleRate;
       this.source = this.audioContext.createMediaStreamSource(this.stream);
       
-      // Use larger buffer (4096) to reduce main thread load, latency is acceptable (~90ms)
+      // Use larger buffer (4096) to reduce main thread load, latency is acceptable
       this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
 
       this.processor.onaudioprocess = (e) => {
@@ -54,13 +54,13 @@ export class AudioRecorder {
     }
   }
 
-  // Improved Downsampling (Linear Interpolation)
+  // Improved Downsampling with NaN protection
   private downsampleBuffer(buffer: Float32Array, sampleRate: number, outSampleRate: number): Float32Array {
       if (outSampleRate === sampleRate) {
           return buffer;
       }
       if (outSampleRate > sampleRate) {
-          return buffer; // Upsampling not supported in this simple implementation
+          return buffer; // Upsampling not supported, return original
       }
       
       const sampleRateRatio = sampleRate / outSampleRate;
@@ -68,10 +68,6 @@ export class AudioRecorder {
       const result = new Float32Array(newLength);
       
       for (let i = 0; i < newLength; i++) {
-          // Simple decimation with some averaging (boxcar) could be better, 
-          // but picking nearest neighbor or simple interpolation usually works for speech.
-          // Here we do a simple averaging of the samples that fall into the new bucket.
-          
           const startOffset = Math.floor(i * sampleRateRatio);
           const endOffset = Math.floor((i + 1) * sampleRateRatio);
           const count = endOffset - startOffset;
@@ -83,7 +79,9 @@ export class AudioRecorder {
               for (let j = startOffset; j < endOffset; j++) {
                   sum += buffer[j];
               }
-              result[i] = sum / count;
+              const avg = sum / count;
+              // Guard against NaN
+              result[i] = isNaN(avg) ? 0 : avg;
           }
       }
       
@@ -94,8 +92,13 @@ export class AudioRecorder {
       let l = buffer.length;
       let buf = new Int16Array(l);
       while (l--) {
-          // Clamp values to -1 to 1 to prevent wrapping artifacts
-          let s = Math.max(-1, Math.min(1, buffer[l]));
+          let s = buffer[l];
+          // Guard against NaN/Infinity
+          if (isNaN(s) || !isFinite(s)) s = 0;
+          
+          // Clamp values to -1 to 1
+          s = Math.max(-1, Math.min(1, s));
+          
           // Scale to 16-bit integer range
           buf[l] = s < 0 ? s * 0x8000 : s * 0x7FFF;
       }
