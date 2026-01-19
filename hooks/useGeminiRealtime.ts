@@ -41,7 +41,7 @@ const toolsDef: FunctionDeclaration[] = [
       type: Type.OBJECT,
       properties: {
         step: {
-            type: Type.STRING,
+            type: Type.STRING, 
             enum: ['destination', 'weigh', 'packetAddressCheck', 'addressCheck', 'address', 'format', 'options', 'extras', 'payment', 'scan', 'payDetails', 'payReceiver', 'payConfirm', 'paySummary', 'trackInput', 'trackStatus', 'success'],
             description: "Die ID des Ziel-Schritts."
         }
@@ -55,49 +55,49 @@ const toolsDef: FunctionDeclaration[] = [
 const PROMPT_TEMPLATES: Record<string, { role: string; style: string; strictRule: string; toolRule: string; contextIntro: string; outputRule: string }> = {
     de: {
         role: "DU BIST: Der 'PostAssistant Agent'. Ein intelligenter, handlungsorientierter KI-Mitarbeiter.",
-        style: "KOMMUNIKATION: Extrem kurz, präzise und knackig. Kein Smalltalk. Keine Floskeln wie 'Gerne helfe ich Ihnen dabei'. Max 1-2 Sätze.",
-        strictRule: "FOKUS: Der Prozess steht im Mittelpunkt. Wenn der User einen Brief senden will, frage nach dem Format (B5/B4) oder navigiere zum Format-Schritt.",
-        toolRule: "HANDLUNG: Nutze Tools (Navigation/Steuerung) PROAKTIV. Frage nicht um Erlaubnis, wenn die Intention klar ist. Tu es einfach.",
+        style: "KOMMUNIKATION: Extrem kurz, präzise und knackig. Kein Smalltalk. Max 1-2 Sätze.",
+        strictRule: "FOKUS: Der Prozess steht im Mittelpunkt.",
+        toolRule: "HANDLUNG: Nutze Tools (Navigation/Steuerung) PROAKTIV. Frage nicht um Erlaubnis.",
         contextIntro: "WISSENSBASIS & PROZESSE:",
         outputRule: "ANTWORTE: Immer auf DEUTSCH."
     },
     fr: {
         role: "VOUS ÊTES : L'Agent PostAssistant. Un collaborateur IA intelligent et orienté vers l'action.",
         style: "COMMUNICATION : Extrêmement court, précis et percutant. Pas de bavardage. Max 1-2 phrases.",
-        strictRule: "FOCUS : Le processus est central. Guidez l'utilisateur efficacement. Utilisez vos connaissances pour répondre IMMÉDIATEMENT.",
-        toolRule: "ACTION : Utilisez les outils (Navigation) de manière PROACTIVE. Ne demandez pas la permission si l'intention est claire.",
+        strictRule: "FOCUS : Le processus est central.",
+        toolRule: "ACTION : Utilisez les outils (Navigation) de manière PROACTIVE.",
         contextIntro: "CONNAISSANCES & PROCESSUS :",
         outputRule: "RÉPONSE : Toujours en FRANÇAIS."
     },
     it: {
         role: "SEI: L'Agente PostAssistant. Un collaboratore IA intelligente e orientato all'azione.",
         style: "COMUNICAZIONE: Estremamente breve, preciso e conciso. Niente chiacchiere. Max 1-2 frasi.",
-        strictRule: "FOCUS: Il processo è centrale. Guida l'utente in modo efficiente. Usa le tue conoscenze per chiarire SUBITO.",
-        toolRule: "AZIONE: Usa gli strumenti (Navigazione) in modo PROATTIVO. Non chiedere il permesso se l'intenzione è chiara.",
+        strictRule: "FOCUS: Il processo è centrale.",
+        toolRule: "AZIONE: Usa gli strumenti (Navigazione) in modo PROATTIVO.",
         contextIntro: "CONOSCENZA & PROCESSI:",
         outputRule: "RISPOSTA: Sempre in ITALIANO."
     },
     en: {
         role: "YOU ARE: The PostAssistant Agent. An intelligent, action-oriented AI worker.",
-        style: "COMMUNICATION: Extremely short, crisp, and punchy. No small talk. No fluff. Max 1-2 sentences.",
-        strictRule: "FOCUS: The process is central. Guide the user efficiently. Use knowledge to solve issues IMMEDIATELY.",
-        toolRule: "ACTION: Use tools (Navigation) PROACTIVELY. Do not ask for permission if intent is clear. Just do it.",
+        style: "COMMUNICATION: Extremely short, crisp, and punchy. No small talk. Max 1-2 sentences.",
+        strictRule: "FOCUS: The process is central.",
+        toolRule: "ACTION: Use tools (Navigation) PROACTIVELY.",
         contextIntro: "KNOWLEDGE BASE & PROCESSES:",
         outputRule: "ANSWER: Always in ENGLISH."
     },
     es: {
         role: "ERES: El Agente PostAssistant. Inteligente y orientado a la acción.",
-        style: "COMUNICACIÓN: Extremadamente corta y concisa. Sin charla innecesaria. Máx 1-2 frases.",
-        strictRule: "ENFOQUE: El proceso es central. Guía al usuario eficientemente.",
-        toolRule: "ACCIÓN: Usa herramientas PROACTIVAMENTE. No pidas permiso si la intención es clara.",
+        style: "COMUNICACIÓN: Extremadamente corta y concisa.",
+        strictRule: "ENFOQUE: El proceso es central.",
+        toolRule: "ACCIÓN: Usa herramientas PROACTIVAMENTE.",
         contextIntro: "CONOCIMIENTOS:",
         outputRule: "RESPUESTA: Siempre en ESPAÑOL."
     },
     pt: {
         role: "ÉS: O Agente PostAssistant. Inteligente e orientado para a ação.",
-        style: "COMUNICAÇÃO: Extremamente curta e concisa. Sem conversa fiada. Máx 1-2 frases.",
-        strictRule: "FOCO: O processo é central. Guia o utilizador eficientemente.",
-        toolRule: "AÇÃO: Usa ferramentas PROATIVAMENTE. Não peças permissão se a intenção for clara.",
+        style: "COMUNICAÇÃO: Extremamente curta e concisa.",
+        strictRule: "FOCO: O processo é central.",
+        toolRule: "AÇÃO: Usa ferramentas PROATIVAMENTE.",
         contextIntro: "CONHECIMENTOS:",
         outputRule: "RESPOSTA: Sempre em PORTUGUÊS."
     }
@@ -133,16 +133,32 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
             return docs.map(d => `SOURCE "${d.title}": ${d.content}`).join('\n');
         };
 
+        // Helper: Map settings to Prompt Instructions
+        const getLengthInstr = (len: string) => {
+            if (len === 'short') return "EXTREMELY BRIEF. Telegraph style. Max 10 words.";
+            if (len === 'long') return "Detailed and explanatory. Use bullet points if needed.";
+            return "Concise. 1-2 natural sentences."; // Medium
+        };
+
+        const getIntensityInstr = (int: string) => {
+            if (int === 'passive') return "PASSIVE. Wait for user to ask. Do NOT volunteer next steps.";
+            return "PROACTIVE. Lead the conversation. Ask for missing info immediately."; // Proactive
+        };
+
         // Helper to format process rules
         const formatRule = (key: string, name: string) => {
             const conf = procConfigs[key];
             if (!conf || !conf.isEnabled) return '';
             
             return `
-PROCESS "${name}" (ID: ${key}):
-- Instruction: ${conf.customPrompt || 'Standard process'}
-- Specific Knowledge:
+=== PROCESS: ${name} (ID: ${key}) ===
+GOAL: ${conf.customPrompt || 'Help the user complete this task.'}
+BEHAVIOR RULES:
+1. RESPONSE LENGTH: ${getLengthInstr(conf.responseLength)}
+2. INTENSITY: ${getIntensityInstr(conf.supportIntensity)}
+SPECIFIC KNOWLEDGE:
 ${formatDocs(conf.documents)}
+-------------------------------------
             `.trim();
         };
 
@@ -152,11 +168,11 @@ ${tmpl.style}
 ${tmpl.strictRule}
 ${tmpl.toolRule}
 
-${tmpl.contextIntro}
-
 GLOBAL SETTINGS:
 - Persona: ${assistantSettings.globalPrompt}
-- Formality: ${assistantSettings.politeness}
+- Formality: ${assistantSettings.politeness === 'formal' ? 'Formal (Sie/Vous)' : 'Casual (Du/Tu)'}
+
+${tmpl.contextIntro}
 
 GLOBAL KNOWLEDGE (Apply to all queries):
 ${formatDocs(globalDocs)}
@@ -176,17 +192,17 @@ ${tmpl.outputRule}
     // Live Update Effect
     useEffect(() => {
         if (isConnected && sessionRef.current) {
-            console.log(`Context/Language Update (${currentLang}). Sending to Gemini...`);
+            console.log(`Context/Settings Update. Sending to Gemini...`);
             const newInstruction = buildSystemInstruction();
             
             try {
                 sessionRef.current.send({
                     parts: [{
                         text: `[SYSTEM_UPDATE]
-                        Language/Context changed. 
+                        Configuration changed. 
                         NEW INSTRUCTION: ${newInstruction}
                         
-                        REMEMBER: Be an agent. Use tools proactively. Keep it short.`
+                        REMEMBER: Use tools proactively.`
                     }]
                 });
             } catch (e) {
@@ -257,7 +273,6 @@ ${tmpl.outputRule}
                             
                             // We might have multiple calls in one turn
                             for (const fc of message.toolCall.functionCalls) {
-                                // Fix: Explicit type for result to include optional error field
                                 let result: { success: boolean; error?: string } = { success: true };
                                 
                                 try {

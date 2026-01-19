@@ -173,18 +173,18 @@ export const SettingsView = () => {
                                 onChange={(e) => updateAssistant('voiceName', e.target.value)}
                                 className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 focus:border-[#FFCC00] focus:ring-4 focus:ring-[#FFCC00]/20 outline-none transition-all"
                             >
-                                <option value="Puck">Puck (Neutral/Male)</option>
-                                <option value="Charon">Charon (Deep/Male)</option>
-                                <option value="Kore">Kore (Neutral/Female)</option>
-                                <option value="Fenrir">Fenrir (Deep/Male)</option>
-                                <option value="Aoede">Aoede (Soft/Female)</option>
+                                <option value="Puck">Puck (Neutral/Männlich)</option>
+                                <option value="Charon">Charon (Tief/Männlich)</option>
+                                <option value="Kore">Kore (Neutral/Weiblich)</option>
+                                <option value="Fenrir">Fenrir (Tief/Männlich)</option>
+                                <option value="Aoede">Aoede (Weich/Weiblich)</option>
                             </select>
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Ansprache (Global)</label>
                             <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
-                                 <button onClick={() => updateAssistant('politeness', 'formal')} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${settings.assistant.politeness === 'formal' ? 'bg-white shadow-sm text-black border border-gray-100' : 'text-gray-400'}`}>Sie</button>
-                                 <button onClick={() => updateAssistant('politeness', 'casual')} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${settings.assistant.politeness === 'casual' ? 'bg-white shadow-sm text-black border border-gray-100' : 'text-gray-400'}`}>Du</button>
+                                 <button onClick={() => updateAssistant('politeness', 'formal')} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${settings.assistant.politeness === 'formal' ? 'bg-white shadow-sm text-black border border-gray-100' : 'text-gray-400'}`}>Sie (Formal)</button>
+                                 <button onClick={() => updateAssistant('politeness', 'casual')} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${settings.assistant.politeness === 'casual' ? 'bg-white shadow-sm text-black border border-gray-100' : 'text-gray-400'}`}>Du (Locker)</button>
                             </div>
                         </div>
                     </div>
@@ -192,7 +192,7 @@ export const SettingsView = () => {
 
                 {/* 2. Global Documents & Prompts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Replaced Knowledge Base Textarea with Document Manager */}
+                    {/* Document Manager */}
                     <KnowledgeManager 
                         title="Globale Dokumente (Knowledge Base)"
                         description="Laden Sie hier PDFs hoch (z.B. AGB, Leitbilder), die für ALLE Prozesse gelten. Der Assistent greift immer darauf zu."
@@ -209,12 +209,12 @@ export const SettingsView = () => {
                             </span>
                             Genereller System Prompt
                         </h2>
-                        <p className="text-sm text-gray-500 mb-4">Definieren Sie hier das grundsätzliche Verhalten des Assistenten.</p>
+                        <p className="text-sm text-gray-500 mb-4">Definieren Sie hier das grundsätzliche Verhalten und die "Persönlichkeit" des Assistenten.</p>
                         <textarea 
                             value={settings.assistant.globalPrompt}
                             onChange={(e) => updateAssistant('globalPrompt', e.target.value)}
                             className="flex-1 w-full p-4 rounded-xl border border-gray-200 bg-gray-50 focus:border-[#FFCC00] outline-none min-h-[300px] text-sm font-mono leading-relaxed resize-none shadow-inner"
-                            placeholder="Z.B. Sei immer freundlich..."
+                            placeholder="Z.B. Sei immer freundlich, aber extrem effizient..."
                         />
                     </section>
                 </div>
@@ -291,32 +291,29 @@ export const SettingsView = () => {
                                      <div className="space-y-8 h-full flex flex-col">
                                          
                                          {/* Inherited Info */}
-                                         <div className="bg-gray-100/70 border border-gray-200 rounded-2xl p-6 relative overflow-hidden">
-                                            <div className="absolute -right-4 -top-4 text-gray-200 opacity-50 rotate-12">
-                                                <svg width="100" height="100" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C9.243 2 7 4.243 7 7V10H6C4.897 10 4 10.897 4 12V20C4 21.103 4.897 22 6 22H18C19.103 22 20 21.103 20 20V12C20 10.897 19.103 10 18 10H17V7C17 4.243 14.757 2 12 2ZM15 10H9V7C9 5.346 10.346 4 12 4C13.654 4 15 5.346 15 7V10Z" /></svg>
-                                            </div>
+                                         <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-6 relative overflow-hidden grayscale opacity-80 hover:opacity-100 transition-opacity">
                                             <div className="relative z-10">
                                                 <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                                                     Geerbte Globale Konfiguration (Read-Only)
                                                 </h4>
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                                    <div className="bg-white/60 p-3 rounded-lg border border-gray-200">
+                                                    <div className="bg-white p-3 rounded-lg border border-gray-200">
                                                         <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Stimme</span>
                                                         <span className="text-sm font-semibold text-gray-700 truncate" title={settings.assistant.voiceName}>{settings.assistant.voiceName || '-'}</span>
                                                     </div>
-                                                    <div className="bg-white/60 p-3 rounded-lg border border-gray-200">
+                                                    <div className="bg-white p-3 rounded-lg border border-gray-200">
                                                         <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Ansprache</span>
                                                         <span className="text-sm font-semibold text-gray-700">{settings.assistant.politeness === 'formal' ? 'Sie (Formal)' : 'Du (Casual)'}</span>
                                                     </div>
-                                                    <div className="bg-white/60 p-3 rounded-lg border border-gray-200">
+                                                    <div className="bg-white p-3 rounded-lg border border-gray-200">
                                                         <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Dokumente</span>
                                                         <span className="text-sm font-semibold text-gray-700">{settings.globalDocuments.length} PDF(s)</span>
                                                     </div>
-                                                    <div className="bg-white/60 p-3 rounded-lg border border-gray-200">
+                                                    <div className="bg-white p-3 rounded-lg border border-gray-200">
                                                         <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Persona Prompt</span>
                                                         <span className="text-sm font-semibold text-gray-700 truncate block" title={settings.assistant.globalPrompt}>
-                                                            {settings.assistant.globalPrompt ? settings.assistant.globalPrompt : '(Leer)'}
+                                                            {settings.assistant.globalPrompt ? 'Definiert' : '(Leer)'}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -341,6 +338,11 @@ export const SettingsView = () => {
                                                           </button>
                                                       ))}
                                                   </div>
+                                                  <p className="text-[10px] text-gray-400 mt-2">
+                                                      {settings.processes[selectedProcessId].responseLength === 'short' && "Telegrammstil. Max. 10 Wörter."}
+                                                      {settings.processes[selectedProcessId].responseLength === 'medium' && "1-2 natürliche Sätze."}
+                                                      {settings.processes[selectedProcessId].responseLength === 'long' && "Ausführliche Erklärungen."}
+                                                  </p>
                                               </div>
                                               {/* Intensity */}
                                               <div>
@@ -359,6 +361,10 @@ export const SettingsView = () => {
                                                           Proaktiv
                                                       </button>
                                                   </div>
+                                                  <p className="text-[10px] text-gray-400 mt-2">
+                                                      {settings.processes[selectedProcessId].supportIntensity === 'passive' && "Wartet auf Fragen. Bietet keine Hilfe von sich aus an."}
+                                                      {settings.processes[selectedProcessId].supportIntensity === 'proactive' && "Fragt aktiv nach fehlenden Infos. Führt durch den Prozess."}
+                                                  </p>
                                               </div>
                                          </div>
 
