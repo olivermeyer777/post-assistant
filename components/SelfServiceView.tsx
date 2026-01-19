@@ -620,7 +620,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
   );
 
   return (
-    <section className="mt-4 md:mt-10 animate-fade-in w-full max-w-4xl mx-auto">
+    <section className="w-full animate-fade-in">
       <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
         
         {renderProgressBar()}
@@ -634,7 +634,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
             {step === 'packetAddressCheck' && (
                   <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-10 animate-fade-in">
                     <h2 className="text-2xl font-bold text-gray-900">{t.selfService.franking.packetAddressCheckQuestion}</h2>
-                    <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl">
+                    <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl mx-auto">
                         {/* YES: Skip to Options */}
                         <button onClick={() => setStep('options')} className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:border-green-500 hover:bg-green-50 transition-all">
                              <div className="w-12 h-12 bg-green-100 text-green-700 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
@@ -652,7 +652,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
             {step === 'addressCheck' && (
                   <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-10">
                     <h2 className="text-2xl font-bold text-gray-900">{t.selfService.letter.addressCheckQuestion}</h2>
-                    <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl">
+                    <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl mx-auto">
                         <button onClick={() => setStep('format')} className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:border-green-500 hover:bg-green-50 transition-all">
                             <div className="w-12 h-12 bg-green-100 text-green-700 rounded-full flex items-center justify-center mx-auto mb-4"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
                             <div className="font-bold text-xl text-gray-900">{t.selfService.letter.addressCheckYes}</div>
@@ -698,7 +698,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
             {step === 'payConfirm' && (
                  <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-10">
                     <h2 className="text-3xl font-bold text-gray-900">{t.selfService.payment.confirmQuestion}</h2>
-                    <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl">
+                    <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl mx-auto">
                         <button onClick={() => setStep('paySummary')} className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:border-green-500 hover:bg-green-50 transition-all">
                             <div className="font-bold text-xl text-gray-900">{t.selfService.payment.confirmYes}</div>
                         </button>
@@ -760,10 +760,6 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
                                  'trackStatus': 'trackInput'
                              };
                              
-                             // Special logic for Packet Options Back button:
-                             // If we are at options, and came from Address Check (skipped), back goes to Check.
-                             // If we came from Address Entry, strictly speaking we should go to Address Entry.
-                             // For prototype simplicity, let's go back to Address Check (the fork point) for packet options.
                              if (mode === 'packet' && step === 'options') {
                                  setStep('packetAddressCheck');
                                  return;

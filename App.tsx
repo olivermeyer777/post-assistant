@@ -301,25 +301,40 @@ export default function App() {
                  </div>
               </div>
 
-               <AssistantTile 
-                  isConnected={isVoiceConnected} 
-                  isSpeaking={isVoiceSpeaking}
-                  isConnecting={isVoiceConnecting} // Pass Loading State
-                  onToggle={isVoiceConnected ? disconnectVoice : connectVoice}
-               />
+               <div className="lg:col-span-1">
+                 <AssistantTile 
+                    isConnected={isVoiceConnected} 
+                    isSpeaking={isVoiceSpeaking}
+                    isConnecting={isVoiceConnecting} 
+                    onToggle={isVoiceConnected ? disconnectVoice : connectVoice}
+                 />
+               </div>
             </div>
           </div>
         )}
 
         {view === 'self' && (
-          <SelfServiceView 
-            t={t} 
-            onBack={() => setView('home')} 
-            mode={selfServiceMode} 
-            currentLang={currentLang}
-            step={selfServiceStep}
-            setStep={setSelfServiceStep}
-          />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full animate-fade-in">
+             <div className="lg:col-span-2">
+                <SelfServiceView 
+                  t={t} 
+                  onBack={() => setView('home')} 
+                  mode={selfServiceMode} 
+                  currentLang={currentLang}
+                  step={selfServiceStep}
+                  setStep={setSelfServiceStep}
+                />
+             </div>
+             {/* Sticky Assistant Tile on Desktop - Mimics Main Page Layout */}
+             <div className="hidden lg:block lg:col-span-1 sticky top-6 self-start">
+                  <AssistantTile 
+                    isConnected={isVoiceConnected} 
+                    isSpeaking={isVoiceSpeaking}
+                    isConnecting={isVoiceConnecting} 
+                    onToggle={isVoiceConnected ? disconnectVoice : connectVoice}
+                  />
+             </div>
+          </div>
         )}
 
         {view === 'oracle' && (
@@ -347,14 +362,16 @@ export default function App() {
         currentLang={currentLang}
       />
 
-      {/* Floating Voice Control for Non-Home Views */}
+      {/* Floating Voice Control: Show only on non-home views AND only on mobile (lg:hidden) */}
       {view !== 'home' && (
-          <VoiceControl 
-            isConnected={isVoiceConnected}
-            isSpeaking={isVoiceSpeaking}
-            isConnecting={isVoiceConnecting} // Pass Loading State
-            onToggle={isVoiceConnected ? disconnectVoice : connectVoice}
-          />
+          <div className="lg:hidden">
+            <VoiceControl 
+              isConnected={isVoiceConnected}
+              isSpeaking={isVoiceSpeaking}
+              isConnecting={isVoiceConnecting} 
+              onToggle={isVoiceConnected ? disconnectVoice : connectVoice}
+            />
+          </div>
       )}
 
       <LanguageBar 
