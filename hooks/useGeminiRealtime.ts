@@ -9,6 +9,7 @@ import { buildSystemInstruction } from '../utils/promptUtils';
 interface UseGeminiRealtimeProps {
     onNavigate: (view: string, mode?: string) => void;
     onControlStep: (step: string) => void;
+    onSubmitFeedback: (score: number) => void; // New callback
     currentLang: Language;
     settings: AppSettings;
     currentContext: {
@@ -45,15 +46,29 @@ const toolsDef = [
       properties: {
         step: {
             type: "STRING", 
-            description: "The ID of the step to jump to. EXAMPLES: 'weigh', 'address', 'options', 'payment', 'success'."
+            description: "The ID of the step to jump to. EXAMPLES: 'weigh', 'address', 'options', 'payment', 'success', 'feedback'."
         }
       },
       required: ["step"]
     }
+  },
+  {
+    name: "submit_feedback",
+    description: "Selects a rating score (1-10) on the feedback screen.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        score: {
+            type: "NUMBER", 
+            description: "The score from 1 to 10."
+        }
+      },
+      required: ["score"]
+    }
   }
 ];
 
-export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, settings, currentContext }: UseGeminiRealtimeProps) => {
+export const useGeminiRealtime = ({ onNavigate, onControlStep, onSubmitFeedback, currentLang, settings, currentContext }: UseGeminiRealtimeProps) => {
     const [isConnected, setIsConnected] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
@@ -65,17 +80,11 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
     const isConnectedRef = useRef(false); 
     
     const activeSessionLangRef = useRef<Language>(currentLang);
-    const actionsRef = useRef({ onNavigate, onControlStep });
+    const actionsRef = useRef({ onNavigate, onControlStep, onSubmitFeedback });
     
-    // Track context to avoid stale closures in prompt builder, 
-    // though for Gemini Live, we send the prompt ONLY on connect.
-    // To support dynamic prompt updates during a session, we would need to send a new session config,
-    // which the current SDK version supports via session.update(). 
-    // For this prototype, we stick to connect-time configuration.
-
     useEffect(() => {
-        actionsRef.current = { onNavigate, onControlStep };
-    }, [onNavigate, onControlStep]);
+        actionsRef.current = { onNavigate, onControlStep, onSubmitFeedback };
+    }, [onNavigate, onControlStep, onSubmitFeedback]);
 
     const connect = async () => {
         if (isConnectedRef.current) return;
@@ -174,6 +183,7 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
                                         console.log(`Executing Tool: ${fc.name}`, args);
                                         if(fc.name === 'navigate_app') actionsRef.current.onNavigate(args.view, args.mode);
                                         if(fc.name === 'control_step') actionsRef.current.onControlStep(args.step);
+                                        if(fc.name === 'submit_feedback') actionsRef.current.onSubmitFeedback(args.score);
                                     } catch(e) { console.error("Tool exec error", e); }
                                     
                                     try {

@@ -4,9 +4,9 @@ import { Language } from '../types';
 
 // Define the exact workflows so the agent knows the roadmap
 const WORKFLOWS: Record<string, string[]> = {
-    packet: ['destination', 'weigh', 'packetAddressCheck', 'address', 'options', 'payment', 'success'],
-    letter: ['destination', 'addressCheck', 'address', 'format', 'options', 'extras', 'payment', 'success'],
-    payment: ['scan', 'payDetails', 'payReceiver', 'payConfirm', 'paySummary', 'payment', 'success'],
+    packet: ['destination', 'weigh', 'packetAddressCheck', 'address', 'options', 'payment', 'success', 'feedback'],
+    letter: ['destination', 'addressCheck', 'address', 'format', 'options', 'extras', 'payment', 'success', 'feedback'],
+    payment: ['scan', 'payDetails', 'payReceiver', 'payConfirm', 'paySummary', 'payment', 'success', 'feedback'],
     tracking: ['trackInput', 'trackStatus']
 };
 
@@ -65,6 +65,10 @@ export const buildSystemInstruction = (
              prompt += "- Goal: Scan QR Bill.\n- Action: Tell user to hold bill under camera. Then call control_step('payDetails').\n";
         } else if (step === 'payment') {
             prompt += "- Goal: Finalize.\n- Action: If user says 'Pay' or 'Okay', call control_step('success').\n";
+        } else if (step === 'success') {
+            prompt += "- Goal: Say goodbye or ask for feedback.\n- Action: If user wants to give feedback, call control_step('feedback'). If done, say goodbye.\n";
+        } else if (step === 'feedback') {
+            prompt += "- Goal: Collect Rating (1-10).\n- Action: If user says a number or sentiment (Great=10, Good=8, Bad=2), use 'submit_feedback' tool. Then say thanks.\n";
         }
 
         // Support Intensity Injection

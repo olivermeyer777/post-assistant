@@ -13,6 +13,10 @@ interface SelfServiceViewProps {
   // Controlled Component Props
   step: SelfServiceStep;
   setStep: (step: SelfServiceStep) => void;
+  // Feedback Props
+  feedbackScore: number | null;
+  onSetFeedbackScore: (score: number) => void;
+  isVoiceActive: boolean; // Used to pause timer
 }
 
 interface ReceiverData {
@@ -29,7 +33,10 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
     mode, 
     currentLang = 'de',
     step,
-    setStep
+    setStep,
+    feedbackScore,
+    onSetFeedbackScore,
+    isVoiceActive
 }) => {
   const [isWeighing, setIsWeighing] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -79,13 +86,12 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
       { status: 'step4', date: '', time: '', location: '' } // Pending
   ]);
 
-  const [feedbackScore, setFeedbackScore] = useState<number | null>(null);
+  // Countdown State
+  const [countdown, setCountdown] = useState(30);
 
   // --- Validation Logic ---
   const validateAddress = () => {
     const errors: Partial<Record<keyof ReceiverData, string>> = {};
-    
-    // Localized validation messages
     const messages: Record<string, { required: string, format: string }> = {
         de: { required: 'Feld erforderlich', format: 'Ungültiges Format (4 Zahlen)' },
         fr: { required: 'Champ obligatoire', format: 'Format invalide (4 chiffres)' },
@@ -123,32 +129,13 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
   };
 
   // --- Pricing Logic ---
-  const getPacketPrices = (grams: number) => {
-    if (grams <= 2000) {
-      return { eco: 7.00, prio: 9.00 };
-    } else if (grams <= 10000) {
-      return { eco: 9.70, prio: 10.70 };
-    } else {
-      return { eco: 20.50, prio: 23.00 }; 
-    }
-  };
-  
-  const getLetterBasePrice = (method: 'economy' | 'priority' | 'express') => {
-     switch(method) {
-         case 'economy': return 1.00;
-         case 'priority': return 1.20;
-         case 'express': return 2.50;
-         default: return 1.00;
-     }
-  };
-  
   const totalPrice = useMemo(() => {
      if (mode === 'packet') {
-         const prices = getPacketPrices(weightGrams);
+         const prices = weightGrams <= 2000 ? { eco: 7.00, prio: 9.00 } : weightGrams <= 10000 ? { eco: 9.70, prio: 10.70 } : { eco: 20.50, prio: 23.00 };
          const base = shippingMethod === 'priority' ? prices.prio : prices.eco;
          return base + (hasSignature ? 1.50 : 0);
      } else if (mode === 'letter') {
-         let total = getLetterBasePrice(shippingMethod);
+         let total = shippingMethod === 'express' ? 2.50 : shippingMethod === 'priority' ? 1.20 : 1.00;
          if (letterExtras.registered) total += 5.30;
          if (letterExtras.prepaid) total += 1.50;
          if (letterExtras.formatSurcharge) total += 2.00;
@@ -166,17 +153,32 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
     return `${kg} kg ${g}g`;
   };
 
-  // Timeout Logic for Finish Screens (30s)
+  // --- TIMER LOGIC ---
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    // Reset timer on step change to 'success' or 'feedback'
-    if (step === 'success' || step === 'feedback') {
-      timer = setTimeout(() => {
-        onBack();
-      }, 30000); // 30 seconds
+    if (step !== 'success' && step !== 'feedback') {
+        setCountdown(30); // Reset when not in success
+        return;
     }
-    return () => clearTimeout(timer);
-  }, [step, onBack, feedbackScore]); // feedbackScore added to reset timer on click if desired, though usually navigation happens
+
+    if (isVoiceActive) {
+        // Halt/Reset timer if voice is active to allow conversation
+        setCountdown(30);
+        return;
+    }
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          onBack();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [step, isVoiceActive, onBack]);
 
   const simulateWeighing = () => {
     setIsWeighing(true);
@@ -184,7 +186,6 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
     setTimeout(() => {
       setWeightGrams(randomWeight);
       setIsWeighing(false);
-      // New logic: Go to address check instead of straight to address
       setStep('packetAddressCheck');
     }, 2000);
   };
@@ -194,7 +195,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
       setTimeout(() => {
           setIsScanning(false);
           setStep('payDetails');
-      }, 3000); // Longer for realism
+      }, 3000); 
   };
 
   const handleTrackingSearch = (e: React.FormEvent) => {
@@ -228,11 +229,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
 
     let currentIndex = stepsList.indexOf(step);
     if (step === 'feedback') currentIndex = stepsList.length - 1;
-    // Fallback if step is not in list (e.g. dynamic skip)
-    if (currentIndex === -1) {
-        // Find closest
-        if (step === 'packetAddressCheck') currentIndex = 2;
-    }
+    if (currentIndex === -1 && step === 'packetAddressCheck') currentIndex = 2;
 
     const progressPercent = stepsList.length > 1 
         ? (currentIndex / (stepsList.length - 1)) * 100 
@@ -284,6 +281,73 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
       </div>
     );
   };
+  
+  // Beautified Success View with Countdown
+  const renderSuccessView = () => (
+     <div className="flex flex-col items-center justify-center min-h-[400px] text-center animate-fade-in gap-8 relative">
+        {/* Visual Timer Bar */}
+        <div className="absolute top-0 left-0 w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+             <div 
+                className="h-full bg-gray-900 transition-all duration-1000 ease-linear"
+                style={{ width: `${(countdown / 30) * 100}%` }}
+             ></div>
+        </div>
+        <div className="absolute top-4 right-0 text-xs font-bold text-gray-400">
+             Auto-Close in {countdown}s
+        </div>
+
+        <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center shadow-lg animate-bounce mt-8">
+             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                 <polyline points="20 6 9 17 4 12"></polyline>
+             </svg>
+        </div>
+        
+        <div className="space-y-2">
+            <h2 className="text-3xl font-bold text-gray-900">{t.selfService.franking.successTitle}</h2>
+            <p className="text-gray-500">{t.selfService.franking.instruction3}</p>
+        </div>
+
+        {/* FEEDBACK SECTION */}
+        <div className="mt-8 pt-8 border-t border-gray-100 w-full max-w-2xl">
+           <h3 className="text-lg font-bold text-gray-900 mb-6">{t.selfService.franking.feedbackQuestion}</h3>
+           <div className="flex justify-center flex-wrap gap-2">
+                {[1,2,3,4,5,6,7,8,9,10].map(num => {
+                    const isSelected = feedbackScore === num;
+                    return (
+                        <button 
+                            key={num} 
+                            onClick={() => onSetFeedbackScore(num)} 
+                            className={`
+                                w-10 h-10 md:w-12 md:h-12 rounded-full border text-sm font-bold transition-all
+                                ${isSelected 
+                                    ? 'bg-black text-white border-black scale-110 shadow-lg' 
+                                    : 'bg-white text-gray-600 border-gray-200 hover:border-black hover:bg-gray-50'
+                                }
+                            `}
+                        >
+                            {num}
+                        </button>
+                    );
+                })}
+             </div>
+             {feedbackScore !== null && (
+                 <div className="mt-6 text-green-600 font-bold animate-fade-in flex items-center justify-center gap-2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    {t.selfService.franking.feedbackThanks}
+                 </div>
+             )}
+        </div>
+        
+        <button onClick={onBack} className="mt-4 text-gray-400 hover:text-black underline text-sm">
+            Schliessen ({countdown}s)
+        </button>
+     </div>
+  );
+  
+  // Note: renderTrackInputView, renderTrackStatusView, renderDestinationView, renderWeighView, 
+  // renderAddressView, renderScanView, renderOptionsView, renderFormatView are identical to previous version, 
+  // omitted for brevity in this specific XML block but should be present in full file context.
+  // I will include them to ensure the file is complete.
 
   const renderTrackInputView = () => (
     <div className="flex flex-col gap-8 min-h-[400px]">
@@ -329,37 +393,20 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
                      {t.selfService.tracking.step3}
                  </div>
              </div>
-             
-             {/* VERTICAL TIMELINE */}
              <div className="relative pl-4 space-y-8">
-                {/* Vertical Line */}
                 <div className="absolute left-6 top-2 bottom-2 w-0.5 bg-gray-200"></div>
-
                 {trackHistory.map((event, idx) => {
                     const isCompleted = !!event.date;
                     const isLastCompleted = isCompleted && (!trackHistory[idx + 1] || !trackHistory[idx + 1].date);
-                    
-                    // Translation Key Mapping
                     const stepLabel = t.selfService.tracking[event.status as keyof typeof t.selfService.tracking] || event.status;
-
                     return (
                         <div key={idx} className={`relative flex items-start gap-6 ${isCompleted ? 'opacity-100' : 'opacity-40'}`}>
-                            {/* Dot */}
-                            <div className={`
-                                relative z-10 w-5 h-5 rounded-full border-4 
-                                ${isLastCompleted ? 'bg-[#FFCC00] border-[#FFCC00] ring-4 ring-yellow-50' : isCompleted ? 'bg-black border-black' : 'bg-white border-gray-300'}
-                            `}></div>
-                            
-                            {/* Content */}
+                            <div className={`relative z-10 w-5 h-5 rounded-full border-4 ${isLastCompleted ? 'bg-[#FFCC00] border-[#FFCC00] ring-4 ring-yellow-50' : isCompleted ? 'bg-black border-black' : 'bg-white border-gray-300'}`}></div>
                             <div className="flex-1 -mt-1">
                                 <h4 className={`font-bold text-lg ${isLastCompleted ? 'text-[#FFCC00]' : 'text-gray-900'}`}>{stepLabel}</h4>
                                 {isCompleted && (
                                     <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
-                                        <span>{event.date}</span>
-                                        <span>•</span>
-                                        <span>{event.time}</span>
-                                        <span>•</span>
-                                        <span>{event.location}</span>
+                                        <span>{event.date}</span><span>•</span><span>{event.time}</span><span>•</span><span>{event.location}</span>
                                     </div>
                                 )}
                             </div>
@@ -367,11 +414,8 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
                     );
                 })}
              </div>
-
              <div className="mt-10 pt-6 border-t border-gray-100 flex justify-end">
-                 <button onClick={() => setStep('trackInput')} className="text-sm font-bold text-blue-600 hover:underline">
-                     {t.selfService.tracking.searchButton}
-                 </button>
+                 <button onClick={() => setStep('trackInput')} className="text-sm font-bold text-blue-600 hover:underline">{t.selfService.tracking.searchButton}</button>
              </div>
           </div>
       </div>
@@ -379,27 +423,13 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
 
   const renderDestinationView = () => (
     <div className="flex flex-col gap-6 items-center justify-center min-h-[400px]">
-      <div className="text-center max-w-lg mb-4">
-         <h3 className="text-xl font-semibold text-gray-800">
-            {mode === 'packet' ? t.selfService.franking.weighIntro : t.selfService.franking.destCH}
-         </h3>
-      </div>
-      <button 
-        onClick={() => {
-            if (mode === 'packet') setStep('weigh');
-            else setStep('addressCheck');
-        }}
-        className="w-full max-w-lg bg-white border-2 border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center gap-4 group hover:border-black hover:bg-black hover:text-white"
-      >
-        <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-700 group-hover:bg-gray-800 group-hover:text-yellow-400 transition-colors">
-           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-        </div>
+      <div className="text-center max-w-lg mb-4"><h3 className="text-xl font-semibold text-gray-800">{mode === 'packet' ? t.selfService.franking.weighIntro : t.selfService.franking.destCH}</h3></div>
+      <button onClick={() => { if (mode === 'packet') setStep('weigh'); else setStep('addressCheck'); }} className="w-full max-w-lg bg-white border-2 border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center gap-4 group hover:border-black hover:bg-black hover:text-white">
+        <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-700 group-hover:bg-gray-800 group-hover:text-yellow-400 transition-colors"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
         <div className="text-left flex-1"><div className="font-bold text-lg group-hover:text-white">{t.selfService.franking.destCH}</div></div>
       </button>
       <div className="w-full max-w-lg bg-gray-50 border-2 border-gray-100 rounded-2xl p-6 opacity-70 flex items-center gap-4 cursor-not-allowed">
-         <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-         </div>
+         <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
          <div className="text-left"><div className="font-bold text-lg text-gray-400">{t.selfService.franking.destInt}</div></div>
       </div>
     </div>
@@ -409,9 +439,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
     <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
        {isWeighing ? (
          <div className="animate-pulse flex flex-col items-center">
-           <div className="w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mb-6">
-             <svg className="w-10 h-10 text-yellow-600 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-           </div>
+           <div className="w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mb-6"><svg className="w-10 h-10 text-yellow-600 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg></div>
            <h2 className="text-2xl font-bold text-gray-900">{t.selfService.franking.weighing}</h2>
          </div>
        ) : (
@@ -438,7 +466,6 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
           <button onClick={() => setReceiver({...receiver, type: 'private'})} className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${receiver.type === 'private' ? 'bg-black text-white shadow-md' : 'text-gray-500 hover:text-gray-900'}`}>{t.selfService.franking.isPrivate}</button>
           <button onClick={() => setReceiver({...receiver, type: 'company'})} className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${receiver.type === 'company' ? 'bg-black text-white shadow-md' : 'text-gray-500 hover:text-gray-900'}`}>{t.selfService.franking.isCompany}</button>
        </div>
-       {/* Fields reused */}
        <div className="space-y-4">
           <div className="space-y-1">
              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">{t.selfService.franking.fields.name}</label>
@@ -466,21 +493,15 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-8">{t.selfService.payment.scanInstruction}</h2>
           <button onClick={simulateScanning} className="relative w-72 h-72 bg-gray-900 rounded-[2rem] flex flex-col items-center justify-center overflow-hidden shadow-2xl group cursor-pointer border-4 border-gray-900">
-             
-             {/* Camera Feed Simulation */}
              <div className="absolute inset-0 bg-gray-800 opacity-50"></div>
-             
-             {/* Scan Overlay UI */}
              <div className="absolute inset-8 border-2 border-white/50 rounded-xl">
                  <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-[#FFCC00] -mt-1 -ml-1"></div>
                  <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-[#FFCC00] -mt-1 -mr-1"></div>
                  <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-[#FFCC00] -mb-1 -ml-1"></div>
                  <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-[#FFCC00] -mb-1 -mr-1"></div>
              </div>
-
              {isScanning ? (
                  <>
-                    {/* Scanning Laser */}
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-red-500/20 to-transparent animate-[scan_2s_infinite_linear] h-1/2 w-full top-0"></div>
                     <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 shadow-[0_0_15px_rgba(255,0,0,1)] animate-[scan_2s_infinite_linear]"></div>
                     <div className="absolute bottom-6 bg-black/60 text-white px-3 py-1 rounded-full text-xs font-mono animate-pulse">Scanning...</div>
@@ -506,28 +527,15 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
                  <h2 className="text-2xl font-bold text-gray-900">{t.selfService.letter.shippingQuestion}</h2>
              )}
          </div>
-         
-         {/* STANDARDIZED OPTION BUTTONS for both Packet and Letter */}
          <div className="flex flex-col md:flex-row gap-6 w-full justify-center">
-              <button 
-                  onClick={() => setShippingMethod('economy')} 
-                  className={`flex-1 group bg-white border-2 rounded-2xl p-6 transition-all flex flex-col items-center gap-3 relative
-                      ${shippingMethod === 'economy' ? 'border-[#FFCC00] bg-yellow-50/50 shadow-md' : 'border-gray-200 hover:border-black'}
-                  `}
-              >
+              <button onClick={() => setShippingMethod('economy')} className={`flex-1 group bg-white border-2 rounded-2xl p-6 transition-all flex flex-col items-center gap-3 relative ${shippingMethod === 'economy' ? 'border-[#FFCC00] bg-yellow-50/50 shadow-md' : 'border-gray-200 hover:border-black'}`}>
                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 font-bold text-xs group-hover:bg-black group-hover:text-white transition-colors">ECO</div>
                    <div className="text-center">
                        <div className="font-bold text-lg text-gray-900">{mode === 'packet' ? t.selfService.franking.economy : t.selfService.letter.bPost}</div>
                        <div className="text-sm text-gray-500 mt-1">{t.selfService.franking.duration2days}</div>
                    </div>
               </button>
-
-              <button 
-                  onClick={() => setShippingMethod('priority')} 
-                  className={`flex-1 group bg-white border-2 rounded-2xl p-6 transition-all flex flex-col items-center gap-3 relative
-                      ${shippingMethod === 'priority' ? 'border-[#FFCC00] bg-yellow-50/50 shadow-md' : 'border-gray-200 hover:border-black'}
-                  `}
-              >
+              <button onClick={() => setShippingMethod('priority')} className={`flex-1 group bg-white border-2 rounded-2xl p-6 transition-all flex flex-col items-center gap-3 relative ${shippingMethod === 'priority' ? 'border-[#FFCC00] bg-yellow-50/50 shadow-md' : 'border-gray-200 hover:border-black'}`}>
                    <div className="w-12 h-12 bg-[#FFCC00] rounded-full flex items-center justify-center text-black font-bold text-xs">PRIO</div>
                    <div className="text-center">
                        <div className="font-bold text-lg text-gray-900">{mode === 'packet' ? t.selfService.franking.priority : t.selfService.letter.aPost}</div>
@@ -542,81 +550,16 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-12">
             <h2 className="text-2xl font-bold text-gray-900">{t.selfService.letter.formatQuestion}</h2>
             <div className="flex flex-col md:flex-row gap-8 w-full max-w-4xl justify-center items-end">
-                {/* Small Letter */}
-                <button 
-                    onClick={() => { setLetterFormat('small'); setStep('options'); }} 
-                    className="flex-1 flex flex-col items-center gap-4 group"
-                >
-                    <div className="relative w-48 h-32 bg-white border-2 border-gray-300 rounded shadow-md group-hover:border-black group-hover:shadow-xl transition-all flex items-center justify-center">
-                        <span className="text-xs text-gray-400 font-mono absolute top-2 right-2">B5</span>
-                    </div>
-                    <div className="text-center">
-                        <span className="block font-bold text-xl mb-1">{t.selfService.letter.formatSmall}</span>
-                        <span className="block text-sm text-gray-500">{t.selfService.letter.formatSmallDesc}</span>
-                        <span className="block text-xs font-mono text-gray-400 mt-1">{t.selfService.letter.formatSmallDim}</span>
-                    </div>
+                <button onClick={() => { setLetterFormat('small'); setStep('options'); }} className="flex-1 flex flex-col items-center gap-4 group">
+                    <div className="relative w-48 h-32 bg-white border-2 border-gray-300 rounded shadow-md group-hover:border-black group-hover:shadow-xl transition-all flex items-center justify-center"><span className="text-xs text-gray-400 font-mono absolute top-2 right-2">B5</span></div>
+                    <div className="text-center"><span className="block font-bold text-xl mb-1">{t.selfService.letter.formatSmall}</span><span className="block text-sm text-gray-500">{t.selfService.letter.formatSmallDesc}</span><span className="block text-xs font-mono text-gray-400 mt-1">{t.selfService.letter.formatSmallDim}</span></div>
                 </button>
-
-                {/* Big Letter */}
-                <button 
-                    onClick={() => { setLetterFormat('big'); setStep('options'); }} 
-                    className="flex-1 flex flex-col items-center gap-4 group"
-                >
-                    <div className="relative w-64 h-48 bg-white border-2 border-gray-300 rounded shadow-md group-hover:border-black group-hover:shadow-xl transition-all flex items-center justify-center">
-                        <span className="text-xs text-gray-400 font-mono absolute top-2 right-2">B4</span>
-                    </div>
-                    <div className="text-center">
-                        <span className="block font-bold text-xl mb-1">{t.selfService.letter.formatBig}</span>
-                        <span className="block text-sm text-gray-500">{t.selfService.letter.formatBigDesc}</span>
-                         <span className="block text-xs font-mono text-gray-400 mt-1">{t.selfService.letter.formatBigDim}</span>
-                    </div>
+                <button onClick={() => { setLetterFormat('big'); setStep('options'); }} className="flex-1 flex flex-col items-center gap-4 group">
+                    <div className="relative w-64 h-48 bg-white border-2 border-gray-300 rounded shadow-md group-hover:border-black group-hover:shadow-xl transition-all flex items-center justify-center"><span className="text-xs text-gray-400 font-mono absolute top-2 right-2">B4</span></div>
+                    <div className="text-center"><span className="block font-bold text-xl mb-1">{t.selfService.letter.formatBig}</span><span className="block text-sm text-gray-500">{t.selfService.letter.formatBigDesc}</span><span className="block text-xs font-mono text-gray-400 mt-1">{t.selfService.letter.formatBigDim}</span></div>
                 </button>
             </div>
       </div>
-  );
-  
-  // Beautified Success View
-  const renderSuccessView = () => (
-     <div className="flex flex-col items-center justify-center min-h-[400px] text-center animate-fade-in gap-8">
-        <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center shadow-lg animate-bounce">
-             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                 <polyline points="20 6 9 17 4 12"></polyline>
-             </svg>
-        </div>
-        
-        <div className="space-y-2">
-            <h2 className="text-3xl font-bold text-gray-900">{t.selfService.franking.successTitle}</h2>
-            <p className="text-gray-500">{t.selfService.franking.instruction3}</p>
-        </div>
-
-        {/* FEEDBACK SECTION */}
-        <div className="mt-8 pt-8 border-t border-gray-100 w-full max-w-2xl">
-           <h3 className="text-lg font-bold text-gray-900 mb-6">{t.selfService.franking.feedbackQuestion}</h3>
-           <div className="flex justify-center flex-wrap gap-2">
-                {[1,2,3,4,5,6,7,8,9,10].map(num => {
-                    const isSelected = feedbackScore === num;
-                    return (
-                        <button 
-                            key={num} 
-                            onClick={() => setFeedbackScore(num)} 
-                            className={`
-                                w-10 h-10 md:w-12 md:h-12 rounded-full border text-sm font-bold transition-all
-                                ${isSelected 
-                                    ? 'bg-black text-white border-black scale-110 shadow-lg' 
-                                    : 'bg-white text-gray-600 border-gray-200 hover:border-black hover:bg-gray-50'
-                                }
-                            `}
-                        >
-                            {num}
-                        </button>
-                    );
-                })}
-             </div>
-             {feedbackScore !== null && (
-                 <div className="mt-6 text-green-600 font-bold animate-fade-in">{t.selfService.franking.feedbackThanks}</div>
-             )}
-        </div>
-     </div>
   );
 
   return (
@@ -630,17 +573,14 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
             {step === 'weigh' && renderWeighView()}
             {step === 'address' && renderAddressView()}
             
-            {/* Packet Address Check */}
             {step === 'packetAddressCheck' && (
                   <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-10 animate-fade-in">
                     <h2 className="text-2xl font-bold text-gray-900">{t.selfService.franking.packetAddressCheckQuestion}</h2>
                     <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl mx-auto">
-                        {/* YES: Skip to Options */}
                         <button onClick={() => setStep('options')} className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:border-green-500 hover:bg-green-50 transition-all">
                              <div className="w-12 h-12 bg-green-100 text-green-700 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
                              <div className="font-bold text-xl text-gray-900">{t.selfService.letter.addressCheckYes}</div>
                         </button>
-                        {/* NO: Go to Address Entry */}
                         <button onClick={() => setStep('address')} className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:border-black hover:bg-gray-50 transition-all">
                              <div className="w-12 h-12 bg-gray-100 text-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>
                              <div className="font-bold text-xl text-gray-900">{t.selfService.letter.addressCheckNo}</div>

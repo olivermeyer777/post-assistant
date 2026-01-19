@@ -91,6 +91,7 @@ export default function App() {
   
   const [selfServiceMode, setSelfServiceMode] = useState<'packet' | 'letter' | 'payment' | 'tracking'>('packet');
   const [selfServiceStep, setSelfServiceStep] = useState<SelfServiceStep>('destination');
+  const [feedbackScore, setFeedbackScore] = useState<number | null>(null);
 
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [isChatMinimized, setIsChatMinimized] = useState(true);
@@ -127,7 +128,6 @@ export default function App() {
           console.log("Voice navigating to:", targetView, mode);
           if (targetView === 'home') setView('home');
           
-          // Updated to handle both 'self' (new strict output) and 'self_service' (legacy/safe fallback)
           if (targetView === 'self' || targetView === 'self_service') {
               setView('self');
               if (mode) {
@@ -138,6 +138,7 @@ export default function App() {
                       if (safeMode === 'tracking') setSelfServiceStep('trackInput');
                       else if (safeMode === 'payment') setSelfServiceStep('scan');
                       else setSelfServiceStep('destination');
+                      setFeedbackScore(null); // Reset Feedback
                   }
               }
           }
@@ -145,6 +146,10 @@ export default function App() {
       onControlStep: (step) => {
           console.log("Voice setting step:", step);
           setSelfServiceStep(step as SelfServiceStep);
+      },
+      onSubmitFeedback: (score) => {
+          console.log("Voice setting feedback:", score);
+          setFeedbackScore(score);
       }
   });
 
@@ -162,6 +167,8 @@ export default function App() {
               setSelfServiceStep('trackInput');
           }
       }
+      // Reset feedback when entering self service
+      setFeedbackScore(null);
   }, [view, selfServiceMode]);
 
   useEffect(() => {
@@ -227,6 +234,7 @@ export default function App() {
     if (mode === 'payment') setSelfServiceStep('scan');
     else if (mode === 'tracking') setSelfServiceStep('trackInput');
     else setSelfServiceStep('destination');
+    setFeedbackScore(null);
 
     setView('self');
   };
@@ -351,6 +359,9 @@ export default function App() {
                   currentLang={currentLang}
                   step={selfServiceStep}
                   setStep={setSelfServiceStep}
+                  feedbackScore={feedbackScore}
+                  onSetFeedbackScore={setFeedbackScore}
+                  isVoiceActive={isVoiceConnected || isVoiceSpeaking}
                 />
              </div>
              {/* Sticky Assistant Tile on Desktop - Mimics Main Page Layout */}
