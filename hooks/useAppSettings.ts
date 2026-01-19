@@ -54,12 +54,9 @@ export const useAppSettings = () => {
   // --- FETCH DATA ---
   const fetchSettings = useCallback(async () => {
     try {
-      // Don't set loading to true here to avoid flickering on realtime updates
-      // setLoading(true); 
-      
       const isCriticalError = (error: any) => {
           if (!error) return false;
-          const ignoredCodes = ['PGRST116', '42P01'];
+          const ignoredCodes = ['PGRST116', '42P01', 'MISSING_CONFIG'];
           return !ignoredCodes.includes(error.code);
       };
 
@@ -74,12 +71,12 @@ export const useAppSettings = () => {
       }
 
       // 2. Fetch Processes
-      const { data: processData, error: processError } = await supabase
+      const { data: processData } = await supabase
         .from('processes')
         .select('*');
 
       // 3. Fetch All Documents
-      const { data: docData, error: docError } = await supabase
+      const { data: docData } = await supabase
         .from('knowledge_documents')
         .select('*');
 
@@ -143,36 +140,25 @@ export const useAppSettings = () => {
     // Initial Load
     fetchSettings();
 
-    // Subscribe to DB Changes
-    const channel = supabase.channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'app_settings' },
-        (payload) => {
-            console.log('Realtime update received: app_settings', payload);
-            fetchSettings();
+    let channel: any = null;
+
+    try {
+        // Only attempt subscription if channel method exists (Safe Mocking)
+        if (supabase.channel) {
+            channel = supabase.channel('schema-db-changes')
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, () => fetchSettings())
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'processes' }, () => fetchSettings())
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'knowledge_documents' }, () => fetchSettings())
+              .subscribe();
         }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'processes' },
-        (payload) => {
-            console.log('Realtime update received: processes', payload);
-            fetchSettings();
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'knowledge_documents' },
-        (payload) => {
-            console.log('Realtime update received: documents', payload);
-            fetchSettings();
-        }
-      )
-      .subscribe();
+    } catch (e) {
+        console.warn("Realtime subscription failed (Offline mode?)", e);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (supabase.removeChannel && channel) {
+          supabase.removeChannel(channel).catch(() => {});
+      }
     };
   }, [fetchSettings]);
 
@@ -194,9 +180,8 @@ export const useAppSettings = () => {
 
       if (dbKeyMap[key]) {
           try {
-             const { error } = await supabase.from('app_settings').update({ [dbKeyMap[key]]: value }).gt('id', 0);
-             if (error) console.warn("Update assistant settings warning:", error.message);
-          } catch (e) { console.warn("Update assistant settings failed", e); }
+             await supabase.from('app_settings').update({ [dbKeyMap[key]]: value }).gt('id', 0);
+          } catch (e) { console.warn("Update assistant settings failed (Offline)", e); }
       }
   };
 
@@ -220,66 +205,63 @@ export const useAppSettings = () => {
 
       if (Object.keys(dbUpdates).length > 0) {
           try {
-             const { error } = await supabase.from('processes').update(dbUpdates).eq('process_key', key);
-             if (error) console.warn("Update process config warning:", error.message);
-          } catch (e) { console.warn("Update process config failed", e); }
+             await supabase.from('processes').update(dbUpdates).eq('process_key', key);
+          } catch (e) { console.warn("Update process config failed (Offline)", e); }
       }
   };
 
   // --- DOCUMENT FUNCTIONS ---
 
   const addGlobalDocument = async (doc: KnowledgeDocument) => {
+      // Optimistic First
+      setSettings(prev => ({
+          ...prev,
+          globalDocuments: [...prev.globalDocuments, doc]
+      }));
       try {
-        const { data, error } = await supabase.from('knowledge_documents').insert({
+        await supabase.from('knowledge_documents').insert({
             title: doc.title,
             content: doc.content,
             scope: 'global',
             is_active: true
-        }).select().single();
-
-        if (error) throw error;
-        // State update happens via Realtime subscription or optimistic fallback
-        if (data) fetchSettings(); 
-      } catch (e) {
-          // Fallback optimistic
-          setSettings(prev => ({
-              ...prev,
-              globalDocuments: [...prev.globalDocuments, doc]
-          }));
-      }
+        });
+      } catch (e) { console.warn("Add doc failed (Offline)", e); }
   };
 
   const removeGlobalDocument = async (id: string) => {
-      // Optimistic
       setSettings(prev => ({
           ...prev,
           globalDocuments: prev.globalDocuments.filter(d => d.id !== id)
       }));
       try {
         await supabase.from('knowledge_documents').delete().eq('id', id);
-      } catch (e) { console.warn("Delete document failed", e); }
+      } catch (e) { console.warn("Delete document failed (Offline)", e); }
   };
 
   const addProcessDocument = async (processKey: string, doc: KnowledgeDocument) => {
+      setSettings(prev => {
+          const proc = prev.processes[processKey];
+          if (!proc) return prev;
+          return {
+              ...prev,
+              processes: {
+                  ...prev.processes,
+                  [processKey]: { ...proc, documents: [...proc.documents, doc] }
+              }
+          };
+      });
       try {
-        const { data, error } = await supabase.from('knowledge_documents').insert({
+        await supabase.from('knowledge_documents').insert({
             title: doc.title,
             content: doc.content,
             scope: 'process',
             process_key: processKey,
             is_active: true
-        }).select().single();
-
-        if (error) throw error;
-        if (data) fetchSettings();
-      } catch (e) {
-           // Fallback optimistic
-           console.warn(e);
-      }
+        });
+      } catch (e) { console.warn("Add process doc failed (Offline)", e); }
   };
 
   const removeProcessDocument = async (processKey: string, docId: string) => {
-      // Optimistic
       setSettings(prev => {
           const proc = prev.processes[processKey];
           if (!proc) return prev;
@@ -293,7 +275,7 @@ export const useAppSettings = () => {
       });
       try {
          await supabase.from('knowledge_documents').delete().eq('id', docId);
-      } catch (e) { console.warn("Delete process doc failed", e); }
+      } catch (e) { console.warn("Delete process doc failed (Offline)", e); }
   };
 
   return { 

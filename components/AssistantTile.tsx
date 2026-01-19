@@ -8,12 +8,19 @@ interface AssistantTileProps {
 }
 
 export const AssistantTile: React.FC<AssistantTileProps> = ({ isConnected, isSpeaking, onToggle }) => {
+  
+  // Safe handler to prevent bubbling issues
+  const handleToggle = (e?: React.MouseEvent) => {
+      if (e) e.stopPropagation();
+      onToggle();
+  };
+
   return (
-    <div className="lg:col-span-1 flex flex-col items-center justify-center h-full gap-6 p-4 relative">
+    <div className="lg:col-span-1 flex flex-col items-center justify-center h-full gap-6 p-4 relative z-10">
         
         {/* The Clickable Trigger Area - Vertical Pill Shape */}
         <button 
-            onClick={onToggle}
+            onClick={handleToggle}
             className={`
                 relative group w-full max-w-[160px] aspect-[1/2.4] rounded-[10rem] 
                 flex flex-col items-center justify-center
@@ -88,8 +95,11 @@ export const AssistantTile: React.FC<AssistantTileProps> = ({ isConnected, isSpe
                          {/* Pointer Triangle */}
                         <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-4 h-4 bg-gray-900 rotate-45 border-t border-l border-white/20"></div>
                         
-                        {/* The Chip */}
-                        <div className="bg-gray-900 text-white pl-4 pr-5 py-3 rounded-full shadow-xl flex items-center gap-3 border-2 border-white pointer-events-auto cursor-pointer hover:scale-105 transition-transform">
+                        {/* The Chip - explicit click handler for reliability */}
+                        <div 
+                             onClick={handleToggle}
+                             className="bg-gray-900 text-white pl-4 pr-5 py-3 rounded-full shadow-xl flex items-center gap-3 border-2 border-white pointer-events-auto cursor-pointer hover:scale-105 transition-transform"
+                        >
                              <div className="relative flex items-center justify-center w-6 h-6 bg-white/10 rounded-full">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#FFCC00]">
                                     <path d="M14 9l-6 6" />
