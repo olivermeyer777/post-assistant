@@ -123,11 +123,19 @@ export default function App() {
       onNavigate: (targetView, mode) => {
           console.log("Voice navigating to:", targetView, mode);
           if (targetView === 'home') setView('home');
-          if (targetView === 'self_service') {
+          
+          // Updated to handle both 'self' (new strict output) and 'self_service' (legacy/safe fallback)
+          if (targetView === 'self' || targetView === 'self_service') {
               setView('self');
               if (mode) {
-                  setSelfServiceMode(mode as any);
-                  setSelfServiceStep(mode === 'tracking' ? 'trackInput' : mode === 'payment' ? 'scan' : 'destination');
+                  const safeMode = mode.toLowerCase();
+                  if (['packet', 'letter', 'payment', 'tracking'].includes(safeMode)) {
+                      setSelfServiceMode(safeMode as any);
+                      // Smart step reset based on mode
+                      if (safeMode === 'tracking') setSelfServiceStep('trackInput');
+                      else if (safeMode === 'payment') setSelfServiceStep('scan');
+                      else setSelfServiceStep('destination');
+                  }
               }
           }
       },

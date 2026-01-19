@@ -18,20 +18,21 @@ interface UseGeminiRealtimeProps {
 }
 
 // FIX 1007: Use raw string literals for types instead of SDK Enums to avoid build/runtime mismatches.
+// ENHANCED: Added examples and strict allowed values in descriptions to guide the model.
 const toolsDef = [
   {
     name: "navigate_app",
-    description: "Navigates the app to a specific view or mode.",
+    description: "Navigates the app to a specific view. EXAMPLES: 'I want to send a parcel' -> view='self', mode='packet'. 'Track a letter' -> view='self', mode='tracking'. 'Go Home' -> view='home'.",
     parameters: {
       type: "OBJECT",
       properties: {
         view: { 
             type: "STRING", 
-            description: "Target view (home, self, oracle)"
+            description: "Target view. Allowed: 'home', 'self', 'oracle'."
         },
         mode: {
             type: "STRING", 
-            description: "Service mode (packet, letter, payment, tracking)"
+            description: "Service mode (required if view='self'). Allowed: 'packet', 'letter', 'payment', 'tracking'."
         }
       },
       required: ["view"]
@@ -39,13 +40,13 @@ const toolsDef = [
   },
   {
     name: "control_step",
-    description: "Controls the workflow step.",
+    description: "Jumps to a specific step in the workflow. Use this to skip ahead or go back.",
     parameters: {
       type: "OBJECT",
       properties: {
         step: {
             type: "STRING", 
-            description: "Step ID"
+            description: "Target step ID. Allowed: 'destination', 'weigh', 'address', 'payment', 'success', 'scan', 'trackInput'."
         }
       },
       required: ["step"]
@@ -82,9 +83,17 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
 
     const buildSystemInstruction = useCallback(() => {
         const tmpl = PROMPT_TEMPLATES[currentLang] || PROMPT_TEMPLATES['de'];
-        return `${tmpl.role} ${tmpl.lang}
-        Keep answers short (max 2 sentences).
-        Context: View=${currentContext.view}, Step=${currentContext.step}.
+        return `
+        ${tmpl.role} ${tmpl.lang}
+        
+        CRITICAL RULES:
+        1. You have FULL CONTROL over the app navigation. 
+        2. If the user wants to perform an action (e.g., "Send a package", "Track shipment"), DO NOT explain how to do it.
+        3. INSTEAD, IMMEDIATELEY USE the 'navigate_app' tool to take them there.
+        4. Be proactive. Act first, talk later.
+        5. Keep verbal responses very short (max 1 sentence) when performing actions.
+        
+        Current State: View=${currentContext.view}, Step=${currentContext.step}.
         `.trim();
     }, [currentLang, currentContext]);
 
@@ -140,9 +149,7 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
 
                         try {
                             recorderRef.current = new AudioRecorder((pcmBuffer) => {
-                                // STOP if not connected to avoid "WebSocket is closed" errors
                                 if (!isConnectedRef.current) return;
-                                
                                 if (pcmBuffer.byteLength === 0) return;
 
                                 const base64Audio = arrayBufferToBase64(pcmBuffer);
@@ -177,11 +184,12 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
                         }
 
                         if (message.toolCall) {
-                           console.log("Tool Call:", message.toolCall);
+                           console.log("Tool Call Received:", message.toolCall);
                            for (const fc of message.toolCall.functionCalls) {
                                 sessionPromise.then(session => {
                                     const args = fc.args as any;
                                     try {
+                                        console.log(`Executing Tool: ${fc.name}`, args);
                                         if(fc.name === 'navigate_app') actionsRef.current.onNavigate(args.view, args.mode);
                                         if(fc.name === 'control_step') actionsRef.current.onControlStep(args.step);
                                     } catch(e) { console.error("Tool exec error", e); }
@@ -206,7 +214,6 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
                         setIsConnecting(false);
                         isConnectedRef.current = false;
                         
-                        // Handle Specific 1007 Reasons
                         if (e.code === 1007) {
                             if (e.reason && e.reason.includes("API key")) {
                                 setError("API Key ungültig oder nicht aktiviert.");
