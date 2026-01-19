@@ -32,14 +32,21 @@ export const sendMessageToGemini = async (
   languageContext: string
 ): Promise<GeminiResponse> => {
   // Initialize using the environment variable per SDK standards
+  // Note: Vite polyfills process.env.API_KEY via vite.config.ts
   const apiKey = process.env.API_KEY;
+
+  if (!apiKey) {
+    console.error("API Key is missing in process.env");
+    throw new Error("MISSING_API_KEY");
+  }
 
   try {
     const genAI = new GoogleGenAI({ apiKey });
     const model = genAI.models;
     
+    // Updated to Gemini 3 Flash for better text performance
     const response = await model.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: `User Language Context: ${languageContext}. User Query: ${message}`,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,

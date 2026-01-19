@@ -18,14 +18,6 @@ const generateId = () => Math.random().toString(36).substring(2, 9);
 
 // --- ICONS ---
 
-const SwissPostLogo = () => (
-  <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-12 w-auto">
-    <rect width="100" height="100" fill="#FFCC00"/>
-    <path d="M38 34H29V21H21V34H8V42H21V55H29V42H38V34Z" fill="#FF0000"/>
-    <path d="M52 21H70C82.1503 21 92 30.8497 92 43C92 55.1503 82.1503 65 70 65H61V79H52V21ZM61 30V56H70C77.1797 56 83 50.1797 83 43C83 35.8203 77.1797 30 70 30H61Z" fill="black"/>
-  </svg>
-);
-
 const ServiceIcon = () => (
   <svg className="w-12 h-12 mb-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -191,8 +183,15 @@ export default function App() {
     } catch (error: any) {
       const logMsg = error instanceof Error ? error.message : String(error);
       console.error("Gemini Error:", logMsg);
-      setErrorMsg(t.ui.errorGeneric);
-      setMessages(prev => [...prev, { id: generateId(), sender: 'assistant', text: t.ui.errorGeneric }]);
+      
+      // Handle Missing Key explicit error
+      if (logMsg.includes("MISSING_API_KEY")) {
+         setErrorMsg("API Key fehlt! Bitte erstellen Sie eine .env Datei im Projektverzeichnis.");
+         setMessages(prev => [...prev, { id: generateId(), sender: 'assistant', text: "Fehler: API Key fehlt. Bitte Konfiguration prüfen." }]);
+      } else {
+         setErrorMsg(t.ui.errorGeneric);
+         setMessages(prev => [...prev, { id: generateId(), sender: 'assistant', text: t.ui.errorGeneric }]);
+      }
     } finally {
       setIsThinking(false);
     }
