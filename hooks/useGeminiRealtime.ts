@@ -18,11 +18,10 @@ interface UseGeminiRealtimeProps {
     };
 }
 
-// FIX 1007: Use raw string literals for types instead of SDK Enums to avoid build/runtime mismatches.
 const toolsDef = [
   {
     name: "navigate_app",
-    description: "Navigates the app to a specific view. EXAMPLES: 'I want to send a parcel' -> view='self', mode='packet'. 'Track a letter' -> view='self', mode='tracking'. 'Go Home' -> view='home'.",
+    description: "SWITCHES the main view. Use this when the user wants to START a new process (e.g. 'I want to send a parcel').",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -32,7 +31,7 @@ const toolsDef = [
         },
         mode: {
             type: "STRING", 
-            description: "Service mode (required if view='self'). Allowed: 'packet', 'letter', 'payment', 'tracking'."
+            description: "Service mode. Allowed: 'packet', 'letter', 'payment', 'tracking'."
         }
       },
       required: ["view"]
@@ -40,13 +39,13 @@ const toolsDef = [
   },
   {
     name: "control_step",
-    description: "Jumps to a specific step in the workflow. Use this to skip ahead or go back.",
+    description: "CLICKS buttons or moves to the NEXT screen within a process. Call this AUTOMATICALLY when a step is done.",
     parameters: {
       type: "OBJECT",
       properties: {
         step: {
             type: "STRING", 
-            description: "Target step ID. Allowed: 'destination', 'weigh', 'address', 'payment', 'success', 'scan', 'trackInput'."
+            description: "The ID of the step to jump to. EXAMPLES: 'weigh', 'address', 'options', 'payment', 'success'."
         }
       },
       required: ["step"]
@@ -67,6 +66,12 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
     
     const activeSessionLangRef = useRef<Language>(currentLang);
     const actionsRef = useRef({ onNavigate, onControlStep });
+    
+    // Track context to avoid stale closures in prompt builder, 
+    // though for Gemini Live, we send the prompt ONLY on connect.
+    // To support dynamic prompt updates during a session, we would need to send a new session config,
+    // which the current SDK version supports via session.update(). 
+    // For this prototype, we stick to connect-time configuration.
 
     useEffect(() => {
         actionsRef.current = { onNavigate, onControlStep };

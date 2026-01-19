@@ -2,6 +2,14 @@
 import { AppSettings } from '../hooks/useAppSettings';
 import { Language } from '../types';
 
+// Define the exact workflows so the agent knows the roadmap
+const WORKFLOWS: Record<string, string[]> = {
+    packet: ['destination', 'weigh', 'packetAddressCheck', 'address', 'options', 'payment', 'success'],
+    letter: ['destination', 'addressCheck', 'address', 'format', 'options', 'extras', 'payment', 'success'],
+    payment: ['scan', 'payDetails', 'payReceiver', 'payConfirm', 'paySummary', 'payment', 'success'],
+    tracking: ['trackInput', 'trackStatus']
+};
+
 export const buildSystemInstruction = (
     currentLang: Language,
     settings: AppSettings,
@@ -15,80 +23,84 @@ export const buildSystemInstruction = (
         de: 'German (Deutsch)', fr: 'French (Français)', it: 'Italian (Italiano)', 
         en: 'English', es: 'Spanish (Español)', pt: 'Portuguese (Português)' 
     };
-    let prompt = `You are the 'PostAssistant' for Swiss Post. Language: Speak ${langMap[currentLang] || 'German'}.\n`;
+    let prompt = `You are the 'PostAssistant', an AI interface capable of CONTROLLING the UI directly. Language: Speak ${langMap[currentLang] || 'German'}.\n`;
 
-    // 2. Global Persona & Politeness
+    // 2. Global Persona
     if (assistant.globalPrompt) {
         prompt += `\nCORE PERSONA:\n${assistant.globalPrompt}\n`;
     }
     
-    const politenessInstruction = assistant.politeness === 'casual' 
-        ? "Tone: Casual, friendly. Use 'Du' (German) / 'Tu' (French/Italian)." 
-        : "Tone: Formal, professional. Use 'Sie' (German) / 'Vous' (French) / 'Lei' (Italian).";
-    prompt += `${politenessInstruction}\n`;
-
-    // 3. Global Knowledge Base (Active Docs)
-    const globalDocsContent = globalDocuments
-        .filter(d => d.isActive)
-        .map(d => `--- DOC: ${d.title} ---\n${d.content}`)
-        .join('\n\n');
-        
-    if (globalDocsContent) {
-        prompt += `\nGLOBAL KNOWLEDGE BASE:\n${globalDocsContent}\n`;
-    }
-
-    // 4. Process-Specific Configuration (Context Aware)
-    // Check if we are in a specific process view (self) and have a valid mode
+    // 3. Process Specifics & Navigation Logic
     if (view === 'self' && mode && processes[mode]) {
         const procConfig = processes[mode];
+        const workflow = WORKFLOWS[mode] || [];
+        const currentIndex = workflow.indexOf(step);
+        const nextStep = currentIndex >= 0 && currentIndex < workflow.length - 1 ? workflow[currentIndex + 1] : null;
 
-        if (procConfig.isEnabled) {
-            prompt += `\nCURRENT PROCESS CONTEXT: User is in '${procConfig.label}' (Step: ${step}).\n`;
-
-            // Support Intensity
-            if (procConfig.supportIntensity === 'proactive') {
-                prompt += "Interaction Style: PROACTIVE. Guide the user step-by-step. Ask for missing information immediately. Do not wait for the user to ask what to do next.\n";
-            } else {
-                prompt += "Interaction Style: PASSIVE. Wait for the user to ask questions. Do not offer unrequested advice.\n";
-            }
-
-            // Response Length
-            if (procConfig.responseLength === 'short') {
-                prompt += "Response Length: VERY SHORT. Telegram style. Max 10 words if possible.\n";
-            } else if (procConfig.responseLength === 'long') {
-                prompt += "Response Length: DETAILED. Explain concepts thoroughly.\n";
-            } else {
-                prompt += "Response Length: CONCISE. 1-2 sentences max.\n";
-            }
-
-            // Custom Process Prompt
-            if (procConfig.customPrompt) {
-                prompt += `\nPROCESS RULES:\n${procConfig.customPrompt}\n`;
-            }
-
-            // Process Knowledge Base
-            const procDocsContent = procConfig.documents
-                .filter(d => d.isActive)
-                .map(d => `--- PROCESS DOC: ${d.title} ---\n${d.content}`)
-                .join('\n\n');
-            
-            if (procDocsContent) {
-                prompt += `\nPROCESS KNOWLEDGE:\n${procDocsContent}\n`;
-            }
+        prompt += `\n--- CURRENT MISSION: ${procConfig.label} ---\n`;
+        prompt += `CURRENT SCREEN: '${step}'\n`;
+        
+        if (nextStep) {
+            prompt += `LOGICAL NEXT SCREEN: '${nextStep}'\n`;
         }
+
+        // SCREEN SPECIFIC GOALS (The Agent needs to know what "Done" looks like)
+        prompt += `\nSCREEN GOALS (What you must achieve to proceed):\n`;
+        
+        if (step === 'destination') {
+            prompt += "- Goal: Confirm destination (Domestic/International).\n- Action: If user says 'Switzerland' or 'Domestic', call control_step('weigh') (Packet) or 'addressCheck' (Letter) IMMEDIATELY.\n";
+        } else if (step === 'weigh') {
+            prompt += "- Goal: Item weighing.\n- Action: Ask user to place item. Wait 2 seconds. Then AUTOMATICALLY call control_step('packetAddressCheck'). Assume weight is detected.\n";
+        } else if (step === 'packetAddressCheck' || step === 'addressCheck') {
+            prompt += "- Goal: Does the item already have a label?\n- Action: If YES -> call control_step('options') (Packet) or 'format' (Letter). If NO -> call control_step('address').\n";
+        } else if (step === 'address') {
+            prompt += "- Goal: Get Receiver Info (Name, City).\n- Action: Ask for missing info. AS SOON AS user provides Name and City, call control_step('options') (Packet) or 'format' (Letter). DO NOT ASK 'Shall I continue?'. Just go.\n";
+        } else if (step === 'format') {
+            prompt += "- Goal: Letter size.\n- Action: If user says 'Small/Standard', call control_step('options'). If 'Big', call control_step('options').\n";
+        } else if (step === 'options') {
+            prompt += "- Goal: Shipping Speed (A-Post/B-Post/Economy/Priority).\n- Action: Once user chooses speed, call control_step('payment') (Packet) or 'extras' (Letter).\n";
+        } else if (step === 'extras') {
+            prompt += "- Goal: Extra services (Registered, etc).\n- Action: If user says 'None' or selects one, call control_step('payment').\n";
+        } else if (step === 'scan') {
+             prompt += "- Goal: Scan QR Bill.\n- Action: Tell user to hold bill under camera. Then call control_step('payDetails').\n";
+        } else if (step === 'payment') {
+            prompt += "- Goal: Finalize.\n- Action: If user says 'Pay' or 'Okay', call control_step('success').\n";
+        }
+
+        // Support Intensity Injection
+        if (procConfig.supportIntensity === 'proactive') {
+            prompt += "\nMODE: PROACTIVE PILOT.\n- Do not wait for the user to click.\n- You are the driver.\n- When a goal is met, use 'control_step' tool instantly.\n";
+        } else {
+            prompt += "\nMODE: PASSIVE ASSISTANT.\n- Wait for user instructions before navigating.\n";
+        }
+
+        // Custom Process Prompt
+        if (procConfig.customPrompt) {
+            prompt += `\nSPECIFIC PROCESS RULES:\n${procConfig.customPrompt}\n`;
+        }
+
+        // Knowledge Base
+        const procDocsContent = procConfig.documents
+            .filter(d => d.isActive)
+            .map(d => `--- INFO: ${d.title} ---\n${d.content}`)
+            .join('\n\n');
+        if (procDocsContent) prompt += `\nREFERENCE DATA:\n${procDocsContent}\n`;
+
     } else {
-        // Not in a specific process or on Home
-        prompt += "\nCONTEXT: User is on the Home Screen / Dashboard.\n";
+        prompt += "\nCONTEXT: Home Screen / Dashboard. Waiting for user to select a service (Packet, Letter, Payment, Tracking).\n";
     }
 
-    // 5. Critical Navigation Rules (ALWAYS APPLIED)
-    // These rules are essential for the agent to behave as an app controller.
+    // 4. Global Documents
+    const globalDocsContent = globalDocuments.filter(d => d.isActive).map(d => d.content).join('\n\n');
+    if (globalDocsContent) prompt += `\nGENERAL RULES:\n${globalDocsContent}\n`;
+
+    // 5. CRITICAL "AUTO-PILOT" INSTRUCTION
     prompt += `
-    \nCRITICAL FUNCTIONAL RULES:
-    1. You have FULL CONTROL over the app navigation via tools. 
-    2. If the user wants to perform an action (e.g., "Send a package", "Track shipment"), DO NOT explain how to do it textually.
-    3. INSTEAD, IMMEDIATELY USE the 'navigate_app' tool to take them there.
-    4. Be proactive with tools. Act first, talk later.
+    \n*** CRITICAL INSTRUCTIONS ***
+    1. YOUR PRIMARY JOB IS NAVIGATION. Use 'navigate_app' and 'control_step' tools constantly.
+    2. DO NOT narrate what you are going to do ("I will now go to the next step"). JUST DO IT.
+    3. If the user gives you the info required for the current screen, CALL THE TOOL IMMEDIATELY.
+    4. If the user says "Next", "Continue", or "Yes", interpret that as a command to go to the Logical Next Screen.
     `.trim();
 
     return prompt;
