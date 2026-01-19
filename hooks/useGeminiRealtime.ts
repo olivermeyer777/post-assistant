@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
 import { AudioRecorder, AudioStreamPlayer, arrayBufferToBase64, base64ToArrayBuffer } from '../utils/audioStreamer';
@@ -17,7 +18,6 @@ interface UseGeminiRealtimeProps {
 }
 
 // FIX 1007: Use raw string literals for types instead of SDK Enums to avoid build/runtime mismatches.
-// The API expects standard OpenAPI JSON Schema types.
 const toolsDef = [
   {
     name: "navigate_app",
@@ -129,7 +129,6 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
                     speechConfig: {
                         voiceConfig: { prebuiltVoiceConfig: { voiceName: settings.assistant.voiceName || 'Puck' } }
                     },
-                    // Explicitly cast toolsDef to any to bypass strict type check issues with raw strings
                     tools: [{ functionDeclarations: toolsDef as any }],
                 },
                 callbacks: {
@@ -141,20 +140,24 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
 
                         try {
                             recorderRef.current = new AudioRecorder((pcmBuffer) => {
+                                // STOP if not connected to avoid "WebSocket is closed" errors
                                 if (!isConnectedRef.current) return;
                                 
-                                // Prevent empty frames (Code 1007 risk)
                                 if (pcmBuffer.byteLength === 0) return;
 
                                 const base64Audio = arrayBufferToBase64(pcmBuffer);
                                 
                                 sessionPromise.then((session) => {
                                     if (isConnectedRef.current) {
-                                        session.sendRealtimeInput({
-                                            media: { mimeType: 'audio/pcm;rate=16000', data: base64Audio }
-                                        });
+                                        try {
+                                            session.sendRealtimeInput({
+                                                media: { mimeType: 'audio/pcm;rate=16000', data: base64Audio }
+                                            });
+                                        } catch(sendError) {
+                                            console.warn("Socket Send Error (ignoring):", sendError);
+                                        }
                                     }
-                                }).catch(err => console.warn("Session Send Error:", err));
+                                }).catch(err => console.warn("Session Access Error:", err));
                             }, 16000); 
                             
                             await recorderRef.current.start();
@@ -183,9 +186,11 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
                                         if(fc.name === 'control_step') actionsRef.current.onControlStep(args.step);
                                     } catch(e) { console.error("Tool exec error", e); }
                                     
-                                    session.sendToolResponse({
-                                        functionResponses: [{ id: fc.id, name: fc.name, response: { result: { success: true } } }]
-                                    });
+                                    try {
+                                        session.sendToolResponse({
+                                            functionResponses: [{ id: fc.id, name: fc.name, response: { result: { success: true } } }]
+                                        });
+                                    } catch(e) { console.warn("Tool Response Error", e); }
                                 });
                            }
                         }
@@ -201,10 +206,15 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
                         setIsConnecting(false);
                         isConnectedRef.current = false;
                         
+                        // Handle Specific 1007 Reasons
                         if (e.code === 1007) {
-                            setError("Verbindungsfehler (1007).");
+                            if (e.reason && e.reason.includes("API key")) {
+                                setError("API Key ungültig oder nicht aktiviert.");
+                            } else {
+                                setError("Verbindung abgelehnt (Format/Policy).");
+                            }
                         } else if (e.code !== 1000) {
-                            setError(`Getrennt (${e.code})`);
+                            setError(`Getrennt (Code: ${e.code})`);
                         }
                     },
                     onerror: (err) => {

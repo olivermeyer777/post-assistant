@@ -3,7 +3,7 @@ export class AudioRecorder {
   stream: MediaStream | null = null;
   audioContext: AudioContext | null = null;
   source: MediaStreamAudioSourceNode | null = null;
-  processor: ScriptProcessorNode | null = null;
+  workletNode: AudioWorkletNode | null = null;
   onDataAvailable: (data: ArrayBuffer) => void;
   targetSampleRate: number;
 
@@ -24,30 +24,56 @@ export class AudioRecorder {
       }
       
       const sourceSampleRate = this.audioContext.sampleRate;
-      this.source = this.audioContext.createMediaStreamSource(this.stream);
       
-      // Use larger buffer (4096) to reduce main thread load, latency is acceptable
-      this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
-
-      this.processor.onaudioprocess = (e) => {
-        if (!this.audioContext || this.audioContext.state === 'closed') return;
-
-        const inputData = e.inputBuffer.getChannelData(0);
-        
-        // Robust Downsampling
-        const downsampledData = this.downsampleBuffer(inputData, sourceSampleRate, this.targetSampleRate);
-        
-        // Convert to PCM Int16
-        const pcmData = this.convertFloat32ToInt16(downsampledData);
-        
-        // Only send if we have data to prevent 1007 errors from empty frames
-        if (pcmData.byteLength > 0) {
-            this.onDataAvailable(pcmData.buffer);
+      // Define AudioWorklet inline to avoid external file dependencies in prototype
+      const workletCode = `
+        class RecorderProcessor extends AudioWorkletProcessor {
+            process(inputs) {
+                const input = inputs[0];
+                if (input && input.length > 0) {
+                    const channelData = input[0];
+                    if (channelData && channelData.length > 0) {
+                        this.port.postMessage(channelData);
+                    }
+                }
+                return true;
+            }
         }
+        registerProcessor('recorder-worklet', RecorderProcessor);
+      `;
+
+      const blob = new Blob([workletCode], { type: 'application/javascript' });
+      const workletUrl = URL.createObjectURL(blob);
+      
+      try {
+        await this.audioContext.audioWorklet.addModule(workletUrl);
+      } catch (e) {
+         console.error("Failed to load AudioWorklet", e);
+         throw e;
+      }
+
+      this.source = this.audioContext.createMediaStreamSource(this.stream);
+      this.workletNode = new AudioWorkletNode(this.audioContext, 'recorder-worklet');
+
+      this.workletNode.port.onmessage = (event) => {
+          const inputData = event.data; // Float32Array from worklet
+          
+          // Robust Downsampling
+          const downsampledData = this.downsampleBuffer(inputData, sourceSampleRate, this.targetSampleRate);
+          
+          // Convert to PCM Int16
+          const pcmData = this.convertFloat32ToInt16(downsampledData);
+          
+          // Only send if we have data to prevent 1007 errors from empty frames
+          if (pcmData.byteLength > 0) {
+              this.onDataAvailable(pcmData.buffer);
+          }
       };
 
-      this.source.connect(this.processor);
-      this.processor.connect(this.audioContext.destination);
+      this.source.connect(this.workletNode);
+      // Connect to destination to keep the graph alive (often needed in Chrome), but mute it
+      this.workletNode.connect(this.audioContext.destination);
+
     } catch (error) {
       console.error("Error starting audio recorder:", error);
       throw error;
@@ -106,11 +132,13 @@ export class AudioRecorder {
   }
 
   stop() {
-    if (this.processor && this.source) {
-      try {
+    if (this.workletNode) {
+        this.workletNode.disconnect();
+        this.workletNode = null;
+    }
+    if (this.source) {
         this.source.disconnect();
-        this.processor.disconnect();
-      } catch(e) {}
+        this.source = null;
     }
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
