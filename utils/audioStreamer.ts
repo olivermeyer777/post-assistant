@@ -5,45 +5,34 @@ export class AudioRecorder {
   source: MediaStreamAudioSourceNode | null = null;
   processor: ScriptProcessorNode | null = null;
   onDataAvailable: (data: ArrayBuffer) => void;
-  sampleRate: number;
+  targetSampleRate: number;
 
-  constructor(onDataAvailable: (data: ArrayBuffer) => void, sampleRate: number = 24000) {
+  constructor(onDataAvailable: (data: ArrayBuffer) => void, targetSampleRate: number = 16000) {
     this.onDataAvailable = onDataAvailable;
-    this.sampleRate = sampleRate;
+    this.targetSampleRate = targetSampleRate;
   }
 
   async start() {
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-        sampleRate: this.sampleRate, 
-      });
       
-      if (this.audioContext.state === 'suspended') {
-        await this.audioContext.resume();
-      }
+      // Use standard AudioContext without forcing sampleRate (better compatibility)
+      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       
-      const sourceRate = this.audioContext.sampleRate;
-      const targetRate = this.sampleRate;
+      const sourceSampleRate = this.audioContext.sampleRate;
       
       this.source = this.audioContext.createMediaStreamSource(this.stream);
-      // 4096 buffer size
+      // Use 4096 buffer size for balance between latency and performance
       this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
 
       this.processor.onaudioprocess = (e) => {
         const inputData = e.inputBuffer.getChannelData(0);
         
-        // Simple downsampling if system rate != target rate
-        // Note: Browsers might ignore the context sampleRate request, so we must handle it manually if needed.
-        // For simple PoC, if rates match, we just pass through.
-        let processedData = inputData;
+        // Downsample to target rate (e.g. 48000 -> 16000)
+        const downsampledData = this.downsampleBuffer(inputData, sourceSampleRate, this.targetSampleRate);
         
         // Convert Float32 to Int16 PCM
-        const pcmData = new Int16Array(processedData.length);
-        for (let i = 0; i < processedData.length; i++) {
-          const s = Math.max(-1, Math.min(1, processedData[i]));
-          pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-        }
+        const pcmData = this.convertFloat32ToInt16(downsampledData);
         
         this.onDataAvailable(pcmData.buffer);
       };
@@ -54,6 +43,53 @@ export class AudioRecorder {
       console.error("Error starting audio recorder:", error);
       throw error;
     }
+  }
+
+  // Simple Downsampling Algorithm
+  private downsampleBuffer(buffer: Float32Array, sampleRate: number, outSampleRate: number): Float32Array {
+      if (outSampleRate === sampleRate) {
+          return buffer;
+      }
+      if (outSampleRate > sampleRate) {
+          // Upsampling not supported in this simple implementation
+          return buffer;
+      }
+      
+      const sampleRateRatio = sampleRate / outSampleRate;
+      const newLength = Math.round(buffer.length / sampleRateRatio);
+      const result = new Float32Array(newLength);
+      
+      let offsetResult = 0;
+      let offsetBuffer = 0;
+      
+      while (offsetResult < result.length) {
+          const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
+          
+          // Simple averaging (low-pass filter effect) to prevent aliasing
+          let accum = 0, count = 0;
+          for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+              accum += buffer[i];
+              count++;
+          }
+          
+          result[offsetResult] = count > 0 ? accum / count : 0;
+          offsetResult++;
+          offsetBuffer = nextOffsetBuffer;
+      }
+      
+      return result;
+  }
+
+  private convertFloat32ToInt16(buffer: Float32Array): Int16Array {
+      let l = buffer.length;
+      let buf = new Int16Array(l);
+      while (l--) {
+          // Clamp values to -1 to 1
+          let s = Math.max(-1, Math.min(1, buffer[l]));
+          // Scale to 16-bit integer range
+          buf[l] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+      return buf;
   }
 
   stop() {
@@ -79,12 +115,21 @@ export class AudioStreamPlayer {
   scheduledSources: AudioBufferSourceNode[] = [];
   
   constructor() {
-    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-      sampleRate: 24000, // Gemini Output is usually 24kHz
-    });
-    this.gainNode = this.audioContext.createGain();
-    this.gainNode.gain.value = 1.2; // Boost volume slightly
-    this.gainNode.connect(this.audioContext.destination);
+    // Try to use 24kHz for playback if supported, else default
+    try {
+        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+          sampleRate: 24000, 
+        });
+    } catch (e) {
+        // Fallback to default system rate
+        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    
+    if (this.audioContext) {
+        this.gainNode = this.audioContext.createGain();
+        this.gainNode.gain.value = 1.2; // Boost volume slightly
+        this.gainNode.connect(this.audioContext.destination);
+    }
   }
 
   async resume() {
@@ -96,7 +141,7 @@ export class AudioStreamPlayer {
   async addChunk(data: ArrayBuffer) {
     if (!this.audioContext || !this.gainNode) return;
 
-    // Ensure context is running (vital for hearing audio after user click)
+    // Ensure context is running
     if (this.audioContext.state === 'suspended') {
         await this.audioContext.resume();
     }
@@ -119,7 +164,6 @@ export class AudioStreamPlayer {
 
     const currentTime = this.audioContext.currentTime;
     
-    // Simple drift correction
     if (this.nextStartTime < currentTime) {
       this.nextStartTime = currentTime;
     }
@@ -133,7 +177,6 @@ export class AudioStreamPlayer {
     this.nextStartTime += audioBuffer.duration;
   }
   
-  // New method to stop playback immediately without closing context
   interrupt() {
       this.scheduledSources.forEach(source => {
           try { source.stop(); } catch(e) {}
@@ -141,7 +184,6 @@ export class AudioStreamPlayer {
       this.scheduledSources = [];
       this.nextStartTime = 0;
       
-      // Reset next start time to current time to avoid sync issues on resume
       if (this.audioContext) {
           this.nextStartTime = this.audioContext.currentTime;
       }

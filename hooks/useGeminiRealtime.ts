@@ -111,7 +111,8 @@ const PROMPT_TEMPLATES: Record<string, { role: string; style: string; strictRule
 export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, settings, currentContext }: UseGeminiRealtimeProps) => {
     const [isConnected, setIsConnected] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
-    const [isConnecting, setIsConnecting] = useState(false); // NEW STATE
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [error, setError] = useState<string | null>(null); // New Error State
     
     const sessionRef = useRef<any>(null);
     const recorderRef = useRef<AudioRecorder | null>(null);
@@ -186,16 +187,20 @@ ${tmpl.outputRule}
 
     const connect = async () => {
         if (isConnectedRef.current) return;
+        
+        // Reset Error
+        setError(null);
 
         let apiKey = '';
         try { apiKey = process.env.API_KEY || ''; } catch (e) {}
 
         if (!apiKey) {
             console.error("No API Key found");
+            setError("Fehler: API Key fehlt.");
             return;
         }
 
-        setIsConnecting(true); // START CONNECTING
+        setIsConnecting(true);
 
         // Initialize Audio Output
         try {
@@ -204,6 +209,7 @@ ${tmpl.outputRule}
         } catch (e) {
              console.error("Audio Context initialization failed", e);
              setIsConnecting(false);
+             setError("Audio-System konnte nicht gestartet werden.");
              return;
         }
 
@@ -229,7 +235,7 @@ ${tmpl.outputRule}
                     onopen: () => {
                         console.log("Gemini Live Connected");
                         setIsConnected(true);
-                        setIsConnecting(false); // STOP CONNECTING
+                        setIsConnecting(false);
                         isConnectedRef.current = true;
 
                         recorderRef.current = new AudioRecorder((pcmBuffer) => {
@@ -285,8 +291,8 @@ ${tmpl.outputRule}
                             setIsSpeaking(false);
                         }
                     },
-                    onclose: () => {
-                        console.log("Gemini Live Closed");
+                    onclose: (e) => {
+                        console.log("Gemini Live Closed", e);
                         setIsConnected(false);
                         setIsConnecting(false);
                         isConnectedRef.current = false;
@@ -296,6 +302,7 @@ ${tmpl.outputRule}
                         setIsConnected(false);
                         setIsConnecting(false);
                         isConnectedRef.current = false;
+                        setError("Verbindungsfehler. Bitte API Key prüfen.");
                         cleanup();
                     }
                 }
@@ -304,8 +311,12 @@ ${tmpl.outputRule}
             const session = await sessionPromise;
             sessionRef.current = session;
 
-        } catch (e) {
+        } catch (e: any) {
             console.error("Connection Failed", e);
+            let msg = "Verbindung fehlgeschlagen.";
+            if (e.message && e.message.includes("403")) msg = "API Key ungültig (403).";
+            if (e.message && e.message.includes("401")) msg = "Nicht autorisiert (401).";
+            setError(msg);
             cleanup();
             setIsConnecting(false);
         }
@@ -345,5 +356,5 @@ ${tmpl.outputRule}
         return () => disconnect();
     }, []);
 
-    return { connect, disconnect, isConnected, isSpeaking, isConnecting };
+    return { connect, disconnect, isConnected, isSpeaking, isConnecting, error };
 };

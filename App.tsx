@@ -105,7 +105,14 @@ export default function App() {
   const { speak, cancel: stopTTS } = useTTS();
 
   // --- GEMINI REALTIME HOOK ---
-  const { connect: connectVoice, disconnect: disconnectVoice, isConnected: isVoiceConnected, isSpeaking: isVoiceSpeaking, isConnecting: isVoiceConnecting } = useGeminiRealtime({
+  const { 
+      connect: connectVoice, 
+      disconnect: disconnectVoice, 
+      isConnected: isVoiceConnected, 
+      isSpeaking: isVoiceSpeaking, 
+      isConnecting: isVoiceConnecting,
+      error: voiceError 
+  } = useGeminiRealtime({
       currentLang,
       settings: settings, 
       currentContext: {
@@ -129,6 +136,13 @@ export default function App() {
           setSelfServiceStep(step as SelfServiceStep);
       }
   });
+
+  // Watch for Voice Errors
+  useEffect(() => {
+      if (voiceError) {
+          setErrorMsg(voiceError);
+      }
+  }, [voiceError]);
 
   // Reset steps when view changes manually
   useEffect(() => {
