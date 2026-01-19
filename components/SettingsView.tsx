@@ -300,14 +300,24 @@ export const SettingsView = () => {
                                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                                                     Geerbte Globale Konfiguration (Read-Only)
                                                 </h4>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                                     <div className="bg-white/60 p-3 rounded-lg border border-gray-200">
                                                         <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Stimme</span>
-                                                        <span className="text-sm font-semibold text-gray-700">{settings.assistant.voiceName}</span>
+                                                        <span className="text-sm font-semibold text-gray-700 truncate" title={settings.assistant.voiceName}>{settings.assistant.voiceName || '-'}</span>
                                                     </div>
                                                     <div className="bg-white/60 p-3 rounded-lg border border-gray-200">
-                                                        <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Globale Dokumente</span>
-                                                        <span className="text-sm font-semibold text-gray-700">{settings.globalDocuments.length} PDF(s) aktiv</span>
+                                                        <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Ansprache</span>
+                                                        <span className="text-sm font-semibold text-gray-700">{settings.assistant.politeness === 'formal' ? 'Sie (Formal)' : 'Du (Casual)'}</span>
+                                                    </div>
+                                                    <div className="bg-white/60 p-3 rounded-lg border border-gray-200">
+                                                        <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Dokumente</span>
+                                                        <span className="text-sm font-semibold text-gray-700">{settings.globalDocuments.length} PDF(s)</span>
+                                                    </div>
+                                                    <div className="bg-white/60 p-3 rounded-lg border border-gray-200">
+                                                        <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Persona Prompt</span>
+                                                        <span className="text-sm font-semibold text-gray-700 truncate block" title={settings.assistant.globalPrompt}>
+                                                            {settings.assistant.globalPrompt ? settings.assistant.globalPrompt : '(Leer)'}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             </div>

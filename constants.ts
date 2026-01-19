@@ -191,6 +191,8 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
     chatHeaderTitle: "Chat PostAssistant",
     chatPlaceholder: "Posez votre question…",
     chatSendLabel: "Envoyer",
+    orakelViewTitle: "Comment pouvons-nous vous aider ?",
+    orakelViewSubtitle: "Choisissez un sujet ou décrivez votre demande.",
     tiles: {
       self: {
         title: "Assistant Self-Service",
@@ -255,6 +257,8 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
     chatHeaderTitle: "Chat PostAssistant",
     chatPlaceholder: "Scrivi la tua domanda...",
     chatSendLabel: "Invia",
+    orakelViewTitle: "Come possiamo aiutare?",
+    orakelViewSubtitle: "Scegli un argomento o descrivi la tua richiesta.",
     tiles: {
        self: {
         title: "Assistente Self-Service",
@@ -319,6 +323,8 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
     chatHeaderTitle: "PostAssistant Chat",
     chatPlaceholder: "Type your question...",
     chatSendLabel: "Send",
+    orakelViewTitle: "How can we help?",
+    orakelViewSubtitle: "Choose a topic or describe your request.",
     tiles: {
        self: {
         title: "Self-Service Assistant",
@@ -383,6 +389,8 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
     chatHeaderTitle: "Chat PostAssistant",
     chatPlaceholder: "Escribe tu pregunta...",
     chatSendLabel: "Enviar",
+    orakelViewTitle: "¿Cómo podemos ayudarle?",
+    orakelViewSubtitle: "Elija un tema o describa su solicitud.",
     tiles: {
       orakel: {
         title: "Asistente",
@@ -455,6 +463,8 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
     chatHeaderTitle: "Chat PostAssistant",
     chatPlaceholder: "Escreva a sua pergunta...",
     chatSendLabel: "Enviar",
+    orakelViewTitle: "Como podemos ajudar?",
+    orakelViewSubtitle: "Escolha um tópico ou descreva o seu pedido.",
     tiles: {
       orakel: {
         title: "Assistente",

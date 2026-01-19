@@ -9,7 +9,7 @@ interface AssistantTileProps {
 
 export const AssistantTile: React.FC<AssistantTileProps> = ({ isConnected, isSpeaking, onToggle }) => {
   return (
-    <div className="lg:col-span-1 flex flex-col items-center justify-center h-full gap-6 p-4">
+    <div className="lg:col-span-1 flex flex-col items-center justify-center h-full gap-6 p-4 relative">
         
         {/* The Clickable Trigger Area - Vertical Pill Shape */}
         <button 
@@ -80,20 +80,34 @@ export const AssistantTile: React.FC<AssistantTileProps> = ({ isConnected, isSpe
                      </div>
                  )}
             </div>
-        </button>
 
-        {/* Updated Hint Text Below */}
-        {!isConnected && (
-            <div className="text-center animate-fade-in -mt-2 relative z-20">
-                <div 
-                  className="bg-white text-gray-900 font-medium px-5 py-2.5 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 inline-flex items-center gap-2.5 text-sm hover:scale-105 transition-transform cursor-pointer"
-                  onClick={onToggle}
-                >
-                    <div className="w-2 h-2 rounded-full bg-[#FFCC00] animate-pulse"></div>
-                    <span>Ich helfe Ihnen gerne weiter!</span>
+            {/* NEW: Explicit Call to Action Chip overlapping the button */}
+            {!isConnected && (
+                <div className="absolute -bottom-6 z-20 w-max animate-bounce pointer-events-none">
+                    <div className="relative">
+                         {/* Pointer Triangle */}
+                        <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-4 h-4 bg-gray-900 rotate-45 border-t border-l border-white/20"></div>
+                        
+                        {/* The Chip */}
+                        <div className="bg-gray-900 text-white pl-4 pr-5 py-3 rounded-full shadow-xl flex items-center gap-3 border-2 border-white pointer-events-auto cursor-pointer hover:scale-105 transition-transform">
+                             <div className="relative flex items-center justify-center w-6 h-6 bg-white/10 rounded-full">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#FFCC00]">
+                                    <path d="M14 9l-6 6" />
+                                    <path d="M10 9a6.3 6.3 0 0 0-6.7-1C1.8 8.6.5 10.6.5 12.8c0 3 2.5 5.2 4.6 7.2L9 23" />
+                                    <path d="M13.5 13.5a3 3 0 0 1 .5 4 4.5 4.5 0 0 1-4.24 3.5" />
+                                    <path d="M16 11a5 5 0 0 1 5 5v5" />
+                                    <path d="M19 6a3 3 0 0 0-3-3h-3v6" />
+                                </svg>
+                             </div>
+                             <div className="flex flex-col items-start leading-none gap-0.5">
+                                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Hilfe benötigt?</span>
+                                 <span className="font-bold text-sm text-white">Hier tippen</span>
+                             </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        )}
+            )}
+        </button>
     </div>
   );
 };

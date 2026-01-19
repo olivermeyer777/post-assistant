@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
+import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, Type } from "@google/genai";
 import { AudioRecorder, AudioStreamPlayer, arrayBufferToBase64, base64ToArrayBuffer } from '../utils/audioStreamer';
 import { Language } from '../types';
 import { AppSettings, ProcessConfig, KnowledgeDocument } from './useAppSettings'; 
@@ -12,61 +12,94 @@ interface UseGeminiRealtimeProps {
     settings: AppSettings;
 }
 
-// Localized Prompt Templates
-const PROMPT_TEMPLATES: Record<string, { role: string; task: string; strictRule: string; contextIntro: string; globalLabel: string; processLabel: string; outputRule: string }> = {
+// --- TOOLS DEFINITION ---
+const toolsDef: FunctionDeclaration[] = [
+  {
+    name: "navigate_app",
+    description: "Navigiert den User zu einem Hauptbereich. Nutze dies SOFORT, wenn der User eine Absicht äußert (z.B. 'Ich will ein Paket verschicken' -> geh zu self_service/packet). Warte nicht auf Bestätigung.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        view: { 
+            type: Type.STRING, 
+            enum: ["home", "self", "oracle"],
+            description: "Der Ziel-View."
+        },
+        mode: {
+            type: Type.STRING, 
+            enum: ["packet", "letter", "payment", "tracking"],
+            description: "Nur nötig wenn view='self'. Der spezifische Service."
+        }
+      },
+      required: ["view"]
+    }
+  },
+  {
+    name: "control_step",
+    description: "Steuert den Schritt innerhalb eines Prozesses. Nutze dies um vorwärts zu gehen, wenn Daten vollständig sind, oder zu einem spezifischen Schritt zu springen.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        step: {
+            type: Type.STRING,
+            enum: ['destination', 'weigh', 'addressCheck', 'address', 'format', 'options', 'extras', 'payment', 'scan', 'payDetails', 'payReceiver', 'payConfirm', 'paySummary', 'trackInput', 'trackStatus', 'success'],
+            description: "Die ID des Ziel-Schritts."
+        }
+      },
+      required: ["step"]
+    }
+  }
+];
+
+// Localized Prompt Templates - AGENTIC & CONCISE VERSION
+const PROMPT_TEMPLATES: Record<string, { role: string; style: string; strictRule: string; toolRule: string; contextIntro: string; outputRule: string }> = {
     de: {
-        role: "DU BIST: PostAssistant, der digitale KI-Mitarbeiter der Schweizer Post.",
-        task: "DEINE AUFGABE: Du hilfst Kunden am Self-Service-Terminal.",
-        strictRule: "STRIKTE REGEL: Antworte NUR basierend auf dem untenstehenden 'GLOBALEN WISSEN' und dem 'PROZESS KONTEXT'. Erfinde keine Fakten.",
-        contextIntro: "WISSENSBASIS (Nutze diese Informationen als Faktenquelle):",
-        globalLabel: "GLOBALES WISSEN (Gilt IMMER):",
-        processLabel: "PROZESS-DEFINITIONEN:",
-        outputRule: "WICHTIG: Antworte IMMER auf DEUTSCH."
+        role: "DU BIST: Der 'PostAssistant Agent'. Ein intelligenter, handlungsorientierter KI-Mitarbeiter.",
+        style: "KOMMUNIKATION: Extrem kurz, präzise und knackig. Kein Smalltalk. Keine Floskeln wie 'Gerne helfe ich Ihnen dabei'. Max 1-2 Sätze.",
+        strictRule: "FOKUS: Der Prozess steht im Mittelpunkt. Führe den User effizient zum Ziel. Nutze dein Wissen, um Fragen SOFORT zu klären.",
+        toolRule: "HANDLUNG: Nutze Tools (Navigation/Steuerung) PROAKTIV. Frage nicht um Erlaubnis, wenn die Intention klar ist. Tu es einfach.",
+        contextIntro: "WISSENSBASIS & PROZESSE:",
+        outputRule: "ANTWORTE: Immer auf DEUTSCH."
     },
     fr: {
-        role: "VOUS ÊTES : PostAssistant, l'assistant numérique de la Poste Suisse.",
-        task: "VOTRE MISSION : Aider les clients au terminal self-service.",
-        strictRule: "RÈGLE STRICTE : Répondez UNIQUEMENT sur la base des connaissances fournies ci-dessous. N'inventez rien.",
-        contextIntro: "BASE DE CONNAISSANCES (Le contenu ci-dessous peut être en allemand, vous DEVEZ le traduire et l'utiliser comme source) :",
-        globalLabel: "CONNAISSANCES GLOBALES (S'appliquent TOUJOURS) :",
-        processLabel: "DÉFINITIONS DES PROCESSUS :",
-        outputRule: "IMPORTANT : Répondez TOUJOURS en FRANÇAIS."
+        role: "VOUS ÊTES : L'Agent PostAssistant. Un collaborateur IA intelligent et orienté vers l'action.",
+        style: "COMMUNICATION : Extrêmement court, précis et percutant. Pas de bavardage. Max 1-2 phrases.",
+        strictRule: "FOCUS : Le processus est central. Guidez l'utilisateur efficacement. Utilisez vos connaissances pour répondre IMMÉDIATEMENT.",
+        toolRule: "ACTION : Utilisez les outils (Navigation) de manière PROACTIVE. Ne demandez pas la permission si l'intention est claire.",
+        contextIntro: "CONNAISSANCES & PROCESSUS :",
+        outputRule: "RÉPONSE : Toujours en FRANÇAIS."
     },
     it: {
-        role: "SEI: PostAssistant, l'assistente digitale della Posta Svizzera.",
-        task: "IL TUO COMPITO: Aiutare i clienti al terminale self-service.",
-        strictRule: "REGOLA RIGIDA: Rispondi SOLO in base alle conoscenze fornite qui sotto. Non inventare fatti.",
-        contextIntro: "BASE DI CONOSCENZA (Il contenuto può essere in tedesco, TRADUCILO e usalo come fonte):",
-        globalLabel: "CONOSCENZE GLOBALI (Valgono SEMPRE):",
-        processLabel: "DEFINIZIONI DEI PROCESSI:",
-        outputRule: "IMPORTANTE: Rispondi SEMPRE in ITALIANO."
+        role: "SEI: L'Agente PostAssistant. Un collaboratore IA intelligente e orientato all'azione.",
+        style: "COMUNICAZIONE: Estremamente breve, preciso e conciso. Niente chiacchiere. Max 1-2 frasi.",
+        strictRule: "FOCUS: Il processo è centrale. Guida l'utente in modo efficiente. Usa le tue conoscenze per chiarire SUBITO.",
+        toolRule: "AZIONE: Usa gli strumenti (Navigazione) in modo PROATTIVO. Non chiedere il permesso se l'intenzione è chiara.",
+        contextIntro: "CONOSCENZA & PROCESSI:",
+        outputRule: "RISPOSTA: Sempre in ITALIANO."
     },
     en: {
-        role: "YOU ARE: PostAssistant, the digital AI assistant of Swiss Post.",
-        task: "YOUR JOB: Help customers at the self-service terminal.",
-        strictRule: "STRICT RULE: Answer ONLY based on the KNOWLEDGE provided below. Do not invent facts.",
-        contextIntro: "KNOWLEDGE BASE (Content might be in German, you MUST translate and use it as source):",
-        globalLabel: "GLOBAL KNOWLEDGE (Always applies):",
-        processLabel: "PROCESS DEFINITIONS:",
-        outputRule: "IMPORTANT: ALWAYS answer in ENGLISH."
+        role: "YOU ARE: The PostAssistant Agent. An intelligent, action-oriented AI worker.",
+        style: "COMMUNICATION: Extremely short, crisp, and punchy. No small talk. No fluff. Max 1-2 sentences.",
+        strictRule: "FOCUS: The process is central. Guide the user efficiently. Use knowledge to solve issues IMMEDIATELY.",
+        toolRule: "ACTION: Use tools (Navigation) PROACTIVELY. Do not ask for permission if intent is clear. Just do it.",
+        contextIntro: "KNOWLEDGE BASE & PROCESSES:",
+        outputRule: "ANSWER: Always in ENGLISH."
     },
     es: {
-        role: "ERES: PostAssistant, el asistente digital de Correos Suiza.",
-        task: "TU TAREA: Ayudar a los clientes en la terminal de autoservicio.",
-        strictRule: "REGLA ESTRICTA: Responde SOLO basándote en el CONOCIMIENTO proporcionado abajo.",
-        contextIntro: "BASE DE CONOCIMIENTOS (El contenido puede estar en alemán, TRADÚCELO y úsalo):",
-        globalLabel: "CONOCIMIENTO GLOBAL (Siempre aplica):",
-        processLabel: "DEFINICIONES DE PROCESOS:",
-        outputRule: "IMPORTANTE: Responde SIEMPRE en ESPAÑOL."
+        role: "ERES: El Agente PostAssistant. Inteligente y orientado a la acción.",
+        style: "COMUNICACIÓN: Extremadamente corta y concisa. Sin charla innecesaria. Máx 1-2 frases.",
+        strictRule: "ENFOQUE: El proceso es central. Guía al usuario eficientemente.",
+        toolRule: "ACCIÓN: Usa herramientas PROACTIVAMENTE. No pidas permiso si la intención es clara.",
+        contextIntro: "CONOCIMIENTOS:",
+        outputRule: "RESPUESTA: Siempre en ESPAÑOL."
     },
     pt: {
-        role: "ÉS: PostAssistant, o assistente digital dos Correios Suíços.",
-        task: "A TUA TAREFA: Ajudar os clientes no terminal de self-service.",
-        strictRule: "REGRA ESTRITA: Responde APENAS com base no CONHECIMENTO fornecido abaixo.",
-        contextIntro: "BASE DE CONHECIMENTO (O conteúdo pode estar em alemão, TRADUZ e usa-o):",
-        globalLabel: "CONHECIMENTO GLOBAL (Aplica-se SEMPRE):",
-        processLabel: "DEFINIÇÕES DE PROCESSOS:",
-        outputRule: "IMPORTANTE: Responde SEMPRE em PORTUGUÊS."
+        role: "ÉS: O Agente PostAssistant. Inteligente e orientado para a ação.",
+        style: "COMUNICAÇÃO: Extremamente curta e concisa. Sem conversa fiada. Máx 1-2 frases.",
+        strictRule: "FOCO: O processo é central. Guia o utilizador eficientemente.",
+        toolRule: "AÇÃO: Usa ferramentas PROATIVAMENTE. Não peças permissão se a intenção for clara.",
+        contextIntro: "CONHECIMENTOS:",
+        outputRule: "RESPOSTA: Sempre em PORTUGUÊS."
     }
 };
 
@@ -78,8 +111,14 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
     const sessionRef = useRef<any>(null);
     const recorderRef = useRef<AudioRecorder | null>(null);
     const playerRef = useRef<AudioStreamPlayer | null>(null);
+    
+    // Refs for callbacks to avoid closure staleness
+    const actionsRef = useRef({ onNavigate, onControlStep });
+    useEffect(() => {
+        actionsRef.current = { onNavigate, onControlStep };
+    }, [onNavigate, onControlStep]);
 
-    // Rebuild system instruction dynamically from props (no local storage)
+    // Rebuild system instruction dynamically from props
     const buildSystemInstruction = useCallback(() => {
         const procConfigs = settings.processes || {};
         const assistantSettings = settings.assistant;
@@ -91,7 +130,7 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
         // Helper to format documents
         const formatDocs = (docs: KnowledgeDocument[]) => {
             if (!docs || docs.length === 0) return '---';
-            return docs.map(d => `DOC: "${d.title}"\nCONTENT: ${d.content}`).join('\n\n');
+            return docs.map(d => `SOURCE "${d.title}": ${d.content}`).join('\n');
         };
 
         // Helper to format process rules
@@ -99,38 +138,30 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
             const conf = procConfigs[key];
             if (!conf || !conf.isEnabled) return '';
             
-            // Map internal technical values to readable text (can remain English/German mix as model understands it)
-            const lengthMap = { short: 'Short (1 sentence)', medium: 'Normal (2-3 sentences)', long: 'Detailed' };
-            const intensityMap = { proactive: 'Proactive (Offer help)', passive: 'Passive (Wait for questions)' };
-
             return `
-=== PROCESS: "${name}" (${key}) ===
-* Base Instruction: ${conf.customPrompt || '-'}
-* Length: ${lengthMap[conf.responseLength] || 'Normal'}
-* Style: ${intensityMap[conf.supportIntensity] || 'Proactive'}
-* PROCESS SPECIFIC KNOWLEDGE:
+PROCESS "${name}" (ID: ${key}):
+- Instruction: ${conf.customPrompt || 'Standard process'}
+- Specific Knowledge:
 ${formatDocs(conf.documents)}
-===============================================
             `.trim();
         };
 
         let base = `
 ${tmpl.role}
-
-${tmpl.task}
-
+${tmpl.style}
 ${tmpl.strictRule}
+${tmpl.toolRule}
 
 ${tmpl.contextIntro}
 
 GLOBAL SETTINGS:
-1. Formality: ${assistantSettings.politeness === 'formal' ? 'Formal (Sie/Vous/Lei)' : 'Casual (Du/Tu)'}.
-2. Character Persona: ${assistantSettings.globalPrompt}
+- Persona: ${assistantSettings.globalPrompt}
+- Formality: ${assistantSettings.politeness}
 
-${tmpl.globalLabel}
+GLOBAL KNOWLEDGE (Apply to all queries):
 ${formatDocs(globalDocs)}
 
-${tmpl.processLabel}
+AVAILABLE PROCESSES (Use navigate_app tool to start these):
 ${formatRule('packet', 'Paket aufgeben')}
 ${formatRule('letter', 'Brief versenden')}
 ${formatRule('payment', 'Einzahlung')}
@@ -142,24 +173,20 @@ ${tmpl.outputRule}
         return base;
     }, [settings, currentLang]);
 
-    // Live Update Effect: When settings OR LANGUAGE change, send a "System Update" text to the model
+    // Live Update Effect
     useEffect(() => {
         if (isConnected && sessionRef.current) {
             console.log(`Context/Language Update (${currentLang}). Sending to Gemini...`);
             const newInstruction = buildSystemInstruction();
             
-            // We inject the new instruction as a "User Text Message" that instructs the model to update its context.
             try {
                 sessionRef.current.send({
                     parts: [{
-                        text: `[SYSTEM_UPDATE_EVENT]
-                        CRITICAL: The user has changed the language or settings.
-                        FORGET previous system instructions.
-                        ADOPT the following NEW System Instruction immediately:
+                        text: `[SYSTEM_UPDATE]
+                        Language/Context changed. 
+                        NEW INSTRUCTION: ${newInstruction}
                         
-                        ${newInstruction}
-                        
-                        CONFIRM understanding by waiting for the user's next audio input. DO NOT speak now.`
+                        REMEMBER: Be an agent. Use tools proactively. Keep it short.`
                     }]
                 });
             } catch (e) {
@@ -184,7 +211,7 @@ ${tmpl.outputRule}
         
         try {
             const systemInstruction = buildSystemInstruction();
-            console.log("Connecting with System Instruction length:", systemInstruction.length);
+            console.log("Connecting with Agent Persona...");
 
             const sessionPromise = genAI.live.connect({
                 model: 'gemini-2.5-flash-native-audio-preview-12-2025',
@@ -193,7 +220,8 @@ ${tmpl.outputRule}
                     responseModalities: [Modality.AUDIO], 
                     speechConfig: {
                         voiceConfig: { prebuiltVoiceConfig: { voiceName: settings.assistant.voiceName || 'Puck' } }
-                    }
+                    },
+                    tools: [{ functionDeclarations: toolsDef }] // Inject Tools
                 },
                 callbacks: {
                     onopen: () => {
@@ -214,7 +242,7 @@ ${tmpl.outputRule}
                         recorderRef.current.start();
                     },
                     onmessage: async (message: LiveServerMessage) => {
-                        // Handle Audio Output
+                        // 1. Handle Audio Output
                         const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
                         if (base64Audio) {
                             const buffer = base64ToArrayBuffer(base64Audio);
@@ -223,7 +251,45 @@ ${tmpl.outputRule}
                             setTimeout(() => setIsSpeaking(false), 500);
                         }
 
-                        // Handle Interruption (Critical for natural feel)
+                        // 2. Handle Tool Calls (Agentic Behavior)
+                        if (message.toolCall) {
+                            console.log("Agent Tool Call Received:", message.toolCall);
+                            
+                            // We might have multiple calls in one turn
+                            for (const fc of message.toolCall.functionCalls) {
+                                // Fix: Explicit type for result to include optional error field
+                                let result: { success: boolean; error?: string } = { success: true };
+                                
+                                try {
+                                    if (fc.name === 'navigate_app') {
+                                        const { view, mode } = fc.args as any;
+                                        console.log(`Agent navigating to: ${view}/${mode}`);
+                                        actionsRef.current.onNavigate(view, mode);
+                                    } 
+                                    else if (fc.name === 'control_step') {
+                                        const { step } = fc.args as any;
+                                        console.log(`Agent setting step to: ${step}`);
+                                        actionsRef.current.onControlStep(step);
+                                    }
+                                } catch (err) {
+                                    console.error("Tool execution failed", err);
+                                    result = { success: false, error: String(err) };
+                                }
+
+                                // Send Response back to Model (Required)
+                                sessionPromise.then(session => {
+                                    session.sendToolResponse({
+                                        functionResponses: [{
+                                            id: fc.id,
+                                            name: fc.name,
+                                            response: { result: result }
+                                        }]
+                                    });
+                                });
+                            }
+                        }
+
+                        // 3. Handle Interruption
                         if (message.serverContent?.interrupted) {
                             console.log("Model interrupted by user");
                             playerRef.current?.interrupt();
