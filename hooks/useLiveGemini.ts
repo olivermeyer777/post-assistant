@@ -58,7 +58,7 @@ export const useLiveGemini = ({
 
     try {
       const sessionPromise = genAI.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
         config: {
           systemInstruction: getSystemInstruction(language),
           responseModalities: [Modality.AUDIO], 

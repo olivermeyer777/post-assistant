@@ -1,6 +1,5 @@
-
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
+import { useState, useRef, useEffect } from 'react';
+import { GoogleGenAI, LiveServerMessage, Modality, Type } from "@google/genai";
 import { AudioRecorder, AudioStreamPlayer, arrayBufferToBase64, base64ToArrayBuffer } from '../utils/audioStreamer';
 import { Language } from '../types';
 import { AppSettings } from './useAppSettings'; 
@@ -25,10 +24,10 @@ const toolsDef = [
     name: "navigate_app",
     description: "Switch view. Params: view (string), mode (string).",
     parameters: {
-      type: "OBJECT",
+      type: Type.OBJECT,
       properties: {
-        view: { type: "STRING" },
-        mode: { type: "STRING" }
+        view: { type: Type.STRING },
+        mode: { type: Type.STRING }
       },
       required: ["view"]
     }
@@ -37,9 +36,9 @@ const toolsDef = [
     name: "control_step",
     description: "Go to step. Param: step (string).",
     parameters: {
-      type: "OBJECT",
+      type: Type.OBJECT,
       properties: {
-        step: { type: "STRING" }
+        step: { type: Type.STRING }
       },
       required: ["step"]
     }
@@ -48,15 +47,15 @@ const toolsDef = [
     name: "update_form_data",
     description: "Fill form. Params: receiverName, receiverCity, weightGrams, trackingCode, etc.",
     parameters: {
-      type: "OBJECT",
+      type: Type.OBJECT,
       properties: {
-        receiverName: { type: "STRING" },
-        receiverStreet: { type: "STRING" },
-        receiverCity: { type: "STRING" },
-        receiverZip: { type: "STRING" },
-        weightGrams: { type: "NUMBER" },
-        trackingCode: { type: "STRING" },
-        receiverType: { type: "STRING", enum: ["private", "company"] }
+        receiverName: { type: Type.STRING },
+        receiverStreet: { type: Type.STRING },
+        receiverCity: { type: Type.STRING },
+        receiverZip: { type: Type.STRING },
+        weightGrams: { type: Type.NUMBER },
+        trackingCode: { type: Type.STRING },
+        receiverType: { type: Type.STRING, enum: ["private", "company"] }
       }
     }
   },
@@ -64,9 +63,9 @@ const toolsDef = [
     name: "submit_feedback",
     description: "Submit rating. Param: score (number).",
     parameters: {
-      type: "OBJECT",
+      type: Type.OBJECT,
       properties: {
-        score: { type: "NUMBER" }
+        score: { type: Type.NUMBER }
       },
       required: ["score"]
     }
@@ -133,7 +132,7 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, onSubmitFeedback,
                     speechConfig: {
                         voiceConfig: { prebuiltVoiceConfig: { voiceName: settings.assistant.voiceName || 'Puck' } }
                     },
-                    tools: [{ functionDeclarations: toolsDef as any }],
+                    tools: [{ functionDeclarations: toolsDef }],
                 },
                 callbacks: {
                     onopen: async () => {
