@@ -13,6 +13,7 @@ import { VoiceControl } from './components/VoiceControl';
 import { useGeminiRealtime } from './hooks/useGeminiRealtime'; 
 import { useAppSettings } from './hooks/useAppSettings'; 
 import { SettingsView } from './components/SettingsView'; 
+import { buildSystemInstruction } from './utils/promptUtils';
 
 // Helper to generate IDs
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -104,6 +105,12 @@ export default function App() {
   const t = TRANSLATIONS[currentLang];
   const { speak, cancel: stopTTS } = useTTS();
 
+  const currentContext = {
+      view: view,
+      mode: view === 'self' ? selfServiceMode : 'N/A',
+      step: view === 'self' ? selfServiceStep : 'N/A'
+  };
+
   // --- GEMINI REALTIME HOOK ---
   const { 
       connect: connectVoice, 
@@ -115,11 +122,7 @@ export default function App() {
   } = useGeminiRealtime({
       currentLang,
       settings: settings, 
-      currentContext: {
-          view: view,
-          mode: view === 'self' ? selfServiceMode : 'N/A',
-          step: view === 'self' ? selfServiceStep : 'N/A'
-      },
+      currentContext: currentContext,
       onNavigate: (targetView, mode) => {
           console.log("Voice navigating to:", targetView, mode);
           if (targetView === 'home') setView('home');
@@ -185,7 +188,10 @@ export default function App() {
     setIsThinking(true);
 
     try {
-      const aiResponse = await sendMessageToGemini(text, currentLang);
+      // Build dynamic system instruction based on current context and settings
+      const dynamicInstruction = buildSystemInstruction(currentLang, settings, currentContext);
+      
+      const aiResponse = await sendMessageToGemini(text, currentLang, dynamicInstruction);
       
       const assistantMsg: Message = { 
           id: generateId(), 
@@ -388,7 +394,7 @@ export default function App() {
       {view !== 'home' && (
           <div className="lg:hidden">
             <VoiceControl 
-              isConnected={isVoiceConnected}
+              isConnected={isVoiceConnected} 
               isSpeaking={isVoiceSpeaking}
               isConnecting={isVoiceConnecting} 
               onToggle={isVoiceConnected ? disconnectVoice : connectVoice}

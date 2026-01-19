@@ -4,6 +4,7 @@ import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
 import { AudioRecorder, AudioStreamPlayer, arrayBufferToBase64, base64ToArrayBuffer } from '../utils/audioStreamer';
 import { Language } from '../types';
 import { AppSettings } from './useAppSettings'; 
+import { buildSystemInstruction } from '../utils/promptUtils';
 
 interface UseGeminiRealtimeProps {
     onNavigate: (view: string, mode?: string) => void;
@@ -18,7 +19,6 @@ interface UseGeminiRealtimeProps {
 }
 
 // FIX 1007: Use raw string literals for types instead of SDK Enums to avoid build/runtime mismatches.
-// ENHANCED: Added examples and strict allowed values in descriptions to guide the model.
 const toolsDef = [
   {
     name: "navigate_app",
@@ -54,15 +54,6 @@ const toolsDef = [
   }
 ];
 
-const PROMPT_TEMPLATES: Record<string, any> = {
-    de: { role: "Du bist der PostAssistant.", lang: "Antworte auf Deutsch." },
-    fr: { role: "Tu es le PostAssistant.", lang: "Réponds en français." },
-    it: { role: "Sei il PostAssistant.", lang: "Rispondi in italiano." },
-    en: { role: "You are the PostAssistant.", lang: "Answer in English." },
-    es: { role: "Eres el PostAssistant.", lang: "Responde en español." },
-    pt: { role: "És o PostAssistant.", lang: "Responde em português." }
-};
-
 export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, settings, currentContext }: UseGeminiRealtimeProps) => {
     const [isConnected, setIsConnected] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
@@ -80,22 +71,6 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
     useEffect(() => {
         actionsRef.current = { onNavigate, onControlStep };
     }, [onNavigate, onControlStep]);
-
-    const buildSystemInstruction = useCallback(() => {
-        const tmpl = PROMPT_TEMPLATES[currentLang] || PROMPT_TEMPLATES['de'];
-        return `
-        ${tmpl.role} ${tmpl.lang}
-        
-        CRITICAL RULES:
-        1. You have FULL CONTROL over the app navigation. 
-        2. If the user wants to perform an action (e.g., "Send a package", "Track shipment"), DO NOT explain how to do it.
-        3. INSTEAD, IMMEDIATELEY USE the 'navigate_app' tool to take them there.
-        4. Be proactive. Act first, talk later.
-        5. Keep verbal responses very short (max 1 sentence) when performing actions.
-        
-        Current State: View=${currentContext.view}, Step=${currentContext.step}.
-        `.trim();
-    }, [currentLang, currentContext]);
 
     const connect = async () => {
         if (isConnectedRef.current) return;
@@ -126,8 +101,10 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
         const genAI = new GoogleGenAI({ apiKey });
         
         try {
-            const systemInstruction = buildSystemInstruction();
-            console.log("Connecting to Gemini Live...");
+            // GENERATE DYNAMIC INSTRUCTION USING SHARED UTILITY
+            const systemInstruction = buildSystemInstruction(currentLang, settings, currentContext);
+            console.log("Connecting to Gemini Live with Instruction Length:", systemInstruction.length);
+            
             activeSessionLangRef.current = currentLang;
 
             const sessionPromise = genAI.live.connect({

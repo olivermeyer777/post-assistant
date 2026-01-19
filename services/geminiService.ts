@@ -1,25 +1,13 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-const SYSTEM_INSTRUCTION = `
+const DEFAULT_SYSTEM_INSTRUCTION = `
 You are the official AI Assistant for "Schweizer Post" (Swiss Post).
 Your goal is to answer customer questions accurately using ONLY information found on the Swiss Post website (post.ch).
 You have access to Google Search Grounding. 
-
-RULES:
-1. PRIORITIZE information from 'post.ch'.
-2. Keep answers concise, friendly, and helpful.
-3. If you cannot find the answer on post.ch or via search, politely say you don't know and suggest visiting a branch.
-4. Formatting: Use clear paragraphs. Do NOT use Markdown headers like ##.
-5. Language: Always answer in the language the user spoke to you in.
-
-IMPORTANT: If you can suggest specific next steps or actions based on the user's query, you MUST list them at the very end of your response.
-Format the list exactly like this: 
-BUTTONS: Option 1 | Option 2 | Option 3
-
-Example response:
-"You can track your package online using the tracking number."
-BUTTONS: Track Package | Find Branch
+PRIORITIZE information from 'post.ch'.
+Keep answers concise, friendly, and helpful.
+If you cannot find the answer on post.ch or via search, politely say you don't know.
 `;
 
 export interface GeminiResponse {
@@ -29,10 +17,10 @@ export interface GeminiResponse {
 
 export const sendMessageToGemini = async (
   message: string, 
-  languageContext: string
+  languageContext: string,
+  systemInstructionOverride?: string
 ): Promise<GeminiResponse> => {
   // Initialize using the environment variable per SDK standards
-  // Note: Vite polyfills process.env.API_KEY via vite.config.ts
   const apiKey = process.env.API_KEY;
 
   if (!apiKey) {
@@ -49,7 +37,8 @@ export const sendMessageToGemini = async (
       model: 'gemini-3-flash-preview',
       contents: `User Language Context: ${languageContext}. User Query: ${message}`,
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+        // Use the custom prompt from Settings if provided, otherwise default
+        systemInstruction: systemInstructionOverride || DEFAULT_SYSTEM_INSTRUCTION,
         tools: [{ googleSearch: {} }], // Enable Grounding
       }
     });

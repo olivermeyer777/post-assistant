@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAppSettings, ProcessConfig, KnowledgeDocument } from '../hooks/useAppSettings';
 
 // --- Sub-Component for File Management ---
@@ -19,6 +19,7 @@ const KnowledgeManager = ({
     const [isAdding, setIsAdding] = useState(false);
     const [newTitle, setNewTitle] = useState('');
     const [newContent, setNewContent] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleSave = () => {
         if (!newTitle.trim() || !newContent.trim()) return;
@@ -33,6 +34,31 @@ const KnowledgeManager = ({
         setIsAdding(false);
     };
 
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Auto-fill title
+        setNewTitle(file.name);
+
+        if (file.type === 'application/pdf') {
+            // PDF Handling in pure frontend is tricky without heavy libraries.
+            // We set a placeholder or try to read meaningful text if possible, 
+            // but for this prototype, we guide the user.
+            setNewContent("⚠️ HINWEIS: PDF-Parsing ist in diesem Prototyp eingeschränkt.\nBitte kopieren Sie den Text aus dem PDF und fügen Sie ihn hier ein, damit der Assistent ihn optimal lesen kann.");
+        } else {
+            // Read text/markdown/json/csv directly
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const text = ev.target?.result as string;
+                setNewContent(text);
+            };
+            reader.readAsText(file);
+        }
+        
+        setIsAdding(true);
+    };
+
     return (
         <section className="bg-white rounded-[2rem] shadow-sm border border-gray-200 p-8 flex flex-col h-full">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-3 text-gray-900">
@@ -44,7 +70,7 @@ const KnowledgeManager = ({
             <p className="text-sm text-gray-500 mb-6">{description}</p>
 
             {/* List of Documents */}
-            <div className="space-y-3 mb-6 flex-1">
+            <div className="space-y-3 mb-6 flex-1 max-h-[300px] overflow-y-auto pr-2">
                 {documents.length === 0 && (
                     <div className="text-center p-6 border-2 border-dashed border-gray-100 rounded-xl text-gray-400 text-sm">
                         Keine Dokumente hinterlegt.
@@ -54,10 +80,10 @@ const KnowledgeManager = ({
                     <div key={doc.id} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-xl group hover:border-gray-300 transition-colors">
                         <div className="flex items-center gap-3 overflow-hidden">
                             <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-gray-200 shadow-sm flex-shrink-0">
-                                <span className="text-xs font-bold text-red-600">PDF</span>
+                                <span className="text-xs font-bold text-red-600">DOC</span>
                             </div>
                             <div className="min-w-0">
-                                <h4 className="font-bold text-gray-900 text-sm truncate">{doc.title}</h4>
+                                <h4 className="font-bold text-gray-900 text-sm truncate" title={doc.title}>{doc.title}</h4>
                                 <p className="text-xs text-gray-500 truncate max-w-[200px]">{doc.content.substring(0, 40)}...</p>
                             </div>
                         </div>
@@ -75,31 +101,55 @@ const KnowledgeManager = ({
             {/* Add New Area */}
             {isAdding ? (
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 animate-fade-in">
+                    <div className="flex justify-between items-center mb-2">
+                         <h4 className="text-xs font-bold text-gray-400 uppercase">Neues Dokument</h4>
+                         <button onClick={() => setIsAdding(false)} className="text-gray-400 hover:text-gray-600">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                         </button>
+                    </div>
                     <input 
-                        className="w-full mb-3 p-3 text-sm font-bold border border-gray-200 rounded-lg focus:border-[#FFCC00] outline-none" 
-                        placeholder="Dokument Name (z.B. AGB.pdf)"
+                        className="w-full mb-3 p-3 text-sm font-bold border border-gray-200 rounded-lg focus:border-[#FFCC00] outline-none bg-white" 
+                        placeholder="Dokument Name (z.B. AGB.txt)"
                         value={newTitle}
                         onChange={(e) => setNewTitle(e.target.value)}
                     />
                     <textarea 
-                        className="w-full mb-3 p-3 text-sm border border-gray-200 rounded-lg focus:border-[#FFCC00] outline-none min-h-[100px]" 
+                        className="w-full mb-3 p-3 text-sm border border-gray-200 rounded-lg focus:border-[#FFCC00] outline-none min-h-[150px] font-mono leading-relaxed bg-white" 
                         placeholder="Inhalt des Dokuments hier einfügen..."
                         value={newContent}
                         onChange={(e) => setNewContent(e.target.value)}
                     />
                     <div className="flex gap-2">
-                        <button onClick={handleSave} className="flex-1 bg-black text-white py-2 rounded-lg text-sm font-bold hover:bg-gray-800">Speichern</button>
-                        <button onClick={() => setIsAdding(false)} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-200 rounded-lg">Abbrechen</button>
+                        <button onClick={handleSave} className="flex-1 bg-black text-white py-3 rounded-lg text-sm font-bold hover:bg-gray-800 transition-colors">Speichern</button>
                     </div>
                 </div>
             ) : (
-                <button 
-                    onClick={() => setIsAdding(true)}
-                    className="w-full py-4 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 font-bold text-sm hover:border-[#FFCC00] hover:text-gray-600 hover:bg-[#FFCC00]/5 transition-all flex items-center justify-center gap-2"
-                >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                    Dokument hinzufügen / Upload
-                </button>
+                <>
+                    <input 
+                        type="file" 
+                        ref={fileInputRef}
+                        className="hidden" 
+                        accept=".txt,.md,.json,.csv,.log"
+                        onChange={handleFileUpload}
+                    />
+                    <div className="flex gap-3">
+                         <button 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex-1 py-4 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 font-bold text-sm hover:border-[#FFCC00] hover:text-gray-800 hover:bg-[#FFCC00]/5 transition-all flex items-center justify-center gap-2"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                            Datei hochladen
+                        </button>
+                        <button 
+                            onClick={() => setIsAdding(true)}
+                            className="px-4 py-4 border-2 border-gray-100 rounded-xl text-gray-500 font-bold text-sm hover:border-gray-300 hover:bg-gray-50 transition-all flex items-center justify-center"
+                            title="Manuell erstellen"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        </button>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-2 text-center">Unterstützt: .txt, .md, .json (Textbasiert)</p>
+                </>
             )}
         </section>
     );
@@ -195,7 +245,7 @@ export const SettingsView = () => {
                     {/* Document Manager */}
                     <KnowledgeManager 
                         title="Globale Dokumente (Knowledge Base)"
-                        description="Laden Sie hier PDFs hoch (z.B. AGB, Leitbilder), die für ALLE Prozesse gelten. Der Assistent greift immer darauf zu."
+                        description="Laden Sie hier Dokumente hoch (z.B. AGB, Leitbilder), die für ALLE Prozesse gelten. Der Assistent greift immer darauf zu."
                         documents={settings.globalDocuments}
                         onAdd={addGlobalDocument}
                         onRemove={removeGlobalDocument}
@@ -214,7 +264,7 @@ export const SettingsView = () => {
                             value={settings.assistant.globalPrompt}
                             onChange={(e) => updateAssistant('globalPrompt', e.target.value)}
                             className="flex-1 w-full p-4 rounded-xl border border-gray-200 bg-gray-50 focus:border-[#FFCC00] outline-none min-h-[300px] text-sm font-mono leading-relaxed resize-none shadow-inner"
-                            placeholder="Z.B. Sei immer freundlich, aber extrem effizient..."
+                            placeholder="Z.B. Sei immer freundlich, aber extrem effizient. Begrüsse immer mit 'Grüezi'."
                         />
                     </section>
                 </div>
@@ -308,7 +358,7 @@ export const SettingsView = () => {
                                                     </div>
                                                     <div className="bg-white p-3 rounded-lg border border-gray-200">
                                                         <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Dokumente</span>
-                                                        <span className="text-sm font-semibold text-gray-700">{settings.globalDocuments.length} PDF(s)</span>
+                                                        <span className="text-sm font-semibold text-gray-700">{settings.globalDocuments.length} DOC(s)</span>
                                                     </div>
                                                     <div className="bg-white p-3 rounded-lg border border-gray-200">
                                                         <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Persona Prompt</span>
@@ -371,7 +421,7 @@ export const SettingsView = () => {
                                          {/* Process Specific Documents */}
                                          <KnowledgeManager 
                                             title="Prozess-Spezifische Dokumente"
-                                            description="Laden Sie hier PDFs hoch, die NUR für diesen Prozess relevant sind (z.B. Zollformulare für Pakete)."
+                                            description="Laden Sie hier Dokumente hoch, die NUR für diesen Prozess relevant sind (z.B. Zollformulare für Pakete)."
                                             documents={settings.processes[selectedProcessId].documents}
                                             onAdd={(doc) => addProcessDocument(selectedProcessId, doc)}
                                             onRemove={(id) => removeProcessDocument(selectedProcessId, id)}
