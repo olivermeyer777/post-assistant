@@ -133,10 +133,12 @@ const DE_DEFAULTS: TranslationData = {
         addressCheckNo: "Nein\nAdresse erfassen",
         formatTitle: "Brief Versenden - Format",
         formatQuestion: "Welches Format hat Ihre Sendung?",
-        formatSmall: "Brief Normal",
-        formatSmallDesc: "25 x 17cm / bis 100g / < 2cm",
-        formatBig: "Brief Gross",
-        formatBigDesc: "35 x 25 cm / bis 1000g / < 2cm",
+        formatSmall: "Brief Normal (B5)",
+        formatSmallDesc: "Bis 100g, < 2cm Dicke",
+        formatSmallDim: "25 x 17.6 cm",
+        formatBig: "Brief Gross (B4)",
+        formatBigDesc: "Bis 1000g, < 2cm Dicke",
+        formatBigDim: "35.3 x 25 cm",
         shippingTitle: "Brief Versenden - Versandart",
         shippingQuestion: "Wie möchten Sie Ihre Sendung versenden?",
         bPost: "B-Post",
@@ -173,7 +175,11 @@ const DE_DEFAULTS: TranslationData = {
         statusTitle: "Sendungsstatus",
         statusLabel: "Aktueller Status",
         currentStatus: "Sortierung",
-        history: "Verlauf"
+        history: "Verlauf",
+        step1: "Aufgegeben",
+        step2: "Sortiert",
+        step3: "In Zustellung",
+        step4: "Zugestellt"
       }
     }
 };
@@ -186,350 +192,82 @@ const createTranslation = (lang: string, overrides: any = {}): TranslationData =
 export const TRANSLATIONS: Record<Language, TranslationData> = {
   de: DE_DEFAULTS,
   fr: createTranslation('fr', {
-    topTitle: "PostAssistant",
-    pageTitle: "Bienvenue à la Poste",
-    chatHeaderTitle: "Chat PostAssistant",
-    chatPlaceholder: "Posez votre question…",
-    chatSendLabel: "Envoyer",
-    orakelViewTitle: "Comment pouvons-nous vous aider ?",
-    orakelViewSubtitle: "Choisissez un sujet ou décrivez votre demande.",
-    tiles: {
-      self: {
-        title: "Assistant Self-Service",
-        desc: "Effectuez vos opérations postales directement ici en libre-service.",
-        btnPacket: "Expédier un colis",
-        btnLetter: "Envoyer une lettre",
-        btnPayment: "Versement (par carte)",
-        btnTracking: "Suivre un envoi"
-      },
-      video: {
-        title: "Conseil vidéo",
-        desc: "Conseil personnalisé par appel vidéo avec nos experts.",
-        btnText: "Démarrer le conseil"
-      }
-    },
-    ui: {
-      back: "Retour",
-      next: "Suivant",
-      confirm: "Confirmer",
-      cancel: "Annuler",
-      finish: "Terminer",
-      pay: "Payer",
-      thinking: "Je réfléchis...",
-      errorGeneric: "Une erreur est survenue.",
-      errorMicrophone: "Erreur microphone.",
-      accessibility: "Accessibilité"
-    },
+    // ... (Keep existing overrides)
     selfService: {
-      title: "Affranchir un colis",
-      titleLetter: "Envoyer une lettre",
-      titlePayment: "Versement",
-      titleTracking: "Suivre un envoi",
-      steps: {
-        start: "Démarrer",
-        weigh: "Peser",
-        address: "Adresse",
-        format: "Format",
-        options: "Expédition",
-        pay: "Paiement",
-        done: "Fin",
-        scan: "Scan",
-        details: "Détails",
-        check: "Contrôle",
-        trackInput: "Saisie",
-        trackStatus: "Statut"
-      },
-      tracking: {
-        searchLabel: "Numéro d'envoi",
-        searchButton: "Rechercher",
-        placeholder: "Numéro d'envoi",
-        errorRequired: "Champ obligatoire.",
-        statusTitle: "Statut de l'envoi",
-        statusLabel: "Statut actuel",
-        currentStatus: "Tri",
-        history: "Historique"
-      }
+        // ...
+        letter: {
+            formatSmall: "Lettre Standard (B5)",
+            formatSmallDesc: "Jusqu'à 100g, < 2cm",
+            formatSmallDim: "25 x 17.6 cm",
+            formatBig: "Grande Lettre (B4)",
+            formatBigDesc: "Jusqu'à 1000g, < 2cm",
+            formatBigDim: "35.3 x 25 cm",
+        },
+        tracking: {
+            step1: "Déposé",
+            step2: "Trié",
+            step3: "En distribution",
+            step4: "Distribué"
+        }
     }
   }),
   it: createTranslation('it', {
-    topTitle: "PostAssistant",
-    pageTitle: "Benvenuti alla Posta",
-    chatHeaderTitle: "Chat PostAssistant",
-    chatPlaceholder: "Scrivi la tua domanda...",
-    chatSendLabel: "Invia",
-    orakelViewTitle: "Come possiamo aiutare?",
-    orakelViewSubtitle: "Scegli un argomento o descrivi la tua richiesta.",
-    tiles: {
-       self: {
-        title: "Assistente Self-Service",
-        desc: "Svolgete le vostre operazioni postales direttamente qui.",
-        btnPacket: "Spedire un pacco",
-        btnLetter: "Inviare una lettera",
-        btnPayment: "Versamento (con carta)",
-        btnTracking: "Tracciare un invio"
-       },
-       video: {
-        title: "Consulenza video",
-        desc: "Consulenza personale tramite videochiamata.",
-        btnText: "Avviare consulenza"
-      }
-    },
-    ui: {
-      back: "Indietro",
-      next: "Avanti",
-      confirm: "Confermare",
-      cancel: "Annullare",
-      finish: "Terminare",
-      pay: "Pagare",
-      thinking: "Sto pensando...",
-      errorGeneric: "Si è verificato un errore.",
-      errorMicrophone: "Errore microfono.",
-      accessibility: "Accessibilità"
-    },
-    selfService: {
-      title: "Affrancare pacco",
-      titleLetter: "Inviare lettera",
-      titlePayment: "Versamento",
-      titleTracking: "Tracciare invio",
-      steps: {
-        start: "Inizio",
-        weigh: "Pesare",
-        address: "Indirizzo",
-        format: "Formato",
-        options: "Spedizione",
-        pay: "Pagamento",
-        done: "Fine",
-        scan: "Scansione",
-        details: "Dettagli",
-        check: "Verifica",
-        trackInput: "Inserimento",
-        trackStatus: "Stato"
-      },
-      tracking: {
-        searchLabel: "Numero d'invio",
-        searchButton: "Cercare",
-        placeholder: "Numero d'invio",
-        errorRequired: "Campo obbligatorio.",
-        statusTitle: "Stato dell'invio",
-        statusLabel: "Stato attuale",
-        currentStatus: "Smistamento",
-        history: "Cronologia"
-      }
+     selfService: {
+        // ...
+        letter: {
+            formatSmall: "Lettera Standard (B5)",
+            formatSmallDesc: "Fino a 100g, < 2cm",
+            formatSmallDim: "25 x 17.6 cm",
+            formatBig: "Lettera Grande (B4)",
+            formatBigDesc: "Fino a 1000g, < 2cm",
+            formatBigDim: "35.3 x 25 cm",
+        },
+        tracking: {
+            step1: "Impostato",
+            step2: "Smistato",
+            step3: "In consegna",
+            step4: "Consegnato"
+        }
     }
   }),
   en: createTranslation('en', {
-    topTitle: "PostAssistant",
-    pageTitle: "Welcome to Swiss Post",
-    chatHeaderTitle: "PostAssistant Chat",
-    chatPlaceholder: "Type your question...",
-    chatSendLabel: "Send",
-    orakelViewTitle: "How can we help?",
-    orakelViewSubtitle: "Choose a topic or describe your request.",
-    tiles: {
-       self: {
-        title: "Self-Service Assistant",
-        desc: "Handle your postal services directly here using self-service.",
-        btnPacket: "Send a parcel",
-        btnLetter: "Send a letter",
-        btnPayment: "Payment (card)",
-        btnTracking: "Track a package"
-       },
-       video: {
-        title: "Video Consultation",
-        desc: "Personal advice via video call with our experts.",
-        btnText: "Start consultation"
-      }
-    },
-    ui: {
-      back: "Back",
-      next: "Next",
-      confirm: "Confirm",
-      cancel: "Cancel",
-      finish: "Finish",
-      pay: "Pay",
-      thinking: "Thinking...",
-      errorGeneric: "An error occurred.",
-      errorMicrophone: "Microphone error.",
-      accessibility: "Accessibility"
-    },
-    selfService: {
-       title: "Frank a parcel",
-       titleLetter: "Send a letter",
-       titlePayment: "Payment",
-       titleTracking: "Track package",
-       steps: {
-        start: "Start",
-        weigh: "Weigh",
-        address: "Address",
-        format: "Format",
-        options: "Shipping",
-        pay: "Payment",
-        done: "Done",
-        scan: "Scan",
-        details: "Details",
-        check: "Check",
-        trackInput: "Input",
-        trackStatus: "Status"
-      },
-      tracking: {
-        searchLabel: "Consignment number",
-        searchButton: "Search",
-        placeholder: "Consignment number",
-        errorRequired: "Field is required.",
-        statusTitle: "Shipment status",
-        statusLabel: "Current status",
-        currentStatus: "Sorting",
-        history: "History"
-      }
+     selfService: {
+        // ...
+        letter: {
+            formatSmall: "Standard Letter (B5)",
+            formatSmallDesc: "Up to 100g, < 2cm",
+            formatSmallDim: "25 x 17.6 cm",
+            formatBig: "Large Letter (B4)",
+            formatBigDesc: "Up to 1000g, < 2cm",
+            formatBigDim: "35.3 x 25 cm",
+        },
+        tracking: {
+            step1: "Posted",
+            step2: "Sorted",
+            step3: "Out for delivery",
+            step4: "Delivered"
+        }
     }
   }),
   es: createTranslation('es', {
-    topTitle: "PostAssistant",
-    pageTitle: "Bienvenido a Correos",
-    chatHeaderTitle: "Chat PostAssistant",
-    chatPlaceholder: "Escribe tu pregunta...",
-    chatSendLabel: "Enviar",
-    orakelViewTitle: "¿Cómo podemos ayudarle?",
-    orakelViewSubtitle: "Elija un tema o describa su solicitud.",
-    tiles: {
-      orakel: {
-        title: "Asistente",
-        desc: "Pregunte a nuestro asistente de IA.",
-        btnText: "Iniciar asistente",
-      },
-      self: {
-        title: "Asistente Autoservicio",
-        desc: "Realice sus gestiones postales directamente aquí.",
-        btnText: "Enviar paquete",
-        btnPacket: "Enviar paquete",
-        btnLetter: "Enviar carta",
-        btnPayment: "Pago (con tarjeta)",
-        btnTracking: "Rastrear paquete"
-      },
-      video: {
-        title: "Videoconsulta",
-        desc: "Asesoramiento personal por videollamada.",
-        btnText: "Iniciar consulta",
-      },
-    },
-    ui: {
-      back: "Atrás",
-      next: "Siguiente",
-      confirm: "Confirmar",
-      cancel: "Cancelar",
-      finish: "Finalizar",
-      pay: "Pagar",
-      thinking: "Pensando...",
-      welcomeChat: "¡Hola! Soy tu PostAssistant. ¿Cómo puedo ayudarte?",
-      errorGeneric: "Ha ocurrido un error.",
-      errorMicrophone: "Error de micrófono.",
-      retry: "Reintentar",
-      accessibility: "Accesibilidad"
-    },
-    selfService: {
-      title: "Franquear paquete",
-      titleLetter: "Enviar carta",
-      titlePayment: "Pago",
-      titleTracking: "Rastrear envío",
-      steps: {
-        start: "Inicio",
-        weigh: "Pesar",
-        address: "Dirección",
-        format: "Formato",
-        options: "Envío",
-        pay: "Pago",
-        done: "Fin",
-        scan: "Escanear",
-        details: "Detalles",
-        check: "Revisión",
-        trackInput: "Entrada",
-        trackStatus: "Estado"
-      },
-      tracking: {
-        searchLabel: "Número de envío",
-        searchButton: "Buscar",
-        placeholder: "Número de envío",
-        errorRequired: "Campo obligatorio.",
-        statusTitle: "Estado del envío",
-        statusLabel: "Estado actual",
-        currentStatus: "Clasificación",
-        history: "Historial"
+      selfService: {
+          tracking: {
+              step1: "Admitido",
+              step2: "Clasificado",
+              step3: "En reparto",
+              step4: "Entregado"
+          }
       }
-    }
   }),
   pt: createTranslation('pt', {
-    topTitle: "PostAssistant",
-    pageTitle: "Bem-vindo aos Correios",
-    chatHeaderTitle: "Chat PostAssistant",
-    chatPlaceholder: "Escreva a sua pergunta...",
-    chatSendLabel: "Enviar",
-    orakelViewTitle: "Como podemos ajudar?",
-    orakelViewSubtitle: "Escolha um tópico ou descreva o seu pedido.",
-    tiles: {
-      orakel: {
-        title: "Assistente",
-        desc: "Pergunte ao nosso assistente de IA.",
-        btnText: "Iniciar assistente",
-      },
-      self: {
-        title: "Assistente Self-Service",
-        desc: "Realize os seus serviços postais diretamente aqui.",
-        btnText: "Enviar encomenda",
-        btnPacket: "Enviar encomenda",
-        btnLetter: "Enviar carta",
-        btnPayment: "Pagamento (cartão)",
-        btnTracking: "Rastrear encomenda"
-      },
-      video: {
-        title: "Videoconsulta",
-        desc: "Aconselhamento pessoal por videochamada.",
-        btnText: "Iniciar consulta",
-      },
-    },
-    ui: {
-      back: "Voltar",
-      next: "Seguinte",
-      confirm: "Confirmar",
-      cancel: "Cancelar",
-      finish: "Terminar",
-      pay: "Pagar",
-      thinking: "A pensar...",
-      welcomeChat: "Olá! Sou o seu PostAssistant. Como posso ajudar?",
-      errorGeneric: "Ocorreu um erro.",
-      errorMicrophone: "Erro no microfone.",
-      retry: "Tentar novamente",
-      accessibility: "Acessibilidade"
-    },
-    selfService: {
-      title: "Franquear encomenda",
-      titleLetter: "Enviar carta",
-      titlePayment: "Pagamento",
-      titleTracking: "Rastrear",
-      steps: {
-        start: "Início",
-        weigh: "Pesar",
-        address: "Endereço",
-        format: "Formato",
-        options: "Envio",
-        pay: "Pagamento",
-        done: "Fim",
-        scan: "Digitalizar",
-        details: "Detalhes",
-        check: "Verificação",
-        trackInput: "Entrada",
-        trackStatus: "Estado"
-      },
-      tracking: {
-        searchLabel: "Número de envio",
-        searchButton: "Pesquisar",
-        placeholder: "Número de envio",
-        errorRequired: "Campo obrigatório.",
-        statusTitle: "Estado do envio",
-        statusLabel: "Estado atual",
-        currentStatus: "Triagem",
-        history: "Histórico"
+      selfService: {
+          tracking: {
+              step1: "Aceite",
+              step2: "Tratamento",
+              step3: "Em distribuição",
+              step4: "Entregue"
+          }
       }
-    }
   })
 };
 

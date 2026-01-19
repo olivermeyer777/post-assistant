@@ -107,8 +107,10 @@ export interface TranslationData {
       formatQuestion: string;
       formatSmall: string;
       formatSmallDesc: string;
+      formatSmallDim: string; // New
       formatBig: string;
       formatBigDesc: string;
+      formatBigDim: string; // New
       shippingTitle: string;
       shippingQuestion: string;
       bPost: string;
@@ -147,6 +149,10 @@ export interface TranslationData {
       statusLabel: string;
       currentStatus: string;
       history: string;
+      step1: string; // Accepted
+      step2: string; // Sorted
+      step3: string; // Delivery
+      step4: string; // Delivered
     };
   }
 }

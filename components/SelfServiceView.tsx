@@ -71,6 +71,13 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
   // Tracking Specific
   const [trackingCode, setTrackingCode] = useState('');
   const [trackingError, setTrackingError] = useState(false);
+  // Simulated Tracking History
+  const [trackHistory, setTrackHistory] = useState([
+      { status: 'step1', date: '08.10.2023', time: '14:30', location: 'Bern 1' },
+      { status: 'step2', date: '08.10.2023', time: '19:45', location: 'Härkingen' },
+      { status: 'step3', date: '09.10.2023', time: '06:15', location: 'Zürich Mülligen' },
+      { status: 'step4', date: '', time: '', location: '' } // Pending
+  ]);
 
   const [feedbackScore, setFeedbackScore] = useState<number | null>(null);
 
@@ -185,7 +192,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
       setTimeout(() => {
           setIsScanning(false);
           setStep('payDetails');
-      }, 2000);
+      }, 3000); // Longer for realism
   };
 
   const handleTrackingSearch = (e: React.FormEvent) => {
@@ -272,16 +279,11 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
     );
   };
 
-  // --- Views (Unchanged logic, just rendering) ---
-  // ... (Skipping deep internals for brevity as they are presentation only, reusing logic)
-  
-  // Re-implementing render functions with updated handlers...
-  
   const renderTrackInputView = () => (
     <div className="flex flex-col gap-8 min-h-[400px]">
         <div className="w-full bg-[#FFCC00] p-8 md:p-12 rounded-[2rem] shadow-lg relative overflow-hidden">
              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
-             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-8">{t.selfService.titleTracking}</h2>
+             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-8">{t.selfService.tracking.searchLabel}</h2>
              <form onSubmit={handleTrackingSearch} className="flex flex-col md:flex-row items-stretch gap-0 shadow-2xl rounded-sm overflow-hidden">
                  <div className="flex-1 relative">
                     <input
@@ -312,15 +314,54 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
   const renderTrackStatusView = () => (
       <div className="flex flex-col gap-8 min-h-[400px]">
           <div className="bg-white border border-gray-200 rounded-[2rem] p-8 shadow-lg">
-             <div className="flex justify-between items-start border-b border-gray-100 pb-6 mb-6">
+             <div className="flex justify-between items-start border-b border-gray-100 pb-6 mb-8">
                  <div>
                      <div className="text-sm text-gray-500 font-bold uppercase tracking-wider mb-1">{t.selfService.tracking.searchLabel}</div>
                      <div className="text-2xl font-mono font-bold text-gray-900">{trackingCode || "99.00.384059.20394"}</div>
                  </div>
-                 <div className="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-bold">
-                     {t.selfService.tracking.currentStatus}: {t.selfService.tracking.statusLabel}
+                 <div className="bg-yellow-50 text-yellow-800 px-4 py-2 rounded-full text-sm font-bold border border-yellow-200">
+                     {t.selfService.tracking.step3}
                  </div>
              </div>
+             
+             {/* VERTICAL TIMELINE */}
+             <div className="relative pl-4 space-y-8">
+                {/* Vertical Line */}
+                <div className="absolute left-6 top-2 bottom-2 w-0.5 bg-gray-200"></div>
+
+                {trackHistory.map((event, idx) => {
+                    const isCompleted = !!event.date;
+                    const isLastCompleted = isCompleted && (!trackHistory[idx + 1] || !trackHistory[idx + 1].date);
+                    
+                    // Translation Key Mapping
+                    const stepLabel = t.selfService.tracking[event.status as keyof typeof t.selfService.tracking] || event.status;
+
+                    return (
+                        <div key={idx} className={`relative flex items-start gap-6 ${isCompleted ? 'opacity-100' : 'opacity-40'}`}>
+                            {/* Dot */}
+                            <div className={`
+                                relative z-10 w-5 h-5 rounded-full border-4 
+                                ${isLastCompleted ? 'bg-[#FFCC00] border-[#FFCC00] ring-4 ring-yellow-50' : isCompleted ? 'bg-black border-black' : 'bg-white border-gray-300'}
+                            `}></div>
+                            
+                            {/* Content */}
+                            <div className="flex-1 -mt-1">
+                                <h4 className={`font-bold text-lg ${isLastCompleted ? 'text-[#FFCC00]' : 'text-gray-900'}`}>{stepLabel}</h4>
+                                {isCompleted && (
+                                    <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
+                                        <span>{event.date}</span>
+                                        <span>•</span>
+                                        <span>{event.time}</span>
+                                        <span>•</span>
+                                        <span>{event.location}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+             </div>
+
              <div className="mt-10 pt-6 border-t border-gray-100 flex justify-end">
                  <button onClick={() => setStep('trackInput')} className="text-sm font-bold text-blue-600 hover:underline">
                      {t.selfService.tracking.searchButton}
@@ -418,13 +459,29 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
   const renderScanView = () => (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-8">{t.selfService.payment.scanInstruction}</h2>
-          <button onClick={simulateScanning} className="w-64 h-64 bg-white border-2 border-gray-200 rounded-[2rem] flex flex-col items-center justify-center hover:border-black hover:bg-black hover:text-white transition-all duration-300 relative overflow-hidden group shadow-lg">
+          <button onClick={simulateScanning} className="relative w-72 h-72 bg-gray-900 rounded-[2rem] flex flex-col items-center justify-center overflow-hidden shadow-2xl group cursor-pointer border-4 border-gray-900">
+             
+             {/* Camera Feed Simulation */}
+             <div className="absolute inset-0 bg-gray-800 opacity-50"></div>
+             
+             {/* Scan Overlay UI */}
+             <div className="absolute inset-8 border-2 border-white/50 rounded-xl">
+                 <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-[#FFCC00] -mt-1 -ml-1"></div>
+                 <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-[#FFCC00] -mt-1 -mr-1"></div>
+                 <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-[#FFCC00] -mb-1 -ml-1"></div>
+                 <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-[#FFCC00] -mb-1 -mr-1"></div>
+             </div>
+
              {isScanning ? (
-                 <div className="absolute inset-0 bg-black flex items-center justify-center">
-                     <div className="w-full h-0.5 bg-red-500 absolute top-0 animate-[scan_2s_infinite_linear] shadow-[0_0_15px_rgba(255,0,0,0.7)]"></div>
-                 </div>
+                 <>
+                    {/* Scanning Laser */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-red-500/20 to-transparent animate-[scan_2s_infinite_linear] h-1/2 w-full top-0"></div>
+                    <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 shadow-[0_0_15px_rgba(255,0,0,1)] animate-[scan_2s_infinite_linear]"></div>
+                    <div className="absolute bottom-6 bg-black/60 text-white px-3 py-1 rounded-full text-xs font-mono animate-pulse">Scanning...</div>
+                 </>
              ) : (
-                 <div className="flex flex-col items-center transition-transform group-hover:scale-105">
+                 <div className="flex flex-col items-center z-10 text-white group-hover:scale-105 transition-transform">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="mb-2 opacity-80"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M7 7h3v3H7z"/><path d="M14 7h3v3h-3z"/><path d="M7 14h3v3H7z"/><path d="M14 14h3v3h-3z"/></svg>
                     <span className="font-bold text-lg">{t.selfService.payment.scanAction}</span>
                  </div>
              )}
@@ -457,8 +514,42 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
      </div>
   );
 
-  // Placeholder for other simple renders that don't have complex interaction logic changes
-  // We ensure all setSteps are now using the prop
+  const renderFormatView = () => (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-12">
+            <h2 className="text-2xl font-bold text-gray-900">{t.selfService.letter.formatQuestion}</h2>
+            <div className="flex flex-col md:flex-row gap-8 w-full max-w-4xl justify-center items-end">
+                {/* Small Letter */}
+                <button 
+                    onClick={() => { setLetterFormat('small'); setStep('options'); }} 
+                    className="flex-1 flex flex-col items-center gap-4 group"
+                >
+                    <div className="relative w-48 h-32 bg-white border-2 border-gray-300 rounded shadow-md group-hover:border-black group-hover:shadow-xl transition-all flex items-center justify-center">
+                        <span className="text-xs text-gray-400 font-mono absolute top-2 right-2">B5</span>
+                    </div>
+                    <div className="text-center">
+                        <span className="block font-bold text-xl mb-1">{t.selfService.letter.formatSmall}</span>
+                        <span className="block text-sm text-gray-500">{t.selfService.letter.formatSmallDesc}</span>
+                        <span className="block text-xs font-mono text-gray-400 mt-1">{t.selfService.letter.formatSmallDim}</span>
+                    </div>
+                </button>
+
+                {/* Big Letter */}
+                <button 
+                    onClick={() => { setLetterFormat('big'); setStep('options'); }} 
+                    className="flex-1 flex flex-col items-center gap-4 group"
+                >
+                    <div className="relative w-64 h-48 bg-white border-2 border-gray-300 rounded shadow-md group-hover:border-black group-hover:shadow-xl transition-all flex items-center justify-center">
+                        <span className="text-xs text-gray-400 font-mono absolute top-2 right-2">B4</span>
+                    </div>
+                    <div className="text-center">
+                        <span className="block font-bold text-xl mb-1">{t.selfService.letter.formatBig}</span>
+                        <span className="block text-sm text-gray-500">{t.selfService.letter.formatBigDesc}</span>
+                         <span className="block text-xs font-mono text-gray-400 mt-1">{t.selfService.letter.formatBigDim}</span>
+                    </div>
+                </button>
+            </div>
+      </div>
+  );
   
   const renderSuccessView = () => (
      <div className="flex flex-col items-center justify-center min-h-[400px] text-center animate-fade-in">
@@ -472,9 +563,6 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
         </div>
      </div>
   );
-
-  // To keep file size manageable, we assume the other render methods (renderPaymentDetails, renderAddressCheck, etc) are purely presentational and use the `step` prop implicitly via the main render switch.
-  // I will include the main switch logic below which acts as the controller.
 
   return (
     <section className="mt-4 md:mt-10 animate-fade-in w-full max-w-4xl mx-auto">
@@ -499,19 +587,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
                     </div>
                 </div>
             )}
-            {step === 'format' && (
-                <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-8">
-                    <h2 className="text-2xl font-bold text-gray-900">{t.selfService.letter.formatQuestion}</h2>
-                    <div className="flex flex-col md:flex-row gap-6 w-full max-w-3xl">
-                        <button onClick={() => { setLetterFormat('small'); setStep('options'); }} className="flex-1 rounded-2xl p-8 border-2 bg-white hover:border-black transition-all">
-                            <span className="block font-bold text-xl mb-2">{t.selfService.letter.formatSmall}</span>
-                        </button>
-                        <button onClick={() => { setLetterFormat('big'); setStep('options'); }} className="flex-1 rounded-2xl p-8 border-2 bg-white hover:border-black transition-all">
-                            <span className="block font-bold text-xl mb-2">{t.selfService.letter.formatBig}</span>
-                        </button>
-                    </div>
-                </div>
-            )}
+            {step === 'format' && renderFormatView()}
             {step === 'options' && renderOptionsView()}
             {step === 'extras' && (
                  <div className="flex flex-col gap-8 min-h-[400px]">
