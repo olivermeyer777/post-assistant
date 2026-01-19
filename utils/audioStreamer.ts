@@ -16,16 +16,25 @@ export class AudioRecorder {
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Use standard AudioContext without forcing sampleRate (better compatibility)
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
+      this.audioContext = new AudioContextClass();
+
+      // CRITICAL: Explicitly resume audio context. 
+      // Browsers often start contexts in 'suspended' state.
+      if (this.audioContext.state === 'suspended') {
+          await this.audioContext.resume();
+      }
       
       const sourceSampleRate = this.audioContext.sampleRate;
       
       this.source = this.audioContext.createMediaStreamSource(this.stream);
-      // Use 4096 buffer size for balance between latency and performance
+      // Buffer size 4096 gives ~85ms latency at 48kHz, good balance
       this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
 
       this.processor.onaudioprocess = (e) => {
+        // Safety check: if context is closed/suspended, do nothing
+        if (!this.audioContext || this.audioContext.state === 'closed') return;
+
         const inputData = e.inputBuffer.getChannelData(0);
         
         // Downsample to target rate (e.g. 48000 -> 16000)
@@ -34,7 +43,10 @@ export class AudioRecorder {
         // Convert Float32 to Int16 PCM
         const pcmData = this.convertFloat32ToInt16(downsampledData);
         
-        this.onDataAvailable(pcmData.buffer);
+        // Only send if we have data
+        if (pcmData.byteLength > 0) {
+            this.onDataAvailable(pcmData.buffer);
+        }
       };
 
       this.source.connect(this.processor);
@@ -51,8 +63,7 @@ export class AudioRecorder {
           return buffer;
       }
       if (outSampleRate > sampleRate) {
-          // Upsampling not supported in this simple implementation
-          return buffer;
+          return buffer; // Upsampling not handled, return as is
       }
       
       const sampleRateRatio = sampleRate / outSampleRate;
@@ -65,7 +76,6 @@ export class AudioRecorder {
       while (offsetResult < result.length) {
           const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
           
-          // Simple averaging (low-pass filter effect) to prevent aliasing
           let accum = 0, count = 0;
           for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
               accum += buffer[i];
@@ -94,8 +104,10 @@ export class AudioRecorder {
 
   stop() {
     if (this.processor && this.source) {
-      this.source.disconnect();
-      this.processor.disconnect();
+      try {
+        this.source.disconnect();
+        this.processor.disconnect();
+      } catch(e) {}
     }
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
@@ -115,19 +127,12 @@ export class AudioStreamPlayer {
   scheduledSources: AudioBufferSourceNode[] = [];
   
   constructor() {
-    // Try to use 24kHz for playback if supported, else default
-    try {
-        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-          sampleRate: 24000, 
-        });
-    } catch (e) {
-        // Fallback to default system rate
-        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
+    const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
+    this.audioContext = new AudioContextClass({ sampleRate: 24000 }); // Try 24k preference
     
     if (this.audioContext) {
         this.gainNode = this.audioContext.createGain();
-        this.gainNode.gain.value = 1.2; // Boost volume slightly
+        this.gainNode.gain.value = 1.2; 
         this.gainNode.connect(this.audioContext.destination);
     }
   }
@@ -141,12 +146,10 @@ export class AudioStreamPlayer {
   async addChunk(data: ArrayBuffer) {
     if (!this.audioContext || !this.gainNode) return;
 
-    // Ensure context is running
     if (this.audioContext.state === 'suspended') {
         await this.audioContext.resume();
     }
 
-    // Convert Int16 PCM -> Float32
     const float32Data = new Float32Array(data.byteLength / 2);
     const dataView = new DataView(data);
     
@@ -164,8 +167,9 @@ export class AudioStreamPlayer {
 
     const currentTime = this.audioContext.currentTime;
     
+    // Gapless playback logic
     if (this.nextStartTime < currentTime) {
-      this.nextStartTime = currentTime;
+      this.nextStartTime = currentTime + 0.05; // Small buffer if fell behind
     }
     
     source.onended = () => {
