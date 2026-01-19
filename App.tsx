@@ -11,8 +11,8 @@ import { useTTS } from './hooks/useTTS';
 import { AssistantTile } from './components/AssistantTile';
 import { VoiceControl } from './components/VoiceControl';
 import { useGeminiRealtime } from './hooks/useGeminiRealtime'; 
-import { useAppSettings } from './hooks/useAppSettings'; // New Hook
-import { SettingsView } from './components/SettingsView'; // New View
+import { useAppSettings } from './hooks/useAppSettings'; 
+import { SettingsView } from './components/SettingsView'; 
 
 // Helper to generate IDs
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -74,7 +74,6 @@ const ErrorBanner = ({ message, onClose }: { message: string, onClose: () => voi
 type ViewState = 'home' | 'oracle' | 'self' | 'video';
 
 export default function App() {
-  // Check for Settings View Query Param
   const [isSettingsView, setIsSettingsView] = useState(false);
   
   useEffect(() => {
@@ -84,14 +83,11 @@ export default function App() {
     }
   }, []);
 
-  // --- SETTINGS HOOK ---
   const { settings } = useAppSettings();
 
-  // --- STATE ---
   const [currentLang, setCurrentLang] = useState<Language>('de');
   const [view, setView] = useState<ViewState>('home');
   
-  // Self Service State
   const [selfServiceMode, setSelfServiceMode] = useState<'packet' | 'letter' | 'payment' | 'tracking'>('packet');
   const [selfServiceStep, setSelfServiceStep] = useState<SelfServiceStep>('destination');
 
@@ -109,7 +105,7 @@ export default function App() {
   const { speak, cancel: stopTTS } = useTTS();
 
   // --- GEMINI REALTIME HOOK ---
-  const { connect: connectVoice, disconnect: disconnectVoice, isConnected: isVoiceConnected, isSpeaking: isVoiceSpeaking } = useGeminiRealtime({
+  const { connect: connectVoice, disconnect: disconnectVoice, isConnected: isVoiceConnected, isSpeaking: isVoiceSpeaking, isConnecting: isVoiceConnecting } = useGeminiRealtime({
       currentLang,
       settings: settings, 
       currentContext: {
@@ -143,7 +139,6 @@ export default function App() {
       }
   }, [view, selfServiceMode]);
 
-  // Update initial welcome message on language change
   useEffect(() => {
     setMessages(prev => {
       const firstMsg = prev[0];
@@ -154,7 +149,6 @@ export default function App() {
     });
   }, [currentLang, t.ui.welcomeChat]);
 
-  // Toggle Accessibility Class
   useEffect(() => {
     if (isAccessibilityMode) {
       document.body.classList.add('accessibility-mode');
@@ -162,8 +156,6 @@ export default function App() {
       document.body.classList.remove('accessibility-mode');
     }
   }, [isAccessibilityMode]);
-
-  // --- HANDLERS ---
 
   const handleSendMessage = async (text: string) => {
     const userMsg: Message = { id: generateId(), sender: 'user', text };
@@ -311,7 +303,8 @@ export default function App() {
 
                <AssistantTile 
                   isConnected={isVoiceConnected} 
-                  isSpeaking={isVoiceSpeaking} 
+                  isSpeaking={isVoiceSpeaking}
+                  isConnecting={isVoiceConnecting} // Pass Loading State
                   onToggle={isVoiceConnected ? disconnectVoice : connectVoice}
                />
             </div>
@@ -359,6 +352,7 @@ export default function App() {
           <VoiceControl 
             isConnected={isVoiceConnected}
             isSpeaking={isVoiceSpeaking}
+            isConnecting={isVoiceConnecting} // Pass Loading State
             onToggle={isVoiceConnected ? disconnectVoice : connectVoice}
           />
       )}

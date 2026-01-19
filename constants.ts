@@ -350,11 +350,46 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
   }),
   es: createTranslation('es', {
       pageTitle: "Bienvenido a Correos",
-      ui: { back: "Atrás", next: "Siguiente", pay: "Pagar", accessibility: "Accesibilidad", welcomeChat: "¡Hola! Soy tu asistente." },
+      orakelViewSubtitle: "Elija un tema o describa su solicitud.",
+      tiles: {
+         self: {
+             title: "Asistente de autoservicio",
+             desc: "Realice sus operaciones postales directamente aquí, con la ayuda de un asistente digital si es necesario.",
+             btnPacket: "Enviar paquete",
+             btnLetter: "Enviar carta",
+             btnPayment: "Pago",
+             btnTracking: "Rastrear paquete"
+         }
+      },
+      ui: { 
+          back: "Atrás", 
+          next: "Siguiente", 
+          pay: "Pagar", 
+          accessibility: "Accesibilidad", 
+          welcomeChat: "¡Hola! Soy tu asistente. ¿Cómo puedo ayudarte?",
+          thinking: "Pensando..."
+      },
       selfService: {
+          title: "Franquear paquete",
+          titleLetter: "Enviar carta",
+          titlePayment: "Pago",
+          titleTracking: "Seguimiento",
           franking: {
                packetAddressCheckQuestion: "¿La dirección del destinatario ya está en el paquete?",
-               feedbackQuestion: "¿Qué probabilidad hay de que recomiende este servicio?"
+               feedbackQuestion: "¿Qué probabilidad hay de que recomiende este servicio?",
+               destCH: "Suiza / Liechtenstein",
+               weighAction: "Pesar paquete",
+               payButton: "Confirmar pago"
+          },
+          letter: {
+            formatSmall: "Carta Estándar (B5)",
+            formatSmallDesc: "Hasta 100g, < 2cm",
+            formatSmallDim: "25 x 17.6 cm",
+            formatBig: "Carta Grande (B4)",
+            formatBigDesc: "Hasta 1000g, < 2cm",
+            formatBigDim: "35.3 x 25 cm",
+            addressCheckYes: "Sí, dirección presente",
+            addressCheckNo: "No, introducir dirección"
           },
           tracking: {
               step1: "Admitido",
@@ -366,11 +401,46 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
   }),
   pt: createTranslation('pt', {
       pageTitle: "Bem-vindo aos Correios",
-      ui: { back: "Voltar", next: "Seguinte", pay: "Pagar", accessibility: "Acessibilidade", welcomeChat: "Olá! Sou o seu assistente." },
+      orakelViewSubtitle: "Escolha um tópico ou descreva o seu pedido.",
+      tiles: {
+         self: {
+             title: "Assistente de Self-Service",
+             desc: "Trate dos seus assuntos postais diretamente aqui, com o apoio de um assistente digital, se necessário.",
+             btnPacket: "Enviar encomenda",
+             btnLetter: "Enviar carta",
+             btnPayment: "Pagamento",
+             btnTracking: "Rastrear objeto"
+         }
+      },
+      ui: { 
+          back: "Voltar", 
+          next: "Seguinte", 
+          pay: "Pagar", 
+          accessibility: "Acessibilidade", 
+          welcomeChat: "Olá! Sou o seu assistente. Como posso ajudar?",
+          thinking: "A pensar..."
+      },
       selfService: {
+          title: "Franquiar encomenda",
+          titleLetter: "Enviar carta",
+          titlePayment: "Pagamento",
+          titleTracking: "Rastrear envio",
           franking: {
                packetAddressCheckQuestion: "O endereço do destinatário já está na encomenda?",
-               feedbackQuestion: "Qual a probabilidade de recomendar este serviço?"
+               feedbackQuestion: "Qual a probabilidade de recomendar este serviço?",
+               destCH: "Suíça / Liechtenstein",
+               weighAction: "Pesar encomenda",
+               payButton: "Confirmar pagamento"
+          },
+          letter: {
+            formatSmall: "Carta Padrão (B5)",
+            formatSmallDesc: "Até 100g, < 2cm",
+            formatSmallDim: "25 x 17.6 cm",
+            formatBig: "Carta Grande (B4)",
+            formatBigDesc: "Até 1000g, < 2cm",
+            formatBigDim: "35.3 x 25 cm",
+            addressCheckYes: "Sim, endereço presente",
+            addressCheckNo: "Não, inserir endereço"
           },
           tracking: {
               step1: "Aceite",

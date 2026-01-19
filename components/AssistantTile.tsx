@@ -4,12 +4,12 @@ import React from 'react';
 interface AssistantTileProps {
   isConnected: boolean;
   isSpeaking: boolean;
+  isConnecting?: boolean; // New Prop
   onToggle: () => void;
 }
 
-export const AssistantTile: React.FC<AssistantTileProps> = ({ isConnected, isSpeaking, onToggle }) => {
+export const AssistantTile: React.FC<AssistantTileProps> = ({ isConnected, isSpeaking, isConnecting = false, onToggle }) => {
   
-  // Safe handler to prevent bubbling issues
   const handleToggle = (e?: React.MouseEvent) => {
       if (e) e.stopPropagation();
       onToggle();
@@ -18,7 +18,6 @@ export const AssistantTile: React.FC<AssistantTileProps> = ({ isConnected, isSpe
   return (
     <div className="lg:col-span-1 flex flex-col items-center justify-center h-full gap-6 p-4 relative z-10">
         
-        {/* The Clickable Trigger Area - Vertical Pill Shape */}
         <button 
             onClick={handleToggle}
             className={`
@@ -35,7 +34,6 @@ export const AssistantTile: React.FC<AssistantTileProps> = ({ isConnected, isSpe
              {isConnected && (
                  <>
                     <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-black rounded-[10rem] overflow-hidden">
-                         {/* Animated Speaking Gradient */}
                          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] bg-gradient-to-t from-indigo-500 via-purple-500 to-orange-500 opacity-40 blur-3xl transition-all duration-200 ${isSpeaking ? 'scale-125' : 'scale-100 animate-pulse'}`}></div>
                     </div>
                  </>
@@ -43,7 +41,12 @@ export const AssistantTile: React.FC<AssistantTileProps> = ({ isConnected, isSpe
 
             {/* Icon / Visualizer */}
             <div className="relative z-10 flex-1 flex flex-col items-center justify-center w-full">
-                 {isConnected ? (
+                 {isConnecting ? (
+                     <div className="flex flex-col items-center justify-center gap-2">
+                        <div className="w-8 h-8 border-4 border-gray-200 border-t-yellow-500 rounded-full animate-spin"></div>
+                        <span className="text-[10px] font-bold text-gray-400">Verbinde...</span>
+                    </div>
+                 ) : isConnected ? (
                      // Visualizer
                      <div className="flex flex-col items-center gap-6">
                          <div className="flex gap-1.5 items-center justify-center h-16">
@@ -59,25 +62,17 @@ export const AssistantTile: React.FC<AssistantTileProps> = ({ isConnected, isSpe
                  ) : (
                      // THE NEW ICON (Robot + Sparkle)
                      <div className="relative">
-                        {/* Main Icon Box - Purple/Pink Gradient Squircle */}
                         <div className="w-20 h-20 bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-purple-500/20 transform transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3">
-                             {/* Robot Face SVG */}
                              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                {/* Head */}
                                 <rect x="4" y="8" width="16" height="12" rx="4" />
-                                {/* Eyes */}
                                 <path d="M9 13v.01" strokeWidth="3" />
                                 <path d="M15 13v.01" strokeWidth="3" />
-                                {/* Antenna */}
                                 <path d="M12 8V4" />
                                 <path d="M12 4H15" />
-                                {/* Ears */}
                                 <path d="M2 14H4" />
                                 <path d="M20 14H22" />
                              </svg>
                         </div>
-
-                        {/* Sparkle Badge */}
                         <div className="absolute -top-2 -right-2 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center animate-[bounce_4s_infinite] border border-gray-50">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="#FFCC00"/>
@@ -88,14 +83,10 @@ export const AssistantTile: React.FC<AssistantTileProps> = ({ isConnected, isSpe
                  )}
             </div>
 
-            {/* NEW: Explicit Call to Action Chip overlapping the button */}
-            {!isConnected && (
+            {!isConnected && !isConnecting && (
                 <div className="absolute -bottom-6 z-20 w-max animate-bounce pointer-events-none">
                     <div className="relative">
-                         {/* Pointer Triangle */}
                         <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-4 h-4 bg-gray-900 rotate-45 border-t border-l border-white/20"></div>
-                        
-                        {/* The Chip - explicit click handler for reliability */}
                         <div 
                              onClick={handleToggle}
                              className="bg-gray-900 text-white pl-4 pr-5 py-3 rounded-full shadow-xl flex items-center gap-3 border-2 border-white pointer-events-auto cursor-pointer hover:scale-105 transition-transform"

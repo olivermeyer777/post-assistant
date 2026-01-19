@@ -10,7 +10,6 @@ interface UseGeminiRealtimeProps {
     onControlStep: (step: string) => void;
     currentLang: Language;
     settings: AppSettings;
-    // NEW: Context object to inform the AI where the user is
     currentContext: {
         view: string;
         mode: string;
@@ -57,7 +56,7 @@ const toolsDef: FunctionDeclaration[] = [
   }
 ];
 
-// Localized Prompt Templates - AGENTIC & CONCISE VERSION
+// Localized Prompt Templates
 const PROMPT_TEMPLATES: Record<string, { role: string; style: string; strictRule: string; toolRule: string; contextIntro: string; outputRule: string }> = {
     de: {
         role: "DU BIST: Der 'PostAssistant Agent'. Ein intelligenter, handlungsorientierter KI-Mitarbeiter.",
@@ -112,29 +111,25 @@ const PROMPT_TEMPLATES: Record<string, { role: string; style: string; strictRule
 export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, settings, currentContext }: UseGeminiRealtimeProps) => {
     const [isConnected, setIsConnected] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
+    const [isConnecting, setIsConnecting] = useState(false); // NEW STATE
     
-    // Use a reference to track the session object
     const sessionRef = useRef<any>(null);
     const recorderRef = useRef<AudioRecorder | null>(null);
     const playerRef = useRef<AudioStreamPlayer | null>(null);
     const isConnectedRef = useRef(false); 
     
-    // Keep track of the language currently active in the session to detect changes
     const activeSessionLangRef = useRef<Language>(currentLang);
 
-    // Refs for callbacks to avoid closure staleness
     const actionsRef = useRef({ onNavigate, onControlStep });
     useEffect(() => {
         actionsRef.current = { onNavigate, onControlStep };
     }, [onNavigate, onControlStep]);
 
-    // Rebuild system instruction dynamically from props
     const buildSystemInstruction = useCallback(() => {
         const procConfigs = settings.processes || {};
         const assistantSettings = settings.assistant;
         const globalDocs = settings.globalDocuments || [];
         
-        // Pick the correct language template, fallback to German
         const tmpl = PROMPT_TEMPLATES[currentLang] || PROMPT_TEMPLATES['de'];
 
         const formatDocs = (docs: KnowledgeDocument[]) => {
@@ -200,9 +195,17 @@ ${tmpl.outputRule}
             return;
         }
 
+        setIsConnecting(true); // START CONNECTING
+
         // Initialize Audio Output
-        playerRef.current = new AudioStreamPlayer();
-        await playerRef.current.resume();
+        try {
+             playerRef.current = new AudioStreamPlayer();
+             await playerRef.current.resume();
+        } catch (e) {
+             console.error("Audio Context initialization failed", e);
+             setIsConnecting(false);
+             return;
+        }
 
         const genAI = new GoogleGenAI({ apiKey });
         
@@ -226,34 +229,25 @@ ${tmpl.outputRule}
                     onopen: () => {
                         console.log("Gemini Live Connected");
                         setIsConnected(true);
+                        setIsConnecting(false); // STOP CONNECTING
                         isConnectedRef.current = true;
 
                         recorderRef.current = new AudioRecorder((pcmBuffer) => {
-                            // CRITICAL: Stop sending if we are disconnected or connecting to a new session
                             if (!isConnectedRef.current) return;
-                            
                             const base64Audio = arrayBufferToBase64(pcmBuffer);
-                            
                             sessionPromise.then((session) => {
-                                // Double check connection status inside the promise resolution
                                 if (isConnectedRef.current) {
                                     try {
                                         session.sendRealtimeInput({
-                                            media: {
-                                                mimeType: 'audio/pcm;rate=16000',
-                                                data: base64Audio
-                                            }
+                                            media: { mimeType: 'audio/pcm;rate=16000', data: base64Audio }
                                         });
-                                    } catch (err) {
-                                        // Silent catch for WebSocket closing errors
-                                    }
+                                    } catch (err) {}
                                 }
                             });
                         }, 16000); 
                         recorderRef.current.start();
                     },
                     onmessage: async (message: LiveServerMessage) => {
-                        // Handle Audio
                         const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
                         if (base64Audio) {
                             const buffer = base64ToArrayBuffer(base64Audio);
@@ -261,8 +255,6 @@ ${tmpl.outputRule}
                             setIsSpeaking(true);
                             setTimeout(() => setIsSpeaking(false), 500);
                         }
-
-                        // Handle Tools
                         if (message.toolCall) {
                             for (const fc of message.toolCall.functionCalls) {
                                 let result = { success: true };
@@ -282,17 +274,12 @@ ${tmpl.outputRule}
                                 sessionPromise.then(session => {
                                     if (isConnectedRef.current) {
                                         session.sendToolResponse({
-                                            functionResponses: [{
-                                                id: fc.id,
-                                                name: fc.name,
-                                                response: { result: result }
-                                            }]
+                                            functionResponses: [{ id: fc.id, name: fc.name, response: { result: result } }]
                                         });
                                     }
                                 });
                             }
                         }
-
                         if (message.serverContent?.interrupted) {
                             playerRef.current?.interrupt();
                             setIsSpeaking(false);
@@ -301,11 +288,13 @@ ${tmpl.outputRule}
                     onclose: () => {
                         console.log("Gemini Live Closed");
                         setIsConnected(false);
+                        setIsConnecting(false);
                         isConnectedRef.current = false;
                     },
                     onerror: (err) => {
                         console.error("Gemini Live Error:", err);
                         setIsConnected(false);
+                        setIsConnecting(false);
                         isConnectedRef.current = false;
                         cleanup();
                     }
@@ -318,6 +307,7 @@ ${tmpl.outputRule}
         } catch (e) {
             console.error("Connection Failed", e);
             cleanup();
+            setIsConnecting(false);
         }
     };
 
@@ -332,6 +322,7 @@ ${tmpl.outputRule}
             playerRef.current = null;
         }
         setIsSpeaking(false);
+        setIsConnecting(false);
         sessionRef.current = null;
         setIsConnected(false);
     };
@@ -340,7 +331,6 @@ ${tmpl.outputRule}
         cleanup();
     };
 
-    // --- LANGUAGE SWITCH HANDLER ---
     useEffect(() => {
         if (isConnected && currentLang !== activeSessionLangRef.current) {
             console.log("Language changed. Restarting Voice Agent...");
@@ -351,10 +341,9 @@ ${tmpl.outputRule}
         }
     }, [currentLang, isConnected]);
 
-    // Cleanup on unmount
     useEffect(() => {
         return () => disconnect();
     }, []);
 
-    return { connect, disconnect, isConnected, isSpeaking };
+    return { connect, disconnect, isConnected, isSpeaking, isConnecting };
 };
