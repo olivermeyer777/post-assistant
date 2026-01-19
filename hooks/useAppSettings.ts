@@ -5,17 +5,17 @@ export interface ProcessConfig {
   id: string;
   label: string;
   isEnabled: boolean;
-  customPrompt: string; // Specific instruction for this process
+  customPrompt: string; 
+  // Process-specific overrides
+  responseLength: 'short' | 'medium' | 'long';
+  supportIntensity: 'passive' | 'proactive';
 }
 
 export interface AppSettings {
-  // We map keys (packet, letter) to their config
   processes: Record<string, ProcessConfig>;
-  
   assistant: {
     voiceName: string;
     politeness: 'formal' | 'casual';
-    responseLength: 'short' | 'medium' | 'long';
     // Knowledge Base: The source of truth
     knowledgeBase: string;
     // Base Prompt: Global personality instructions
@@ -29,31 +29,38 @@ const DEFAULT_SETTINGS: AppSettings = {
       id: 'packet', 
       label: 'Paket aufgeben', 
       isEnabled: true, 
-      customPrompt: 'Unterstütze beim Wiegen und der Adressierung. Erwähne Versandarten (Economy/Priority).' 
+      customPrompt: 'Unterstütze beim Wiegen und der Adressierung.',
+      responseLength: 'medium',
+      supportIntensity: 'proactive'
     },
     letter: { 
       id: 'letter', 
       label: 'Brief versenden', 
       isEnabled: true, 
-      customPrompt: 'Fasse dich sehr kurz. Der Kunde kennt sich meistens aus. Hilf nur bei Formaten (A-Post/B-Post).' 
+      customPrompt: 'Der Kunde kennt sich meistens aus. Hilf nur bei Formaten.',
+      responseLength: 'short',
+      supportIntensity: 'passive'
     },
     payment: { 
       id: 'payment', 
       label: 'Einzahlung', 
       isEnabled: true, 
-      customPrompt: 'Führe den Kunden präzise durch den Scan-Vorgang. Sicherheit ist wichtig.' 
+      customPrompt: 'Führe den Kunden präzise durch den Scan-Vorgang. Sicherheit ist wichtig.',
+      responseLength: 'short',
+      supportIntensity: 'proactive'
     },
     tracking: { 
       id: 'tracking', 
       label: 'Sendungsverfolgung', 
       isEnabled: true, 
-      customPrompt: 'Frage direkt nach der Sendungsnummer, falls noch nicht eingegeben.' 
+      customPrompt: 'Frage direkt nach der Sendungsnummer.',
+      responseLength: 'short',
+      supportIntensity: 'passive'
     },
   },
   assistant: {
     voiceName: 'Puck',
     politeness: 'formal',
-    responseLength: 'short',
     knowledgeBase: `
 OFFIZIELLES WISSEN SCHWEIZER POST:
 - PostPac Economy: Zustellung in 2 Werktagen. Günstig.
@@ -70,16 +77,20 @@ export const useAppSettings = () => {
   const [settings, setSettings] = useState<AppSettings>(() => {
     // Load initial from local storage
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('post_app_settings_v2');
+      const saved = localStorage.getItem('post_app_settings_v3'); // Bumped version
       if (saved) {
         try {
-          // Merge with defaults to ensure new fields exist
           const parsed = JSON.parse(saved);
+          // Deep merge manually to ensure structure safety
           return {
             ...DEFAULT_SETTINGS,
-            ...parsed,
-            processes: { ...DEFAULT_SETTINGS.processes, ...parsed.processes },
-            assistant: { ...DEFAULT_SETTINGS.assistant, ...parsed.assistant }
+            assistant: { ...DEFAULT_SETTINGS.assistant, ...parsed.assistant },
+            processes: {
+                packet: { ...DEFAULT_SETTINGS.processes.packet, ...(parsed.processes?.packet || {}) },
+                letter: { ...DEFAULT_SETTINGS.processes.letter, ...(parsed.processes?.letter || {}) },
+                payment: { ...DEFAULT_SETTINGS.processes.payment, ...(parsed.processes?.payment || {}) },
+                tracking: { ...DEFAULT_SETTINGS.processes.tracking, ...(parsed.processes?.tracking || {}) },
+            }
           };
         } catch (e) {
           console.error("Failed to parse settings", e);
@@ -89,10 +100,9 @@ export const useAppSettings = () => {
     return DEFAULT_SETTINGS;
   });
 
-  // Save to local storage whenever settings change
   const updateSettings = (newSettings: AppSettings) => {
     setSettings(newSettings);
-    localStorage.setItem('post_app_settings_v2', JSON.stringify(newSettings));
+    localStorage.setItem('post_app_settings_v3', JSON.stringify(newSettings));
   };
 
   const updateProcessConfig = (key: string, updates: Partial<ProcessConfig>) => {
@@ -117,10 +127,9 @@ export const useAppSettings = () => {
       updateSettings(newSettings);
   };
 
-  // Sync across tabs
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'post_app_settings_v2' && e.newValue) {
+      if (e.key === 'post_app_settings_v3' && e.newValue) {
         setSettings(JSON.parse(e.newValue));
       }
     };

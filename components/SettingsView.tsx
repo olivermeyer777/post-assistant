@@ -55,10 +55,10 @@ export const SettingsView = () => {
                         Persona & Verhalten
                     </h2>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {/* Voice */}
                         <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Stimme</label>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Stimme (Global)</label>
                             <select 
                                 value={settings.assistant.voiceName}
                                 onChange={(e) => updateAssistant('voiceName', e.target.value)}
@@ -74,20 +74,10 @@ export const SettingsView = () => {
 
                         {/* Politeness */}
                         <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Ansprache</label>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Ansprache (Global)</label>
                             <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
                                  <button onClick={() => updateAssistant('politeness', 'formal')} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${settings.assistant.politeness === 'formal' ? 'bg-white shadow-sm text-black border border-gray-100' : 'text-gray-400'}`}>Sie</button>
                                  <button onClick={() => updateAssistant('politeness', 'casual')} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${settings.assistant.politeness === 'casual' ? 'bg-white shadow-sm text-black border border-gray-100' : 'text-gray-400'}`}>Du</button>
-                            </div>
-                        </div>
-
-                        {/* Response Length */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Ausführlichkeit</label>
-                            <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
-                                 <button onClick={() => updateAssistant('responseLength', 'short')} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${settings.assistant.responseLength === 'short' ? 'bg-white shadow-sm text-black border border-gray-100' : 'text-gray-400'}`}>Kurz</button>
-                                 <button onClick={() => updateAssistant('responseLength', 'medium')} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${settings.assistant.responseLength === 'medium' ? 'bg-white shadow-sm text-black border border-gray-100' : 'text-gray-400'}`}>Mittel</button>
-                                 <button onClick={() => updateAssistant('responseLength', 'long')} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${settings.assistant.responseLength === 'long' ? 'bg-white shadow-sm text-black border border-gray-100' : 'text-gray-400'}`}>Lang</button>
                             </div>
                         </div>
                     </div>
@@ -198,30 +188,95 @@ export const SettingsView = () => {
                              </div>
 
                              {/* Detail Content */}
-                             <div className="flex-1 p-8 overflow-y-auto">
+                             <div className="flex-1 p-8 overflow-y-auto bg-white">
                                  {settings.processes[selectedProcessId].isEnabled ? (
-                                     <div className="space-y-6 h-full flex flex-col">
-                                         <div>
-                                            <label className="block text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#FFCC00]"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                                                Instruktionen für den Assistenten
-                                            </label>
-                                            <p className="text-sm text-gray-500 mb-4">
-                                                Beschreiben Sie genau, wie sich der Assistent in diesem spezifischen Prozess verhalten soll. 
-                                                Soll er proaktiv helfen? Soll er sich zurückhalten? Gibt es spezielle Hinweise?
-                                            </p>
-                                         </div>
+                                     <div className="space-y-8 h-full flex flex-col">
                                          
-                                         <textarea 
-                                            value={settings.processes[selectedProcessId].customPrompt}
-                                            onChange={(e) => updateProcessConfig(selectedProcessId, { customPrompt: e.target.value })}
-                                            className="flex-1 w-full p-6 rounded-xl border border-gray-200 bg-gray-50 focus:border-[#FFCC00] focus:ring-4 focus:ring-[#FFCC00]/10 outline-none text-base font-medium leading-relaxed resize-none shadow-inner"
-                                            placeholder="Z.B.: In diesem Schritt ist der Kunde oft unsicher beim Wiegen. Biete sofort Hilfe an, wenn Stille herrscht."
-                                         />
+                                         {/* --- INHERITED GLOBAL SETTINGS (READ-ONLY) --- */}
+                                         <div className="bg-gray-100/70 border border-gray-200 rounded-2xl p-6 relative overflow-hidden">
+                                            {/* Lock Icon Background */}
+                                            <div className="absolute -right-4 -top-4 text-gray-200 opacity-50 rotate-12">
+                                                <svg width="100" height="100" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C9.243 2 7 4.243 7 7V10H6C4.897 10 4 10.897 4 12V20C4 21.103 4.897 22 6 22H18C19.103 22 20 21.103 20 20V12C20 10.897 19.103 10 18 10H17V7C17 4.243 14.757 2 12 2ZM15 10H9V7C9 5.346 10.346 4 12 4C13.654 4 15 5.346 15 7V10Z" /></svg>
+                                            </div>
 
-                                         <div className="bg-blue-50 text-blue-800 text-sm p-4 rounded-xl border border-blue-100 flex gap-3">
-                                             <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                             <p>Diese Instruktion wird zusätzlich zum globalen Prompt geladen, sobald der Kunde diesen Prozessschritt betritt.</p>
+                                            <div className="relative z-10">
+                                                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                                    Geerbte Globale Konfiguration (Read-Only)
+                                                </h4>
+                                                
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div className="bg-white/60 p-3 rounded-lg border border-gray-200">
+                                                        <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Stimme</span>
+                                                        <span className="text-sm font-semibold text-gray-700">{settings.assistant.voiceName}</span>
+                                                    </div>
+                                                    <div className="bg-white/60 p-3 rounded-lg border border-gray-200">
+                                                        <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Ansprache</span>
+                                                        <span className="text-sm font-semibold text-gray-700 capitalize">{settings.assistant.politeness}</span>
+                                                    </div>
+                                                    <div className="col-span-1 md:col-span-2 bg-white/60 p-3 rounded-lg border border-gray-200">
+                                                        <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Globaler Prompt (Auszug)</span>
+                                                        <p className="text-xs text-gray-600 italic line-clamp-2">"{settings.assistant.globalPrompt}"</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                         </div>
+
+                                         <div className="h-px bg-gray-100 w-full"></div>
+
+                                         {/* --- PROCESS SPECIFIC CONTROLS --- */}
+                                         <div>
+                                            <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                                <svg className="w-5 h-5 text-[#FFCC00]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+                                                Prozess-Spezifische Anpassungen
+                                            </h4>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                                {/* Verbosity Control */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Antwortlänge</label>
+                                                    <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
+                                                        {(['short', 'medium', 'long'] as const).map((opt) => (
+                                                            <button 
+                                                                key={opt}
+                                                                onClick={() => updateProcessConfig(selectedProcessId, { responseLength: opt })}
+                                                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all uppercase ${settings.processes[selectedProcessId].responseLength === opt ? 'bg-black text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                                                            >
+                                                                {opt === 'short' ? 'Kurz' : opt === 'medium' ? 'Mittel' : 'Lang'}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* Intensity Control */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Betreuungs-Intensität</label>
+                                                    <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
+                                                        <button 
+                                                            onClick={() => updateProcessConfig(selectedProcessId, { supportIntensity: 'passive' })}
+                                                            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all uppercase ${settings.processes[selectedProcessId].supportIntensity === 'passive' ? 'bg-white text-gray-600 shadow-sm border border-gray-200' : 'text-gray-400'}`}
+                                                        >
+                                                            Passiv
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => updateProcessConfig(selectedProcessId, { supportIntensity: 'proactive' })}
+                                                            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all uppercase ${settings.processes[selectedProcessId].supportIntensity === 'proactive' ? 'bg-[#FFCC00] text-black shadow-md' : 'text-gray-400'}`}
+                                                        >
+                                                            Proaktiv
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="relative">
+                                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Zusätzliche Instruktionen</label>
+                                                <textarea 
+                                                    value={settings.processes[selectedProcessId].customPrompt}
+                                                    onChange={(e) => updateProcessConfig(selectedProcessId, { customPrompt: e.target.value })}
+                                                    className="w-full p-4 rounded-xl border border-gray-200 bg-gray-50 focus:border-[#FFCC00] focus:ring-4 focus:ring-[#FFCC00]/10 outline-none min-h-[120px] text-sm leading-relaxed resize-none shadow-inner"
+                                                    placeholder="Spezifische Anweisungen für diesen Prozess..."
+                                                />
+                                            </div>
                                          </div>
                                      </div>
                                  ) : (

@@ -82,12 +82,15 @@ export const AssistantTile: React.FC<AssistantTileProps> = ({ isConnected, isSpe
             </div>
         </button>
 
-        {/* Red Hint Text Below */}
+        {/* Updated Hint Text Below */}
         {!isConnected && (
-            <div className="text-center animate-fade-in -mt-2">
-                <div className="bg-red-50 text-red-600 font-bold px-4 py-1.5 rounded-full border border-red-100 shadow-sm inline-flex items-center gap-2 text-sm">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="text-red-500"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-                    Ich helfe Ihnen gerne weiter!
+            <div className="text-center animate-fade-in -mt-2 relative z-20">
+                <div 
+                  className="bg-white text-gray-900 font-medium px-5 py-2.5 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 inline-flex items-center gap-2.5 text-sm hover:scale-105 transition-transform cursor-pointer"
+                  onClick={onToggle}
+                >
+                    <div className="w-2 h-2 rounded-full bg-[#FFCC00] animate-pulse"></div>
+                    <span>Ich helfe Ihnen gerne weiter!</span>
                 </div>
             </div>
         )}

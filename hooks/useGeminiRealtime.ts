@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
 import { AudioRecorder, AudioStreamPlayer, arrayBufferToBase64, base64ToArrayBuffer } from '../utils/audioStreamer';
 import { Language } from '../types';
-import { AppSettings } from './useAppSettings'; 
+import { AppSettings, ProcessConfig } from './useAppSettings'; 
 
 interface UseGeminiRealtimeProps {
     onNavigate: (view: string, mode?: string) => void;
@@ -14,7 +14,7 @@ interface UseGeminiRealtimeProps {
 
 // NOTE: I am extending the props type locally to include processConfigs which comes from the full settings object
 interface ExtendedProps extends UseGeminiRealtimeProps {
-    processConfigs?: Record<string, { customPrompt: string }>;
+    processConfigs?: Record<string, ProcessConfig>;
 }
 
 export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, settings }: UseGeminiRealtimeProps) => {
@@ -28,7 +28,7 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
 
     const getFullSettings = () => {
         try {
-            const saved = localStorage.getItem('post_app_settings_v2');
+            const saved = localStorage.getItem('post_app_settings_v3');
             if (saved) return JSON.parse(saved);
         } catch (e) {}
         return null;
@@ -39,32 +39,37 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
         const procConfigs = fullSettings?.processes || {};
         const assistantSettings = fullSettings?.assistant || settings; // Fallback to prop
 
+        // Helper to format process rules
+        const formatRule = (key: string, name: string) => {
+            const conf = procConfigs[key];
+            if (!conf || !conf.isEnabled) return '';
+            
+            return `
+- PROZESS "${name}" (${key}):
+  * Instruktion: ${conf.customPrompt || 'Keine spezifische Instruktion.'}
+  * Antwortlänge: ${conf.responseLength === 'short' ? 'Sehr kurz (1 Satz)' : conf.responseLength === 'medium' ? 'Normal (2-3 Sätze)' : 'Ausführlich'}
+  * Intensität: ${conf.supportIntensity === 'proactive' ? 'Proaktiv (Biete Hilfe aktiv an, führe den User)' : 'Passiv (Antworte nur auf konkrete Fragen)'}
+            `.trim();
+        };
+
         let base = `
 DU BIST: PostAssistant, der digitale KI-Mitarbeiter der Schweizer Post.
 
 DEINE AUFGABE:
-Du hilfst Kunden am Self-Service-Terminal. Du stehst ihnen zur Seite, wenn sie Fragen haben.
+Du hilfst Kunden am Self-Service-Terminal.
 
-GRUNDSÄTZE (STRIKTE EINHALTUNG):
-1. REAKTIV SEIN: Sprich nur, wenn du angesprochen wirst oder der Kunde zögert. Quatsche ihn nicht voll.
-2. MEHRWERT LIEFERN: Lies NICHT einfach vor, was auf dem Bildschirm steht. Das sieht der Kunde selbst. Erkläre Hintergründe, gib Tipps oder beantworte konkrete Fragen.
-3. KURZ FASSEN: Deine Antworten sollen präzise und hilfreich sein. Keine Romane.
-4. KNOWLEDGE BASE: Nutze NUR das unten definierte Wissen. Erfinde nichts. Wenn du etwas nicht weisst, sag es höflich.
+GLOBALE EINSTELLUNGEN (Immer gültig):
+1. Ansprache: ${assistantSettings.politeness === 'formal' ? 'Sie' : 'Du'}.
+2. Globaler Charakter: ${assistantSettings.globalPrompt}
+3. KNOWLEDGE BASE (Wissen): Nutze NUR das unten definierte Wissen.
 
-TONALITÄT:
-- Ansprache: ${assistantSettings.politeness === 'formal' ? 'Sie' : 'Du'}.
-- Stil: Freundlich, professionell, aber zurückhaltend.
+PROZESS-SPEZIFISCHE REGELN (Kontextabhängig):
+Wenn der Kunde sich in einem dieser Prozesse befindet, beachte zwingend diese Abweichungen:
 
-GLOBALE INSTRUKTION:
-${assistantSettings.globalPrompt}
-
-PROZESS-SPEZIFISCHE ANWEISUNGEN (Kontextabhängig):
-Wenn der Kunde sich in einem dieser Prozesse befindet, beachte folgende Regeln:
-
-- Paket aufgeben (Packet): ${procConfigs['packet']?.customPrompt || ''}
-- Brief versenden (Letter): ${procConfigs['letter']?.customPrompt || ''}
-- Einzahlung (Payment): ${procConfigs['payment']?.customPrompt || ''}
-- Sendungsverfolgung (Tracking): ${procConfigs['tracking']?.customPrompt || ''}
+${formatRule('packet', 'Paket aufgeben')}
+${formatRule('letter', 'Brief versenden')}
+${formatRule('payment', 'Einzahlung')}
+${formatRule('tracking', 'Sendungsverfolgung')}
 
 KNOWLEDGE BASE (QUELLE DER WAHRHEIT):
 ${assistantSettings.knowledgeBase}
