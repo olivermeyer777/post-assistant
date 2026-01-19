@@ -23,7 +23,7 @@ export const buildSystemInstruction = (
         de: 'German (Deutsch)', fr: 'French (Français)', it: 'Italian (Italiano)', 
         en: 'English', es: 'Spanish (Español)', pt: 'Portuguese (Português)' 
     };
-    let prompt = `You are the 'PostAssistant', an AI interface capable of CONTROLLING the UI directly. Language: Speak ${langMap[currentLang] || 'German'}.\n`;
+    let prompt = `You are the 'PostAssistant', an AI interface capable of CONTROLLING the UI directly and FILLING FORMS. Language: Speak ${langMap[currentLang] || 'German'}.\n`;
 
     // 2. Global Persona
     if (assistant.globalPrompt) {
@@ -40,21 +40,30 @@ export const buildSystemInstruction = (
         prompt += `\n--- CURRENT MISSION: ${procConfig.label} ---\n`;
         prompt += `CURRENT SCREEN: '${step}'\n`;
         
+        // --- STRICT GUARDRAILS START ---
+        prompt += `\n*** STRICT NAVIGATION RULES ***\n`;
+        prompt += `1. You are guiding a LINEAR physical process. You CANNOT jump to the end.\n`;
+        prompt += `2. You are FORBIDDEN from calling control_step('payment') or control_step('success') unless you are currently at the 'options', 'extras', or 'paySummary' step.\n`;
+        prompt += `3. Even if the user says "I want to pay" or "Finish", you MUST say: "First we need to [current step goal]."\n`;
+        // --- STRICT GUARDRAILS END ---
+
         if (nextStep) {
-            prompt += `LOGICAL NEXT SCREEN: '${nextStep}'\n`;
+            prompt += `STANDARD NEXT SCREEN: '${nextStep}'\n`;
         }
 
         // SCREEN SPECIFIC GOALS (The Agent needs to know what "Done" looks like)
-        prompt += `\nSCREEN GOALS (What you must achieve to proceed):\n`;
+        prompt += `\nSCREEN GOALS & ACTIONS (You are an ACTIVE agent. Fill forms for the user!):\n`;
         
         if (step === 'destination') {
             prompt += "- Goal: Confirm destination (Domestic/International).\n- Action: If user says 'Switzerland' or 'Domestic', call control_step('weigh') (Packet) or 'addressCheck' (Letter) IMMEDIATELY.\n";
         } else if (step === 'weigh') {
-            prompt += "- Goal: Item weighing.\n- Action: Ask user to place item. Wait 2 seconds. Then AUTOMATICALLY call control_step('packetAddressCheck'). Assume weight is detected.\n";
+            prompt += "- Goal: Item weighing.\n- Action: Ask user to place item. Wait 2 seconds. Then call update_form_data({ weightGrams: 5500 }) (simulating scale) AND control_step('packetAddressCheck').\n";
         } else if (step === 'packetAddressCheck' || step === 'addressCheck') {
             prompt += "- Goal: Does the item already have a label?\n- Action: If YES -> call control_step('options') (Packet) or 'format' (Letter). If NO -> call control_step('address').\n";
         } else if (step === 'address') {
-            prompt += "- Goal: Get Receiver Info (Name, City).\n- Action: Ask for missing info. AS SOON AS user provides Name and City, call control_step('options') (Packet) or 'format' (Letter). DO NOT ASK 'Shall I continue?'. Just go.\n";
+            prompt += "- Goal: Get Receiver Info.\n- ACTIVE AGENT RULE: If the user speaks the address (e.g. 'Hans Muster, Bern'), DO NOT ASK 'Is this correct?'.\n- ACTION: Call update_form_data({ receiverName: '...', receiverCity: '...' }) IMMEDIATELY.\n- THEN call control_step('options') (Packet) or 'format' (Letter).\n";
+        } else if (step === 'trackInput') {
+             prompt += "- Goal: Get Tracking Code.\n- ACTIVE AGENT RULE: If user dictates code (e.g. '99.00...'), call update_form_data({ trackingCode: '...' }). THEN call control_step('trackStatus').\n";
         } else if (step === 'format') {
             prompt += "- Goal: Letter size.\n- Action: If user says 'Small/Standard', call control_step('options'). If 'Big', call control_step('options').\n";
         } else if (step === 'options') {
@@ -111,7 +120,6 @@ RULE: If the user states an intent (e.g., "I want to send a package"), DO NOT ju
     // 5. DETERMINE IMMEDIATE GREETING
     let greeting = "";
     if (currentLang === 'de') {
-         // German Specifics as requested
          greeting = (view === 'home') 
             ? "Herzlich Willkommen bei der Schweizer Post, wie kann ich Sie unterstützen?"
             : "Wie kann ich Ihnen helfen?";
@@ -128,7 +136,6 @@ RULE: If the user states an intent (e.g., "I want to send a package"), DO NOT ju
             ? "Welcome to Swiss Post, how can I support you?"
             : "How can I help you?";
     } else {
-         // Fallback
          greeting = "Wie kann ich Ihnen helfen?";
     }
 
@@ -139,6 +146,8 @@ RULE: If the user states an intent (e.g., "I want to send a package"), DO NOT ju
     3. If the user gives you the info required for the current screen, CALL THE TOOL IMMEDIATELY.
     4. If the user says "Next", "Continue", or "Yes", interpret that as a command to go to the Logical Next Screen.
     5. ON HOME SCREEN: If user intent is clear (e.g. "Send parcel"), NAVIGATE IMMEDIATELY. Do not wait.
+    6. NO SKIPPING: You must follow the defined workflow order exactly. Do not jump ahead even if the user asks to "finish" or "pay" immediately. Explain that we must complete the current step first.
+    7. DATA ENTRY: When the user provides names, addresses, or tracking codes, USE 'update_form_data' tool immediately.
 
     *** STARTUP PROTOCOL ***
     When you receive the text message "SYSTEM_START", you MUST IMMEDIATELY speak the following phrase:

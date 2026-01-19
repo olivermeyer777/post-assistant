@@ -1,5 +1,4 @@
 
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
 import { AudioRecorder, AudioStreamPlayer, arrayBufferToBase64, base64ToArrayBuffer } from '../utils/audioStreamer';
@@ -10,7 +9,8 @@ import { buildSystemInstruction } from '../utils/promptUtils';
 interface UseGeminiRealtimeProps {
     onNavigate: (view: string, mode?: string) => void;
     onControlStep: (step: string) => void;
-    onSubmitFeedback: (score: number) => void; // New callback
+    onSubmitFeedback: (score: number) => void;
+    onUpdateData: (data: any) => void; // New callback for form filling
     currentLang: Language;
     settings: AppSettings;
     currentContext: {
@@ -54,6 +54,22 @@ const toolsDef = [
     }
   },
   {
+    name: "update_form_data",
+    description: "FILLS form fields with data provided by the user. Use this whenever the user dictates names, addresses, tracking codes, or weights.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        receiverName: { type: "STRING" },
+        receiverStreet: { type: "STRING" },
+        receiverCity: { type: "STRING" },
+        receiverZip: { type: "STRING" },
+        weightGrams: { type: "NUMBER" },
+        trackingCode: { type: "STRING" },
+        receiverType: { type: "STRING", enum: ["private", "company"] }
+      }
+    }
+  },
+  {
     name: "submit_feedback",
     description: "Selects a rating score (1-10) on the feedback screen.",
     parameters: {
@@ -69,7 +85,7 @@ const toolsDef = [
   }
 ];
 
-export const useGeminiRealtime = ({ onNavigate, onControlStep, onSubmitFeedback, currentLang, settings, currentContext }: UseGeminiRealtimeProps) => {
+export const useGeminiRealtime = ({ onNavigate, onControlStep, onSubmitFeedback, onUpdateData, currentLang, settings, currentContext }: UseGeminiRealtimeProps) => {
     const [isConnected, setIsConnected] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
@@ -81,11 +97,11 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, onSubmitFeedback,
     const isConnectedRef = useRef(false); 
     
     const activeSessionLangRef = useRef<Language>(currentLang);
-    const actionsRef = useRef({ onNavigate, onControlStep, onSubmitFeedback });
+    const actionsRef = useRef({ onNavigate, onControlStep, onSubmitFeedback, onUpdateData });
     
     useEffect(() => {
-        actionsRef.current = { onNavigate, onControlStep, onSubmitFeedback };
-    }, [onNavigate, onControlStep, onSubmitFeedback]);
+        actionsRef.current = { onNavigate, onControlStep, onSubmitFeedback, onUpdateData };
+    }, [onNavigate, onControlStep, onSubmitFeedback, onUpdateData]);
 
     const connect = async () => {
         if (isConnectedRef.current) return;
@@ -139,9 +155,6 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, onSubmitFeedback,
                         setIsConnecting(false);
                         isConnectedRef.current = true;
                         
-                        // Removed invalid session.send() call which caused type error.
-                        // To force a greeting, we rely on the system instruction.
-
                         try {
                             recorderRef.current = new AudioRecorder((pcmBuffer) => {
                                 if (!isConnectedRef.current) return;
@@ -188,6 +201,7 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, onSubmitFeedback,
                                         if(fc.name === 'navigate_app') actionsRef.current.onNavigate(args.view, args.mode);
                                         if(fc.name === 'control_step') actionsRef.current.onControlStep(args.step);
                                         if(fc.name === 'submit_feedback') actionsRef.current.onSubmitFeedback(args.score);
+                                        if(fc.name === 'update_form_data') actionsRef.current.onUpdateData(args);
                                     } catch(e) { console.error("Tool exec error", e); }
                                     
                                     try {

@@ -5,6 +5,14 @@ import { TranslationData, Language } from '../types';
 // Export Step Type so parent can use it
 export type SelfServiceStep = 'destination' | 'weigh' | 'packetAddressCheck' | 'addressCheck' | 'address' | 'format' | 'options' | 'extras' | 'payment' | 'success' | 'feedback' | 'scan' | 'payDetails' | 'payReceiver' | 'payConfirm' | 'paySummary' | 'trackInput' | 'trackStatus';
 
+interface ReceiverData {
+  type: 'private' | 'company';
+  name: string;
+  street: string;
+  zip: string;
+  city: string;
+}
+
 interface SelfServiceViewProps {
   t: TranslationData;
   onBack: () => void;
@@ -17,14 +25,14 @@ interface SelfServiceViewProps {
   feedbackScore: number | null;
   onSetFeedbackScore: (score: number) => void;
   isVoiceActive: boolean; // Used to pause timer
-}
-
-interface ReceiverData {
-  type: 'private' | 'company';
-  name: string;
-  street: string;
-  zip: string;
-  city: string;
+  
+  // Lifted State for AI Manipulation
+  receiverData: ReceiverData;
+  setReceiverData: React.Dispatch<React.SetStateAction<ReceiverData>>;
+  weightGrams: number;
+  setWeightGrams: React.Dispatch<React.SetStateAction<number>>;
+  trackingCode: string;
+  setTrackingCode: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export const SelfServiceView: React.FC<SelfServiceViewProps> = ({ 
@@ -36,26 +44,22 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
     setStep,
     feedbackScore,
     onSetFeedbackScore,
-    isVoiceActive
+    isVoiceActive,
+    receiverData,
+    setReceiverData,
+    weightGrams,
+    setWeightGrams,
+    trackingCode,
+    setTrackingCode
 }) => {
   const [isWeighing, setIsWeighing] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   
-  // State for "Simulated Data"
-  const [receiver, setReceiver] = useState<ReceiverData>({
-    type: 'private',
-    name: '',
-    street: '',
-    zip: '',
-    city: ''
-  });
-
   // Address Validation State
   const [addressErrors, setAddressErrors] = useState<Partial<Record<keyof ReceiverData, string>>>({});
   
   // Packet Specific
   const [shippingMethod, setShippingMethod] = useState<'economy' | 'priority' | 'express'>('economy');
-  const [weightGrams, setWeightGrams] = useState<number>(7796);
   const [hasSignature, setHasSignature] = useState(false);
   
   // Letter Specific
@@ -75,8 +79,6 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
     receiverCity: 'Grosshöchstetten'
   });
 
-  // Tracking Specific
-  const [trackingCode, setTrackingCode] = useState('');
   const [trackingError, setTrackingError] = useState(false);
   // Simulated Tracking History
   const [trackHistory, setTrackHistory] = useState([
@@ -103,13 +105,13 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
 
     const currentMsg = messages[currentLang] || messages['en'];
 
-    if (!receiver.name.trim()) errors.name = currentMsg.required;
-    if (!receiver.street.trim()) errors.street = currentMsg.required;
-    if (!receiver.city.trim()) errors.city = currentMsg.required;
+    if (!receiverData.name.trim()) errors.name = currentMsg.required;
+    if (!receiverData.street.trim()) errors.street = currentMsg.required;
+    if (!receiverData.city.trim()) errors.city = currentMsg.required;
     
-    if (!receiver.zip.trim()) {
+    if (!receiverData.zip.trim()) {
         errors.zip = currentMsg.required;
-    } else if (!/^\d{4}$/.test(receiver.zip.trim())) {
+    } else if (!/^\d{4}$/.test(receiverData.zip.trim())) {
         errors.zip = currentMsg.format;
     }
 
@@ -118,7 +120,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
   };
 
   const handleAddressChange = (field: keyof ReceiverData, value: string) => {
-    setReceiver(prev => ({ ...prev, [field]: value }));
+    setReceiverData(prev => ({ ...prev, [field]: value }));
     if (addressErrors[field]) {
         setAddressErrors(prev => {
             const newErrors = { ...prev };
@@ -282,10 +284,8 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
     );
   };
   
-  // Beautified Success View with Countdown
   const renderSuccessView = () => (
      <div className="flex flex-col items-center justify-center min-h-[400px] text-center animate-fade-in gap-8 relative">
-        {/* Visual Timer Bar */}
         <div className="absolute top-0 left-0 w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
              <div 
                 className="h-full bg-gray-900 transition-all duration-1000 ease-linear"
@@ -307,7 +307,6 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
             <p className="text-gray-500">{t.selfService.franking.instruction3}</p>
         </div>
 
-        {/* FEEDBACK SECTION */}
         <div className="mt-8 pt-8 border-t border-gray-100 w-full max-w-2xl">
            <h3 className="text-lg font-bold text-gray-900 mb-6">{t.selfService.franking.feedbackQuestion}</h3>
            <div className="flex justify-center flex-wrap gap-2">
@@ -343,11 +342,6 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
         </button>
      </div>
   );
-  
-  // Note: renderTrackInputView, renderTrackStatusView, renderDestinationView, renderWeighView, 
-  // renderAddressView, renderScanView, renderOptionsView, renderFormatView are identical to previous version, 
-  // omitted for brevity in this specific XML block but should be present in full file context.
-  // I will include them to ensure the file is complete.
 
   const renderTrackInputView = () => (
     <div className="flex flex-col gap-8 min-h-[400px]">
@@ -448,6 +442,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
             <button onClick={simulateWeighing} className="group relative w-64 h-64 bg-white rounded-3xl border-4 border-dashed border-gray-200 flex flex-col items-center justify-center hover:border-black hover:bg-black transition-all duration-300">
                <span className="font-semibold text-gray-900 group-hover:text-white">{t.selfService.franking.weighAction}</span>
             </button>
+            <div className="mt-4 text-sm font-bold text-gray-400">Aktuelles Gewicht: {formatWeight(weightGrams)}</div>
          </>
        )}
     </div>
@@ -463,27 +458,27 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
        )}
        <h2 className="text-xl font-bold text-gray-900">{t.selfService.franking.addressReceiver}</h2>
        <div className="flex bg-gray-100 p-1.5 rounded-2xl w-full max-w-md self-center mb-2">
-          <button onClick={() => setReceiver({...receiver, type: 'private'})} className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${receiver.type === 'private' ? 'bg-black text-white shadow-md' : 'text-gray-500 hover:text-gray-900'}`}>{t.selfService.franking.isPrivate}</button>
-          <button onClick={() => setReceiver({...receiver, type: 'company'})} className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${receiver.type === 'company' ? 'bg-black text-white shadow-md' : 'text-gray-500 hover:text-gray-900'}`}>{t.selfService.franking.isCompany}</button>
+          <button onClick={() => setReceiverData({...receiverData, type: 'private'})} className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${receiverData.type === 'private' ? 'bg-black text-white shadow-md' : 'text-gray-500 hover:text-gray-900'}`}>{t.selfService.franking.isPrivate}</button>
+          <button onClick={() => setReceiverData({...receiverData, type: 'company'})} className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${receiverData.type === 'company' ? 'bg-black text-white shadow-md' : 'text-gray-500 hover:text-gray-900'}`}>{t.selfService.franking.isCompany}</button>
        </div>
        <div className="space-y-4">
           <div className="space-y-1">
              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">{t.selfService.franking.fields.name}</label>
-             <input type="text" value={receiver.name} onChange={(e) => handleAddressChange('name', e.target.value)} className={`w-full bg-white border-2 rounded-xl px-4 py-3 text-lg outline-none transition-all ${addressErrors.name ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-black'}`} />
+             <input type="text" value={receiverData.name} onChange={(e) => handleAddressChange('name', e.target.value)} className={`w-full bg-white border-2 rounded-xl px-4 py-3 text-lg outline-none transition-all ${addressErrors.name ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-black'}`} />
           </div>
           <div className="grid grid-cols-3 gap-4">
              <div className="col-span-1 space-y-1">
                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">{t.selfService.franking.fields.zip}</label>
-                 <input type="text" value={receiver.zip} onChange={(e) => handleAddressChange('zip', e.target.value)} className={`w-full bg-white border-2 rounded-xl px-4 py-3 text-lg outline-none transition-all ${addressErrors.zip ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-black'}`} />
+                 <input type="text" value={receiverData.zip} onChange={(e) => handleAddressChange('zip', e.target.value)} className={`w-full bg-white border-2 rounded-xl px-4 py-3 text-lg outline-none transition-all ${addressErrors.zip ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-black'}`} />
              </div>
              <div className="col-span-2 space-y-1">
                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">{t.selfService.franking.fields.city}</label>
-                 <input type="text" value={receiver.city} onChange={(e) => handleAddressChange('city', e.target.value)} className={`w-full bg-white border-2 rounded-xl px-4 py-3 text-lg outline-none transition-all ${addressErrors.city ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-black'}`} />
+                 <input type="text" value={receiverData.city} onChange={(e) => handleAddressChange('city', e.target.value)} className={`w-full bg-white border-2 rounded-xl px-4 py-3 text-lg outline-none transition-all ${addressErrors.city ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-black'}`} />
              </div>
           </div>
           <div className="space-y-1">
              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">{t.selfService.franking.fields.street}</label>
-             <input type="text" value={receiver.street} onChange={(e) => handleAddressChange('street', e.target.value)} className={`w-full bg-white border-2 rounded-xl px-4 py-3 text-lg outline-none transition-all ${addressErrors.street ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-black'}`} />
+             <input type="text" value={receiverData.street} onChange={(e) => handleAddressChange('street', e.target.value)} className={`w-full bg-white border-2 rounded-xl px-4 py-3 text-lg outline-none transition-all ${addressErrors.street ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-black'}`} />
           </div>
        </div>
     </div>

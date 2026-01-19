@@ -93,6 +93,17 @@ export default function App() {
   const [selfServiceStep, setSelfServiceStep] = useState<SelfServiceStep>('destination');
   const [feedbackScore, setFeedbackScore] = useState<number | null>(null);
 
+  // --- FORM DATA STATE (Lifted Up) ---
+  const [receiver, setReceiver] = useState({
+    type: 'private' as 'private' | 'company',
+    name: '',
+    street: '',
+    zip: '',
+    city: ''
+  });
+  const [weightGrams, setWeightGrams] = useState<number>(7796);
+  const [trackingCode, setTrackingCode] = useState('');
+
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [isChatMinimized, setIsChatMinimized] = useState(true);
   const [messages, setMessages] = useState<Message[]>([
@@ -150,6 +161,21 @@ export default function App() {
       onSubmitFeedback: (score) => {
           console.log("Voice setting feedback:", score);
           setFeedbackScore(score);
+      },
+      onUpdateData: (data) => {
+          console.log("Voice updating data:", data);
+          // Auto-fill Receiver Data
+          if (data.receiverName) setReceiver(prev => ({ ...prev, name: data.receiverName }));
+          if (data.receiverCity) setReceiver(prev => ({ ...prev, city: data.receiverCity }));
+          if (data.receiverZip) setReceiver(prev => ({ ...prev, zip: data.receiverZip }));
+          if (data.receiverStreet) setReceiver(prev => ({ ...prev, street: data.receiverStreet }));
+          if (data.receiverType) setReceiver(prev => ({ ...prev, type: data.receiverType }));
+          
+          // Auto-fill Weight
+          if (data.weightGrams) setWeightGrams(data.weightGrams);
+
+          // Auto-fill Tracking
+          if (data.trackingCode) setTrackingCode(data.trackingCode);
       }
   });
 
@@ -362,6 +388,13 @@ export default function App() {
                   feedbackScore={feedbackScore}
                   onSetFeedbackScore={setFeedbackScore}
                   isVoiceActive={isVoiceConnected || isVoiceSpeaking}
+                  // PASSED STATE
+                  receiverData={receiver}
+                  setReceiverData={setReceiver}
+                  weightGrams={weightGrams}
+                  setWeightGrams={setWeightGrams}
+                  trackingCode={trackingCode}
+                  setTrackingCode={setTrackingCode}
                 />
              </div>
              {/* Sticky Assistant Tile on Desktop - Mimics Main Page Layout */}
