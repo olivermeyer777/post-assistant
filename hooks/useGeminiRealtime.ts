@@ -1,10 +1,9 @@
 
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, Type } from "@google/genai";
 import { AudioRecorder, AudioStreamPlayer, arrayBufferToBase64, base64ToArrayBuffer } from '../utils/audioStreamer';
 import { Language } from '../types';
-import { AppSettings, ProcessConfig, KnowledgeDocument } from './useAppSettings'; 
+import { AppSettings } from './useAppSettings'; 
 
 interface UseGeminiRealtimeProps {
     onNavigate: (view: string, mode?: string) => void;
@@ -18,23 +17,24 @@ interface UseGeminiRealtimeProps {
     };
 }
 
-// --- TOOLS DEFINITION ---
+// Simplified Tools Definition to prevent Schema Errors (1007)
+// Using string literals for Types to avoid runtime enum issues
 const toolsDef: FunctionDeclaration[] = [
   {
     name: "navigate_app",
-    description: "Navigiert den User zu einem Hauptbereich.",
+    description: "Navigiert zu einem Bereich.",
     parameters: {
-      type: Type.OBJECT,
+      type: "OBJECT" as Type,
       properties: {
         view: { 
-            type: Type.STRING, 
+            type: "STRING" as Type, 
             enum: ["home", "self", "oracle"],
-            description: "Der Ziel-View."
+            description: "Target View"
         },
         mode: {
-            type: Type.STRING, 
+            type: "STRING" as Type, 
             enum: ["packet", "letter", "payment", "tracking"],
-            description: "Service Modus."
+            description: "Service Mode"
         }
       },
       required: ["view"]
@@ -42,14 +42,13 @@ const toolsDef: FunctionDeclaration[] = [
   },
   {
     name: "control_step",
-    description: "Steuert den Schritt innerhalb eines Prozesses.",
+    description: "Steuert den Prozess-Schritt.",
     parameters: {
-      type: Type.OBJECT,
+      type: "OBJECT" as Type,
       properties: {
         step: {
-            type: Type.STRING, 
-            enum: ['destination', 'weigh', 'packetAddressCheck', 'addressCheck', 'address', 'format', 'options', 'extras', 'payment', 'scan', 'payDetails', 'payReceiver', 'payConfirm', 'paySummary', 'trackInput', 'trackStatus', 'success'],
-            description: "Step ID."
+            type: "STRING" as Type, 
+            description: "Step ID"
         }
       },
       required: ["step"]
@@ -58,12 +57,12 @@ const toolsDef: FunctionDeclaration[] = [
 ];
 
 const PROMPT_TEMPLATES: Record<string, any> = {
-    de: { role: "DU BIST: Der 'PostAssistant'.", outputRule: "ANTWORTE: DEUTSCH." },
-    fr: { role: "VOUS ÊTES : 'PostAssistant'.", outputRule: "RÉPONSE : FRANÇAIS." },
-    it: { role: "SEI: 'PostAssistant'.", outputRule: "RISPOSTA: ITALIANO." },
-    en: { role: "YOU ARE: 'PostAssistant'.", outputRule: "ANSWER: ENGLISH." },
-    es: { role: "ERES: 'PostAssistant'.", outputRule: "RESPUESTA: ESPAÑOL." },
-    pt: { role: "ÉS: 'PostAssistant'.", outputRule: "RESPOSTA: PORTUGUÊS." }
+    de: { role: "Du bist der PostAssistant.", lang: "Antworte auf Deutsch." },
+    fr: { role: "Tu es le PostAssistant.", lang: "Réponds en français." },
+    it: { role: "Sei il PostAssistant.", lang: "Rispondi in italiano." },
+    en: { role: "You are the PostAssistant.", lang: "Answer in English." },
+    es: { role: "Eres el PostAssistant.", lang: "Responde en español." },
+    pt: { role: "És o PostAssistant.", lang: "Responde em português." }
 };
 
 export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, settings, currentContext }: UseGeminiRealtimeProps) => {
@@ -86,41 +85,37 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
 
     const buildSystemInstruction = useCallback(() => {
         const tmpl = PROMPT_TEMPLATES[currentLang] || PROMPT_TEMPLATES['de'];
-        // Simplified Prompt to reduce connection payload size risk
-        return `
-${tmpl.role}
-CONTEXT: View=${currentContext.view}, Step=${currentContext.step}.
-Keep answers SHORT (max 2 sentences).
-Use Tools for navigation.
-${tmpl.outputRule}
+        return `${tmpl.role} ${tmpl.lang}
+        Keep answers short (max 2 sentences).
+        Context: View=${currentContext.view}, Step=${currentContext.step}.
         `.trim();
-    }, [settings, currentLang, currentContext]);
+    }, [currentLang, currentContext]);
 
     const connect = async () => {
         if (isConnectedRef.current) return;
         setError(null);
 
+        // API Key Validation
         let apiKey = '';
         try { apiKey = process.env.API_KEY || ''; } catch (e) {}
+        apiKey = apiKey.replace(/["']/g, "").trim(); // Remove quotes if accidentially added
 
-        if (apiKey) {
-            apiKey = apiKey.trim().split(" ")[0]; // Sanitize
-        }
-
-        if (!apiKey) {
-            setError("Fehler: API Key fehlt.");
+        if (!apiKey || apiKey.length < 10) {
+            console.error("Invalid API Key:", apiKey);
+            setError("API Config Error (Key missing).");
             return;
         }
 
         setIsConnecting(true);
 
         try {
+             // Initialize Audio Context immediately (requires user gesture usually)
              playerRef.current = new AudioStreamPlayer();
              await playerRef.current.resume();
         } catch (e) {
-             console.error("Audio Context Init Failed", e);
+             console.error("Audio Init Failed", e);
              setIsConnecting(false);
-             setError("Audio-Fehler (Browser blockiert?).");
+             setError("Audio konnte nicht gestartet werden.");
              return;
         }
 
@@ -128,7 +123,7 @@ ${tmpl.outputRule}
         
         try {
             const systemInstruction = buildSystemInstruction();
-            console.log("Connecting...");
+            console.log("Connecting to Gemini Live...", { lang: currentLang });
             activeSessionLangRef.current = currentLang;
 
             const sessionPromise = genAI.live.connect({
@@ -143,35 +138,37 @@ ${tmpl.outputRule}
                 },
                 callbacks: {
                     onopen: async () => {
-                        console.log("Gemini Live Connected");
+                        console.log("Gemini Live Session Open");
                         setIsConnected(true);
                         setIsConnecting(false);
                         isConnectedRef.current = true;
 
+                        // Start Recording only AFTER connection is established
                         try {
                             recorderRef.current = new AudioRecorder((pcmBuffer) => {
                                 if (!isConnectedRef.current) return;
+                                
+                                // Convert to Base64
                                 const base64Audio = arrayBufferToBase64(pcmBuffer);
+                                
                                 sessionPromise.then((session) => {
                                     if (isConnectedRef.current) {
-                                        try {
-                                            session.sendRealtimeInput({
-                                                media: { mimeType: 'audio/pcm;rate=16000', data: base64Audio }
-                                            });
-                                        } catch (err) {
-                                            console.warn("Send failed", err);
-                                        }
+                                        session.sendRealtimeInput({
+                                            media: { mimeType: 'audio/pcm;rate=16000', data: base64Audio }
+                                        });
                                     }
-                                });
-                            }, 16000); 
+                                }).catch(err => console.warn("Session Send Error:", err));
+                            }, 16000); // Enforce 16k target
+                            
                             await recorderRef.current.start();
                         } catch (recErr) {
-                            console.error("Mic start failed", recErr);
+                            console.error("Microphone failed", recErr);
                             setError("Mikrofon-Zugriff verweigert.");
                             disconnect();
                         }
                     },
                     onmessage: async (message: LiveServerMessage) => {
+                        // Audio Output
                         const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
                         if (base64Audio) {
                             const buffer = base64ToArrayBuffer(base64Audio);
@@ -179,46 +176,46 @@ ${tmpl.outputRule}
                             setIsSpeaking(true);
                             setTimeout(() => setIsSpeaking(false), 500);
                         }
+
+                        // Tool Calls
                         if (message.toolCall) {
-                           // Tool execution logic...
+                           console.log("Tool Call received:", message.toolCall);
                            for (const fc of message.toolCall.functionCalls) {
                                 sessionPromise.then(session => {
                                     const args = fc.args as any;
-                                    if(fc.name === 'navigate_app') actionsRef.current.onNavigate(args.view, args.mode);
-                                    if(fc.name === 'control_step') actionsRef.current.onControlStep(args.step);
+                                    try {
+                                        if(fc.name === 'navigate_app') actionsRef.current.onNavigate(args.view, args.mode);
+                                        if(fc.name === 'control_step') actionsRef.current.onControlStep(args.step);
+                                    } catch(e) { console.error("Tool exec error", e); }
+                                    
+                                    // Send result back
                                     session.sendToolResponse({
-                                        functionResponses: [{ id: fc.id, name: fc.name, response: { result: {success:true} } }]
+                                        functionResponses: [{ id: fc.id, name: fc.name, response: { result: { success: true } } }]
                                     });
                                 });
                            }
                         }
+
                         if (message.serverContent?.interrupted) {
+                            console.log("Interrupted by user");
                             playerRef.current?.interrupt();
                             setIsSpeaking(false);
                         }
                     },
                     onclose: (e) => {
-                        console.log("Gemini Live Closed", e);
+                        console.log("Gemini Live Closed. Code:", e.code, "Reason:", e.reason);
                         setIsConnected(false);
                         setIsConnecting(false);
                         isConnectedRef.current = false;
                         
-                        // Detailed Error Reporting
-                        if (e.code === 1000) {
-                            // Normal closure
-                        } else if (e.code === 4003) {
-                             setError("API Quota exceeded or API not enabled.");
-                        } else if (e.code === 1006) {
-                             setError("Verbindung unerwartet getrennt (Netzwerk/Server).");
-                        } else {
-                             setError(`Verbindung getrennt (Code: ${e.code}).`);
+                        if (e.code === 1007) {
+                            setError("Verbindung abgelehnt (Format-Fehler 1007). Bitte Seite neu laden.");
+                        } else if (e.code !== 1000) {
+                            setError(`Verbindung getrennt (Code: ${e.code})`);
                         }
                     },
                     onerror: (err) => {
                         console.error("Gemini Live Error:", err);
-                        setIsConnected(false);
-                        setIsConnecting(false);
-                        isConnectedRef.current = false;
                         setError("Verbindungsfehler.");
                         cleanup();
                     }
@@ -228,42 +225,38 @@ ${tmpl.outputRule}
             sessionRef.current = await sessionPromise;
 
         } catch (e: any) {
-            console.error("Connection Failed", e);
-            let msg = "Verbindung fehlgeschlagen.";
-            if (e.message && e.message.includes("403")) msg = "API Key ungültig (403).";
-            setError(msg);
-            cleanup();
+            console.error("Connection Init Failed", e);
+            setError("Verbindung fehlgeschlagen.");
             setIsConnecting(false);
+            cleanup();
         }
     };
 
     const cleanup = () => {
         isConnectedRef.current = false;
-        if (recorderRef.current) {
-            recorderRef.current.stop();
-            recorderRef.current = null;
-        }
-        if (playerRef.current) {
-            playerRef.current.stop();
-            playerRef.current = null;
-        }
+        if (recorderRef.current) recorderRef.current.stop();
+        if (playerRef.current) playerRef.current.stop();
+        recorderRef.current = null;
+        playerRef.current = null;
         setIsSpeaking(false);
-        setIsConnecting(false);
-        sessionRef.current = null;
         setIsConnected(false);
     };
 
     const disconnect = () => {
         cleanup();
+        sessionRef.current = null;
     };
 
+    // Reconnect on language change (with delay)
     useEffect(() => {
         if (isConnected && currentLang !== activeSessionLangRef.current) {
             cleanup();
-            setTimeout(() => connect(), 500);
+            const timer = setTimeout(() => connect(), 800);
+            return () => clearTimeout(timer);
         }
     }, [currentLang, isConnected]);
 
+    // Cleanup on unmount
     useEffect(() => {
         return () => disconnect();
     }, []);

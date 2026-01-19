@@ -19,31 +19,28 @@ export class AudioRecorder {
       const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
       this.audioContext = new AudioContextClass();
 
-      // CRITICAL: Explicitly resume audio context. 
-      // Browsers often start contexts in 'suspended' state.
       if (this.audioContext.state === 'suspended') {
           await this.audioContext.resume();
       }
       
       const sourceSampleRate = this.audioContext.sampleRate;
-      
       this.source = this.audioContext.createMediaStreamSource(this.stream);
-      // Buffer size 4096 gives ~85ms latency at 48kHz, good balance
+      
+      // Use larger buffer (4096) to reduce main thread load, latency is acceptable (~90ms)
       this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
 
       this.processor.onaudioprocess = (e) => {
-        // Safety check: if context is closed/suspended, do nothing
         if (!this.audioContext || this.audioContext.state === 'closed') return;
 
         const inputData = e.inputBuffer.getChannelData(0);
         
-        // Downsample to target rate (e.g. 48000 -> 16000)
+        // Robust Downsampling
         const downsampledData = this.downsampleBuffer(inputData, sourceSampleRate, this.targetSampleRate);
         
-        // Convert Float32 to Int16 PCM
+        // Convert to PCM Int16
         const pcmData = this.convertFloat32ToInt16(downsampledData);
         
-        // Only send if we have data
+        // Only send if we have data to prevent 1007 errors from empty frames
         if (pcmData.byteLength > 0) {
             this.onDataAvailable(pcmData.buffer);
         }
@@ -57,34 +54,37 @@ export class AudioRecorder {
     }
   }
 
-  // Simple Downsampling Algorithm
+  // Improved Downsampling (Linear Interpolation)
   private downsampleBuffer(buffer: Float32Array, sampleRate: number, outSampleRate: number): Float32Array {
       if (outSampleRate === sampleRate) {
           return buffer;
       }
       if (outSampleRate > sampleRate) {
-          return buffer; // Upsampling not handled, return as is
+          return buffer; // Upsampling not supported in this simple implementation
       }
       
       const sampleRateRatio = sampleRate / outSampleRate;
-      const newLength = Math.round(buffer.length / sampleRateRatio);
+      const newLength = Math.floor(buffer.length / sampleRateRatio);
       const result = new Float32Array(newLength);
       
-      let offsetResult = 0;
-      let offsetBuffer = 0;
-      
-      while (offsetResult < result.length) {
-          const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
+      for (let i = 0; i < newLength; i++) {
+          // Simple decimation with some averaging (boxcar) could be better, 
+          // but picking nearest neighbor or simple interpolation usually works for speech.
+          // Here we do a simple averaging of the samples that fall into the new bucket.
           
-          let accum = 0, count = 0;
-          for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
-              accum += buffer[i];
-              count++;
+          const startOffset = Math.floor(i * sampleRateRatio);
+          const endOffset = Math.floor((i + 1) * sampleRateRatio);
+          const count = endOffset - startOffset;
+          
+          if (count <= 1) {
+              result[i] = buffer[startOffset];
+          } else {
+              let sum = 0;
+              for (let j = startOffset; j < endOffset; j++) {
+                  sum += buffer[j];
+              }
+              result[i] = sum / count;
           }
-          
-          result[offsetResult] = count > 0 ? accum / count : 0;
-          offsetResult++;
-          offsetBuffer = nextOffsetBuffer;
       }
       
       return result;
@@ -94,7 +94,7 @@ export class AudioRecorder {
       let l = buffer.length;
       let buf = new Int16Array(l);
       while (l--) {
-          // Clamp values to -1 to 1
+          // Clamp values to -1 to 1 to prevent wrapping artifacts
           let s = Math.max(-1, Math.min(1, buffer[l]));
           // Scale to 16-bit integer range
           buf[l] = s < 0 ? s * 0x8000 : s * 0x7FFF;
@@ -128,11 +128,11 @@ export class AudioStreamPlayer {
   
   constructor() {
     const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
-    this.audioContext = new AudioContextClass({ sampleRate: 24000 }); // Try 24k preference
+    this.audioContext = new AudioContextClass({ sampleRate: 24000 }); // Gemini Native Output is 24k
     
     if (this.audioContext) {
         this.gainNode = this.audioContext.createGain();
-        this.gainNode.gain.value = 1.2; 
+        this.gainNode.gain.value = 1.0; 
         this.gainNode.connect(this.audioContext.destination);
     }
   }
@@ -150,11 +150,12 @@ export class AudioStreamPlayer {
         await this.audioContext.resume();
     }
 
+    // Convert Int16 PCM to Float32
     const float32Data = new Float32Array(data.byteLength / 2);
     const dataView = new DataView(data);
     
     for (let i = 0; i < data.byteLength / 2; i++) {
-      const int16 = dataView.getInt16(i * 2, true);
+      const int16 = dataView.getInt16(i * 2, true); // Little Endian
       float32Data[i] = int16 / 32768.0;
     }
 
@@ -167,9 +168,9 @@ export class AudioStreamPlayer {
 
     const currentTime = this.audioContext.currentTime;
     
-    // Gapless playback logic
+    // Ensure smooth playback sequence
     if (this.nextStartTime < currentTime) {
-      this.nextStartTime = currentTime + 0.05; // Small buffer if fell behind
+      this.nextStartTime = currentTime;
     }
     
     source.onended = () => {
@@ -186,7 +187,6 @@ export class AudioStreamPlayer {
           try { source.stop(); } catch(e) {}
       });
       this.scheduledSources = [];
-      this.nextStartTime = 0;
       
       if (this.audioContext) {
           this.nextStartTime = this.audioContext.currentTime;
