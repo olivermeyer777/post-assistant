@@ -111,6 +111,7 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
     const sessionRef = useRef<any>(null);
     const recorderRef = useRef<AudioRecorder | null>(null);
     const playerRef = useRef<AudioStreamPlayer | null>(null);
+    const isConnectedRef = useRef(false); // Ref to track status inside callbacks without deps
     
     // Refs for callbacks to avoid closure staleness
     const actionsRef = useRef({ onNavigate, onControlStep });
@@ -191,11 +192,13 @@ ${tmpl.outputRule}
 
     // Live Update Effect
     useEffect(() => {
-        if (isConnected && sessionRef.current) {
+        // Only run if we are connected AND we have a valid session object (not just a promise)
+        if (isConnected && sessionRef.current && typeof sessionRef.current.send === 'function') {
             console.log(`Context/Settings Update. Sending to Gemini...`);
             const newInstruction = buildSystemInstruction();
             
             try {
+                // Send a text part to update the model context, behaving like a system injection
                 sessionRef.current.send({
                     parts: [{
                         text: `[SYSTEM_UPDATE]
@@ -237,6 +240,7 @@ ${tmpl.outputRule}
             const systemInstruction = buildSystemInstruction();
             console.log("Connecting with Agent Persona...");
 
+            // Create the session promise but DO NOT assign it to sessionRef.current yet
             const sessionPromise = genAI.live.connect({
                 model: 'gemini-2.5-flash-native-audio-preview-12-2025',
                 config: {
@@ -251,16 +255,28 @@ ${tmpl.outputRule}
                     onopen: () => {
                         console.log("Gemini Live Connected");
                         setIsConnected(true);
+                        isConnectedRef.current = true;
 
                         recorderRef.current = new AudioRecorder((pcmBuffer) => {
+                            // Check if still connected before sending to avoid WebSocket CLOSED errors
+                            if (!isConnectedRef.current) return;
+                            
                             const base64Audio = arrayBufferToBase64(pcmBuffer);
+                            
+                            // Use the resolved session promise safely
                             sessionPromise.then((session) => {
-                                session.sendRealtimeInput({
-                                    media: {
-                                        mimeType: 'audio/pcm;rate=16000',
-                                        data: base64Audio
+                                if (isConnectedRef.current) {
+                                    try {
+                                        session.sendRealtimeInput({
+                                            media: {
+                                                mimeType: 'audio/pcm;rate=16000',
+                                                data: base64Audio
+                                            }
+                                        });
+                                    } catch (err) {
+                                        // Ignore send errors during close
                                     }
-                                });
+                                }
                             });
                         }, 16000); 
                         recorderRef.current.start();
@@ -301,13 +317,15 @@ ${tmpl.outputRule}
 
                                 // Send Response back to Model (Required)
                                 sessionPromise.then(session => {
-                                    session.sendToolResponse({
-                                        functionResponses: [{
-                                            id: fc.id,
-                                            name: fc.name,
-                                            response: { result: result }
-                                        }]
-                                    });
+                                    if (isConnectedRef.current) {
+                                        session.sendToolResponse({
+                                            functionResponses: [{
+                                                id: fc.id,
+                                                name: fc.name,
+                                                response: { result: result }
+                                            }]
+                                        });
+                                    }
                                 });
                             }
                         }
@@ -322,17 +340,22 @@ ${tmpl.outputRule}
                     onclose: () => {
                         console.log("Gemini Live Closed");
                         setIsConnected(false);
+                        isConnectedRef.current = false;
                         cleanup();
                     },
                     onerror: (err) => {
                         console.error("Gemini Live Error:", err);
                         setIsConnected(false);
+                        isConnectedRef.current = false;
                         cleanup();
                     }
                 }
             });
 
-            sessionRef.current = sessionPromise;
+            // Wait for the session to be fully resolved before assigning to ref
+            // This prevents "session.send is not a function" errors because we won't have a Promise in the ref
+            const session = await sessionPromise;
+            sessionRef.current = session;
 
         } catch (e) {
             console.error("Connection Failed", e);
@@ -341,9 +364,11 @@ ${tmpl.outputRule}
     };
 
     const cleanup = () => {
+        isConnectedRef.current = false; // Immediate flag for callbacks
         recorderRef.current?.stop();
         playerRef.current?.stop();
         setIsSpeaking(false);
+        sessionRef.current = null;
     };
 
     const disconnect = () => {
