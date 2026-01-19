@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 export interface KnowledgeDocument {
@@ -52,13 +52,11 @@ export const useAppSettings = () => {
   const [loading, setLoading] = useState(true);
 
   // --- FETCH DATA ---
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     try {
-      setLoading(true);
+      // Don't set loading to true here to avoid flickering on realtime updates
+      // setLoading(true); 
       
-      // Helper to ignore specific "not found" errors which are expected in a fresh setup
-      // PGRST116: JSON object requested, multiple (or no) rows returned (common for .single() on empty table)
-      // 42P01: Relation does not exist (Table missing)
       const isCriticalError = (error: any) => {
           if (!error) return false;
           const ignoredCodes = ['PGRST116', '42P01'];
@@ -72,7 +70,7 @@ export const useAppSettings = () => {
         .single();
         
       if (isCriticalError(settingsError)) {
-          console.warn(`Supabase: Failed to load settings. Using defaults. Code: ${settingsError?.code}, Msg: ${settingsError?.message}`);
+          console.warn(`Supabase: Failed to load settings. Using defaults. Code: ${settingsError?.code}`);
       }
 
       // 2. Fetch Processes
@@ -80,18 +78,10 @@ export const useAppSettings = () => {
         .from('processes')
         .select('*');
 
-      if (isCriticalError(processError)) {
-           console.warn(`Supabase: Failed to load processes. Using defaults. Code: ${processError?.code}, Msg: ${processError?.message}`);
-      }
-
       // 3. Fetch All Documents
       const { data: docData, error: docError } = await supabase
         .from('knowledge_documents')
         .select('*');
-
-      if (isCriticalError(docError)) {
-           console.warn(`Supabase: Failed to load documents. Using defaults. Code: ${docError?.code}, Msg: ${docError?.message}`);
-      }
 
       // --- ASSEMBLE DATA ---
       const newSettings: AppSettings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
@@ -140,17 +130,51 @@ export const useAppSettings = () => {
       }
 
       setSettings(newSettings);
+      setLoading(false);
 
     } catch (error) {
-      console.warn("Supabase Fetch Exception (using defaults):", error);
-    } finally {
+      console.warn("Supabase Fetch Exception:", error);
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchSettings();
   }, []);
+
+  // --- REALTIME SUBSCRIPTION ---
+  useEffect(() => {
+    // Initial Load
+    fetchSettings();
+
+    // Subscribe to DB Changes
+    const channel = supabase.channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'app_settings' },
+        (payload) => {
+            console.log('Realtime update received: app_settings', payload);
+            fetchSettings();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'processes' },
+        (payload) => {
+            console.log('Realtime update received: processes', payload);
+            fetchSettings();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'knowledge_documents' },
+        (payload) => {
+            console.log('Realtime update received: documents', payload);
+            fetchSettings();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchSettings]);
 
   // --- UPDATE FUNCTIONS ---
 
@@ -206,7 +230,6 @@ export const useAppSettings = () => {
 
   const addGlobalDocument = async (doc: KnowledgeDocument) => {
       try {
-        // DB Insert
         const { data, error } = await supabase.from('knowledge_documents').insert({
             title: doc.title,
             content: doc.content,
@@ -214,20 +237,11 @@ export const useAppSettings = () => {
             is_active: true
         }).select().single();
 
-        if (error) {
-            console.warn("Add global document warning:", error.message);
-            throw error;
-        }
-
-        if (data) {
-            // Update State with real ID from DB
-            setSettings(prev => ({
-                ...prev,
-                globalDocuments: [...prev.globalDocuments, { ...doc, id: data.id }]
-            }));
-        }
+        if (error) throw error;
+        // State update happens via Realtime subscription or optimistic fallback
+        if (data) fetchSettings(); 
       } catch (e) {
-          // Fallback optimistic for demo
+          // Fallback optimistic
           setSettings(prev => ({
               ...prev,
               globalDocuments: [...prev.globalDocuments, doc]
@@ -236,6 +250,7 @@ export const useAppSettings = () => {
   };
 
   const removeGlobalDocument = async (id: string) => {
+      // Optimistic
       setSettings(prev => ({
           ...prev,
           globalDocuments: prev.globalDocuments.filter(d => d.id !== id)
@@ -255,41 +270,16 @@ export const useAppSettings = () => {
             is_active: true
         }).select().single();
 
-        if (error) {
-            console.warn("Add process document warning:", error.message);
-            throw error;
-        }
-
-        if (data) {
-            setSettings(prev => {
-                const proc = prev.processes[processKey];
-                if (!proc) return prev;
-                return {
-                    ...prev,
-                    processes: {
-                        ...prev.processes,
-                        [processKey]: { ...proc, documents: [...proc.documents, { ...doc, id: data.id }] }
-                    }
-                };
-            });
-        }
+        if (error) throw error;
+        if (data) fetchSettings();
       } catch (e) {
-          // Fallback optimistic
-          setSettings(prev => {
-              const proc = prev.processes[processKey];
-              if (!proc) return prev;
-              return {
-                  ...prev,
-                  processes: {
-                      ...prev.processes,
-                      [processKey]: { ...proc, documents: [...proc.documents, doc] }
-                  }
-              };
-          });
+           // Fallback optimistic
+           console.warn(e);
       }
   };
 
   const removeProcessDocument = async (processKey: string, docId: string) => {
+      // Optimistic
       setSettings(prev => {
           const proc = prev.processes[processKey];
           if (!proc) return prev;

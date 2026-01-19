@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Language, Message } from './types';
 import { TRANSLATIONS } from './constants';
@@ -117,7 +118,7 @@ export default function App() {
   // --- GEMINI REALTIME HOOK ---
   const { connect: connectVoice, disconnect: disconnectVoice, isConnected: isVoiceConnected, isSpeaking: isVoiceSpeaking } = useGeminiRealtime({
       currentLang,
-      settings: settings.assistant, // Pass dynamic settings
+      settings: settings, // Pass FULL settings object for live updates
       onNavigate: (targetView, mode) => {
           console.log("Voice navigating to:", targetView, mode);
           if (targetView === 'home') setView('home');
@@ -280,7 +281,7 @@ export default function App() {
 
                  {/* Buttons - Controlled by Settings */}
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mt-auto">
-                     {settings.processes.packet && (
+                     {settings.processes.packet?.isEnabled && (
                         <button 
                             onClick={(e) => { e.stopPropagation(); handleSelfServiceClick('packet'); }}
                             className="w-full bg-black text-white px-6 py-5 rounded-2xl font-bold text-lg hover:bg-yellow-400 hover:text-black transition-colors flex items-center justify-center gap-4 shadow-md"
@@ -289,7 +290,7 @@ export default function App() {
                             {t.tiles.self.btnPacket}
                         </button>
                      )}
-                     {settings.processes.letter && (
+                     {settings.processes.letter?.isEnabled && (
                         <button 
                             onClick={(e) => { e.stopPropagation(); handleSelfServiceClick('letter'); }}
                             className="w-full bg-black text-white px-6 py-5 rounded-2xl font-bold text-lg hover:bg-yellow-400 hover:text-black transition-colors flex items-center justify-center gap-4 shadow-md"
@@ -298,7 +299,7 @@ export default function App() {
                             {t.tiles.self.btnLetter}
                         </button>
                      )}
-                     {settings.processes.payment && (
+                     {settings.processes.payment?.isEnabled && (
                         <button 
                             onClick={(e) => { e.stopPropagation(); handleSelfServiceClick('payment'); }}
                             className="w-full bg-black text-white px-6 py-5 rounded-2xl font-bold text-lg hover:bg-yellow-400 hover:text-black transition-colors flex items-center justify-center gap-4 shadow-md"
@@ -307,7 +308,7 @@ export default function App() {
                             {t.tiles.self.btnPayment}
                         </button>
                      )}
-                     {settings.processes.tracking && (
+                     {settings.processes.tracking?.isEnabled && (
                         <button 
                             onClick={(e) => { e.stopPropagation(); handleSelfServiceClick('tracking'); }}
                             className="w-full bg-black text-white px-6 py-5 rounded-2xl font-bold text-lg hover:bg-yellow-400 hover:text-black transition-colors flex items-center justify-center gap-4 shadow-md"
