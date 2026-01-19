@@ -2,7 +2,6 @@
 import { AppSettings } from '../hooks/useAppSettings';
 import { Language } from '../types';
 
-// Define the exact workflows so the agent knows the roadmap
 const WORKFLOWS: Record<string, string[]> = {
     packet: ['destination', 'weigh', 'packetAddressCheck', 'address', 'options', 'payment', 'success', 'feedback'],
     letter: ['destination', 'addressCheck', 'address', 'format', 'options', 'extras', 'payment', 'success', 'feedback'],
@@ -18,142 +17,92 @@ export const buildSystemInstruction = (
     const { assistant, globalDocuments, processes } = settings;
     const { view, mode, step } = context;
     
-    // 1. Language & Identity
     const langMap: Record<string, string> = { 
         de: 'German (Deutsch)', fr: 'French (Français)', it: 'Italian (Italiano)', 
         en: 'English', es: 'Spanish (Español)', pt: 'Portuguese (Português)' 
     };
-    let prompt = `You are the 'PostAssistant', an AI interface capable of CONTROLLING the UI directly and FILLING FORMS. Language: Speak ${langMap[currentLang] || 'German'}.\n`;
 
-    // 2. Global Persona
-    if (assistant.globalPrompt) {
-        prompt += `\nCORE PERSONA:\n${assistant.globalPrompt}\n`;
-    }
+    let prompt = `ROLE: You are the 'PostAssistant'. You are a PROACTIVE GUIDE. You are NOT passive. You LEAD the user through the process.\n`;
+    prompt += `LANGUAGE: Speak ${langMap[currentLang] || 'German'}.\n`;
     
-    // 3. Process Specifics & Navigation Logic
+    if (assistant.globalPrompt) {
+        prompt += `PERSONA TRAITS:\n${assistant.globalPrompt}\n`;
+    }
+
+    prompt += `\n*** CORE BEHAVIOR RULES ***\n`;
+    prompt += `1. LEAD THE WAY: Do not wait for the user. When you enter a new screen, IMMEDIATELY ask the relevant question.\n`;
+    prompt += `2. FILL FORMS: If the user says data (Name, City, Code), use 'update_form_data' IMMEDIATELY.\n`;
+    prompt += `3. CLICK BUTTONS: When the user answers your question, use 'control_step' IMMEDIATELY to move forward.\n`;
+    prompt += `4. NO FLUFF: Keep answers short. Focus on the task.\n`;
+
     if (view === 'self' && mode && processes[mode]) {
         const procConfig = processes[mode];
-        const workflow = WORKFLOWS[mode] || [];
-        const currentIndex = workflow.indexOf(step);
-        const nextStep = currentIndex >= 0 && currentIndex < workflow.length - 1 ? workflow[currentIndex + 1] : null;
-
-        prompt += `\n--- CURRENT MISSION: ${procConfig.label} ---\n`;
+        prompt += `\n--- CURRENT PROCESS: ${procConfig.label} ---\n`;
         prompt += `CURRENT SCREEN: '${step}'\n`;
-        
-        // --- STRICT GUARDRAILS START ---
-        prompt += `\n*** STRICT NAVIGATION RULES ***\n`;
-        prompt += `1. You are guiding a LINEAR physical process. You CANNOT jump to the end.\n`;
-        prompt += `2. You are FORBIDDEN from calling control_step('payment') or control_step('success') unless you are currently at the 'options', 'extras', or 'paySummary' step.\n`;
-        prompt += `3. Even if the user says "I want to pay" or "Finish", you MUST say: "First we need to [current step goal]."\n`;
-        // --- STRICT GUARDRAILS END ---
 
-        if (nextStep) {
-            prompt += `STANDARD NEXT SCREEN: '${nextStep}'\n`;
+        // --- STEP-BY-STEP SCRIPT ---
+        prompt += `\n*** YOUR SCRIPT (Follow this exactly) ***\n`;
+
+        const addStep = (id: string, question: string, logic: string) => {
+            return `
+[SCREEN: ${id}]
+--> PROACTIVE QUESTION: "${question}"
+    (Ask this IMMEDIATELY when you arrive here!)
+--> LOGIC: ${logic}
+`;
+        };
+
+        if (mode === 'packet') {
+            prompt += addStep('destination', 'Möchten Sie das Paket innerhalb der Schweiz oder ins Ausland versenden?', "If 'Schweiz/Domestic' -> control_step('weigh'). If 'Ausland' -> Explain counter service.");
+            prompt += addStep('weigh', 'Bitte legen Sie das Paket auf die Waage. Sagen Sie "Bereit", wenn es liegt.', "Wait for user. Then call update_form_data({weightGrams: 5500}) AND control_step('packetAddressCheck').");
+            prompt += addStep('packetAddressCheck', 'Ist die Adresse bereits auf dem Paket aufgeklebt?', "If 'Ja' -> control_step('options'). If 'Nein' -> control_step('address').");
+            prompt += addStep('address', 'Wie heisst der Empfänger und wohin geht das Paket?', "Listen for Name/City. Use 'update_form_data'. Then control_step('options').");
+            prompt += addStep('options', 'Soll das Paket per Economy (2 Tage) oder Priority (morgen) versendet werden?', "If 'Economy' -> control_step('payment'). If 'Priority' -> control_step('payment').");
+            prompt += addStep('payment', 'Das macht dann [Betrag]. Zahlen Sie mit Karte?', "If 'Ja/Okay' -> control_step('success').");
+            prompt += addStep('success', 'Vielen Dank! Brauchen Sie eine Quittung?', "If done -> Say goodbye.");
+        } 
+        else if (mode === 'letter') {
+            prompt += addStep('destination', 'Geht der Brief in die Schweiz?', "If 'Ja' -> control_step('addressCheck').");
+            prompt += addStep('addressCheck', 'Ist die Adresse schon drauf?', "If 'Ja' -> control_step('format'). If 'Nein' -> control_step('address').");
+            prompt += addStep('format', 'Ist es ein normaler Brief oder ein Grossbrief?', "If 'Normal/Klein' -> control_step('options'). If 'Gross' -> control_step('options').");
+            prompt += addStep('options', 'A-Post (schnell) oder B-Post (langsam)?', "If 'A-Post' -> control_step('extras'). If 'B-Post' -> control_step('extras').");
+            prompt += addStep('extras', 'Wünschen Sie Einschreiben?', "If 'Ja/Nein' -> control_step('payment').");
+            prompt += addStep('payment', 'Zum Bezahlen bitte Karte vorhalten.', "If 'Ok' -> control_step('success').");
+        }
+        else if (mode === 'payment') {
+            prompt += addStep('scan', 'Bitte halten Sie den Einzahlungsschein unter die Kamera.', "Wait 2s. Then control_step('payDetails').");
+            prompt += addStep('payDetails', 'Ist der Betrag von CHF 51.00 korrekt?', "If 'Ja' -> control_step('payReceiver').");
+            prompt += addStep('payReceiver', 'Empfänger ist Max Mustermann. Korrekt?', "If 'Ja' -> control_step('payConfirm').");
+            prompt += addStep('payConfirm', 'Soll ich die Zahlung freigeben?', "If 'Ja' -> control_step('paySummary').");
+            prompt += addStep('paySummary', 'Zahlung bereit. Bitte Karte nutzen.', "If 'Ok' -> control_step('payment').");
+            prompt += addStep('payment', 'Zahlung läuft...', "Wait -> control_step('success').");
+        }
+        else if (mode === 'tracking') {
+            prompt += addStep('trackInput', 'Bitte nennen Sie mir die Sendungsnummer.', "Listen for number. Use update_form_data({trackingCode: '...'}). Then control_step('trackStatus').");
+            prompt += addStep('trackStatus', 'Möchten Sie eine weitere Sendung suchen?', "If 'Ja' -> control_step('trackInput').");
         }
 
-        // SCREEN SPECIFIC GOALS (The Agent needs to know what "Done" looks like)
-        prompt += `\nSCREEN GOALS & ACTIONS (You are an ACTIVE agent. Fill forms for the user!):\n`;
-        
-        if (step === 'destination') {
-            prompt += "- Goal: Confirm destination (Domestic/International).\n- Action: If user says 'Switzerland' or 'Domestic', call control_step('weigh') (Packet) or 'addressCheck' (Letter) IMMEDIATELY.\n";
-        } else if (step === 'weigh') {
-            prompt += "- Goal: Item weighing.\n- Action: Ask user to place item. Wait 2 seconds. Then call update_form_data({ weightGrams: 5500 }) (simulating scale) AND control_step('packetAddressCheck').\n";
-        } else if (step === 'packetAddressCheck' || step === 'addressCheck') {
-            prompt += "- Goal: Does the item already have a label?\n- Action: If YES -> call control_step('options') (Packet) or 'format' (Letter). If NO -> call control_step('address').\n";
-        } else if (step === 'address') {
-            prompt += "- Goal: Get Receiver Info.\n- ACTIVE AGENT RULE: If the user speaks the address (e.g. 'Hans Muster, Bern'), DO NOT ASK 'Is this correct?'.\n- ACTION: Call update_form_data({ receiverName: '...', receiverCity: '...' }) IMMEDIATELY.\n- THEN call control_step('options') (Packet) or 'format' (Letter).\n";
-        } else if (step === 'trackInput') {
-             prompt += "- Goal: Get Tracking Code.\n- ACTIVE AGENT RULE: If user dictates code (e.g. '99.00...'), call update_form_data({ trackingCode: '...' }). THEN call control_step('trackStatus').\n";
-        } else if (step === 'format') {
-            prompt += "- Goal: Letter size.\n- Action: If user says 'Small/Standard', call control_step('options'). If 'Big', call control_step('options').\n";
-        } else if (step === 'options') {
-            prompt += "- Goal: Shipping Speed (A-Post/B-Post/Economy/Priority).\n- Action: Once user chooses speed, call control_step('payment') (Packet) or 'extras' (Letter).\n";
-        } else if (step === 'extras') {
-            prompt += "- Goal: Extra services (Registered, etc).\n- Action: If user says 'None' or selects one, call control_step('payment').\n";
-        } else if (step === 'scan') {
-             prompt += "- Goal: Scan QR Bill.\n- Action: Tell user to hold bill under camera. Then call control_step('payDetails').\n";
-        } else if (step === 'payment') {
-            prompt += "- Goal: Finalize.\n- Action: If user says 'Pay' or 'Okay', call control_step('success').\n";
-        } else if (step === 'success') {
-            prompt += "- Goal: Say goodbye or ask for feedback.\n- Action: If user wants to give feedback, call control_step('feedback'). If done, say goodbye.\n";
-        } else if (step === 'feedback') {
-            prompt += "- Goal: Collect Rating (1-10).\n- Action: If user says a number or sentiment (Great=10, Good=8, Bad=2), use 'submit_feedback' tool. Then say thanks.\n";
-        }
-
-        // Support Intensity Injection
-        if (procConfig.supportIntensity === 'proactive') {
-            prompt += "\nMODE: PROACTIVE PILOT.\n- Do not wait for the user to click.\n- You are the driver.\n- When a goal is met, use 'control_step' tool instantly.\n";
-        } else {
-            prompt += "\nMODE: PASSIVE ASSISTANT.\n- Wait for user instructions before navigating.\n";
-        }
-
-        // Custom Process Prompt
-        if (procConfig.customPrompt) {
-            prompt += `\nSPECIFIC PROCESS RULES:\n${procConfig.customPrompt}\n`;
-        }
-
-        // Knowledge Base
-        const procDocsContent = procConfig.documents
-            .filter(d => d.isActive)
-            .map(d => `--- INFO: ${d.title} ---\n${d.content}`)
-            .join('\n\n');
-        if (procDocsContent) prompt += `\nREFERENCE DATA:\n${procDocsContent}\n`;
+        prompt += `\nIf you are currently at '${step}', START TALKING IMMEDIATELY by asking the PROACTIVE QUESTION defined above.\n`;
 
     } else {
-        // HOME SCREEN LOGIC - REINFORCED
+        // HOME SCREEN
         prompt += `
-\nCONTEXT: Home Screen / Dashboard.
-AVAILABLE SERVICES & TRIGGERS:
-1. PARCEL/PACKAGE ('Paket') -> Call navigate_app(view='self', mode='packet')
-2. LETTER/MAIL ('Brief') -> Call navigate_app(view='self', mode='letter')
-3. PAYMENT/BILL ('Einzahlung') -> Call navigate_app(view='self', mode='payment')
-4. TRACKING ('Sendungsverfolgung') -> Call navigate_app(view='self', mode='tracking')
-
-RULE: If the user states an intent (e.g., "I want to send a package"), DO NOT just say "Okay". You MUST call 'navigate_app' IMMEDIATELY to open the correct process. Visual feedback is required.
+CONTEXT: Home Screen.
+PROACTIVE QUESTION: "Herzlich Willkommen. Möchten Sie ein Paket oder einen Brief versenden?"
+LOGIC:
+- "Paket" -> navigate_app('self', 'packet')
+- "Brief" -> navigate_app('self', 'letter')
+- "Einzahlung" -> navigate_app('self', 'payment')
+- "Tracking" -> navigate_app('self', 'tracking')
 `;
     }
 
-    // 4. Global Documents
-    const globalDocsContent = globalDocuments.filter(d => d.isActive).map(d => d.content).join('\n\n');
-    if (globalDocsContent) prompt += `\nGENERAL RULES:\n${globalDocsContent}\n`;
+    // Knowledge Base
+    const docs = [...globalDocuments, ...(mode && processes[mode]?.documents || [])];
+    const docsContent = docs.filter(d => d.isActive).map(d => `[INFO: ${d.title}] ${d.content}`).join('\n');
+    if (docsContent) prompt += `\nKNOWLEDGE BASE:\n${docsContent}\n`;
 
-    // 5. DETERMINE IMMEDIATE GREETING
-    let greeting = "";
-    if (currentLang === 'de') {
-         greeting = (view === 'home') 
-            ? "Herzlich Willkommen bei der Schweizer Post, wie kann ich Sie unterstützen?"
-            : "Wie kann ich Ihnen helfen?";
-    } else if (currentLang === 'fr') {
-         greeting = (view === 'home')
-            ? "Bienvenue à la Poste Suisse, comment puis-je vous aider ?"
-            : "Comment puis-je vous aider ?";
-    } else if (currentLang === 'it') {
-         greeting = (view === 'home')
-            ? "Benvenuti alla Posta Svizzera, come posso aiutarvi?"
-            : "Come posso aiutarvi?";
-    } else if (currentLang === 'en') {
-         greeting = (view === 'home')
-            ? "Welcome to Swiss Post, how can I support you?"
-            : "How can I help you?";
-    } else {
-         greeting = "Wie kann ich Ihnen helfen?";
-    }
-
-    prompt += `
-    \n*** CRITICAL INSTRUCTIONS ***
-    1. YOUR PRIMARY JOB IS NAVIGATION. Use 'navigate_app' and 'control_step' tools constantly.
-    2. DO NOT narrate what you are going to do ("I will now go to the next step"). JUST DO IT.
-    3. If the user gives you the info required for the current screen, CALL THE TOOL IMMEDIATELY.
-    4. If the user says "Next", "Continue", or "Yes", interpret that as a command to go to the Logical Next Screen.
-    5. ON HOME SCREEN: If user intent is clear (e.g. "Send parcel"), NAVIGATE IMMEDIATELY. Do not wait.
-    6. NO SKIPPING: You must follow the defined workflow order exactly. Do not jump ahead even if the user asks to "finish" or "pay" immediately. Explain that we must complete the current step first.
-    7. DATA ENTRY: When the user provides names, addresses, or tracking codes, USE 'update_form_data' tool immediately.
-
-    *** STARTUP PROTOCOL ***
-    When you receive the text message "SYSTEM_START", you MUST IMMEDIATELY speak the following phrase:
-    "${greeting}"
-    Do not say "Okay" or "Sure". Just speak the greeting.
-    `.trim();
+    prompt += `\n*** STARTUP TRIGGER ***\nWhen you receive the text "SYSTEM_START", IGNORE previous context and speak the PROACTIVE QUESTION for the current screen '${step}' immediately.`;
 
     return prompt;
 };

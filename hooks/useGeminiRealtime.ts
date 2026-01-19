@@ -10,7 +10,7 @@ interface UseGeminiRealtimeProps {
     onNavigate: (view: string, mode?: string) => void;
     onControlStep: (step: string) => void;
     onSubmitFeedback: (score: number) => void;
-    onUpdateData: (data: any) => void; // New callback for form filling
+    onUpdateData: (data: any) => void;
     currentLang: Language;
     settings: AppSettings;
     currentContext: {
@@ -23,39 +23,30 @@ interface UseGeminiRealtimeProps {
 const toolsDef = [
   {
     name: "navigate_app",
-    description: "CRITICAL: Use this IMMEDIATELY when the user indicates intent to use a service (Packet, Letter, Payment, Tracking). Do not talk about it, just switch the view.",
+    description: "Switch view. Params: view (string), mode (string).",
     parameters: {
       type: "OBJECT",
       properties: {
-        view: { 
-            type: "STRING", 
-            description: "Target view. Allowed: 'home', 'self', 'oracle'."
-        },
-        mode: {
-            type: "STRING", 
-            description: "Service mode. Allowed: 'packet', 'letter', 'payment', 'tracking'."
-        }
+        view: { type: "STRING" },
+        mode: { type: "STRING" }
       },
       required: ["view"]
     }
   },
   {
     name: "control_step",
-    description: "CLICKS buttons or moves to the NEXT screen within a process. Call this AUTOMATICALLY when a step is done.",
+    description: "Go to step. Param: step (string).",
     parameters: {
       type: "OBJECT",
       properties: {
-        step: {
-            type: "STRING", 
-            description: "The ID of the step to jump to. EXAMPLES: 'weigh', 'address', 'options', 'payment', 'success', 'feedback'."
-        }
+        step: { type: "STRING" }
       },
       required: ["step"]
     }
   },
   {
     name: "update_form_data",
-    description: "FILLS form fields with data provided by the user. Use this whenever the user dictates names, addresses, tracking codes, or weights.",
+    description: "Fill form. Params: receiverName, receiverCity, weightGrams, trackingCode, etc.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -71,14 +62,11 @@ const toolsDef = [
   },
   {
     name: "submit_feedback",
-    description: "Selects a rating score (1-10) on the feedback screen.",
+    description: "Submit rating. Param: score (number).",
     parameters: {
       type: "OBJECT",
       properties: {
-        score: {
-            type: "NUMBER", 
-            description: "The score from 1 to 10."
-        }
+        score: { type: "NUMBER" }
       },
       required: ["score"]
     }
@@ -132,9 +120,8 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, onSubmitFeedback,
         const genAI = new GoogleGenAI({ apiKey });
         
         try {
-            // GENERATE DYNAMIC INSTRUCTION USING SHARED UTILITY
             const systemInstruction = buildSystemInstruction(currentLang, settings, currentContext);
-            console.log("Connecting to Gemini Live with Instruction Length:", systemInstruction.length);
+            console.log("Connecting to Gemini Live...");
             
             activeSessionLangRef.current = currentLang;
 
@@ -159,23 +146,37 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, onSubmitFeedback,
                             recorderRef.current = new AudioRecorder((pcmBuffer) => {
                                 if (!isConnectedRef.current) return;
                                 if (pcmBuffer.byteLength === 0) return;
-
                                 const base64Audio = arrayBufferToBase64(pcmBuffer);
-                                
                                 sessionPromise.then((session) => {
                                     if (isConnectedRef.current) {
                                         try {
                                             session.sendRealtimeInput({
                                                 media: { mimeType: 'audio/pcm;rate=16000', data: base64Audio }
                                             });
-                                        } catch(sendError) {
-                                            console.warn("Socket Send Error (ignoring):", sendError);
-                                        }
+                                        } catch(sendError) { console.warn("Socket Send Error (ignoring):", sendError); }
                                     }
                                 }).catch(err => console.warn("Session Access Error:", err));
                             }, 16000); 
                             
                             await recorderRef.current.start();
+                            
+                            // *** TRIGGER PROACTIVE GREETING ***
+                            // Send a text message to "wake up" the model and make it follow the "SYSTEM_START" instruction
+                            sessionPromise.then(session => {
+                                setTimeout(() => {
+                                    try {
+                                        session.sendRealtimeInput({
+                                            content: {
+                                                parts: [{ text: "SYSTEM_START" }],
+                                                role: "user"
+                                            }
+                                        });
+                                    } catch(e) {
+                                        console.warn("Could not send initial trigger:", e);
+                                    }
+                                }, 500);
+                            });
+
                         } catch (recErr) {
                             console.error("Microphone failed", recErr);
                             setError("Mikrofon blockiert.");
@@ -205,6 +206,7 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, onSubmitFeedback,
                                     } catch(e) { console.error("Tool exec error", e); }
                                     
                                     try {
+                                        // Send response to confirm tool execution, prompting the model to continue its turn
                                         session.sendToolResponse({
                                             functionResponses: [{ id: fc.id, name: fc.name, response: { result: { success: true } } }]
                                         });
@@ -223,13 +225,9 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, onSubmitFeedback,
                         setIsConnected(false);
                         setIsConnecting(false);
                         isConnectedRef.current = false;
-                        
                         if (e.code === 1007) {
-                            if (e.reason && e.reason.includes("API key")) {
-                                setError("API Key ungültig oder nicht aktiviert.");
-                            } else {
-                                setError("Verbindung abgelehnt (Format/Policy).");
-                            }
+                           if (e.reason && e.reason.includes("API key")) setError("API Key ungültig.");
+                           else setError("Verbindung abgelehnt.");
                         } else if (e.code !== 1000) {
                             setError(`Getrennt (Code: ${e.code})`);
                         }
@@ -241,9 +239,7 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, onSubmitFeedback,
                     }
                 }
             });
-
             sessionRef.current = await sessionPromise;
-
         } catch (e: any) {
             console.error("Connection Failed", e);
             setError("Konnte nicht verbinden.");
