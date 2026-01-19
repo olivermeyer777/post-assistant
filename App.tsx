@@ -9,6 +9,7 @@ import { SelfServiceView, SelfServiceStep } from './components/SelfServiceView';
 import { OracleView } from './components/OracleView'; 
 import { useTTS } from './hooks/useTTS';
 import { AssistantTile } from './components/AssistantTile';
+import { VoiceControl } from './components/VoiceControl';
 import { useGeminiRealtime } from './hooks/useGeminiRealtime'; 
 import { useAppSettings } from './hooks/useAppSettings'; // New Hook
 import { SettingsView } from './components/SettingsView'; // New View
@@ -110,7 +111,12 @@ export default function App() {
   // --- GEMINI REALTIME HOOK ---
   const { connect: connectVoice, disconnect: disconnectVoice, isConnected: isVoiceConnected, isSpeaking: isVoiceSpeaking } = useGeminiRealtime({
       currentLang,
-      settings: settings, // Pass FULL settings object for live updates
+      settings: settings, 
+      currentContext: {
+          view: view,
+          mode: view === 'self' ? selfServiceMode : 'N/A',
+          step: view === 'self' ? selfServiceStep : 'N/A'
+      },
       onNavigate: (targetView, mode) => {
           console.log("Voice navigating to:", targetView, mode);
           if (targetView === 'home') setView('home');
@@ -184,7 +190,6 @@ export default function App() {
       const logMsg = error instanceof Error ? error.message : String(error);
       console.error("Gemini Error:", logMsg);
       
-      // Handle Missing Key explicit error
       if (logMsg.includes("MISSING_API_KEY")) {
          setErrorMsg("API Key fehlt! Bitte erstellen Sie eine .env Datei im Projektverzeichnis.");
          setMessages(prev => [...prev, { id: generateId(), sender: 'assistant', text: "Fehler: API Key fehlt. Bitte Konfiguration prüfen." }]);
@@ -206,17 +211,13 @@ export default function App() {
     setView('self');
   };
 
-  // --- RENDER SETTINGS VIEW ---
   if (isSettingsView) {
       return <SettingsView />;
   }
 
-  // --- RENDER MAIN APP ---
-
   return (
     <div className="min-h-screen flex flex-col relative selection:bg-yellow-200">
       
-      {/* Background Accents */}
       <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
         <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-[#FFCC00]/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-gray-200/50 rounded-full blur-3xl"></div>
@@ -224,17 +225,12 @@ export default function App() {
 
       {errorMsg && <ErrorBanner message={errorMsg} onClose={() => setErrorMsg(null)} />}
 
-      {/* Header */}
       <header className="w-full bg-[#FFCC00] text-black py-6 px-8 shadow-sm z-50 relative">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
            <div className="flex items-center gap-4 cursor-pointer" onClick={() => setView('home')}>
-              {/* Logo removed */}
               <span className="hidden sm:block text-xl font-bold tracking-tight opacity-90">Post Self-Service</span>
            </div>
            <div className="flex items-center gap-4">
-               {/* Time removed */}
-               
-               {/* Settings Button */}
                <a 
                  href="?view=settings" 
                  target="_blank" 
@@ -251,10 +247,8 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-8 pb-32 flex flex-col items-center">
         
-        {/* HOME VIEW */}
         {view === 'home' && (
           <div className="w-full animate-fade-in">
             <div className="text-center mb-12 mt-8">
@@ -266,19 +260,15 @@ export default function App() {
               </p>
             </div>
 
-            {/* Asymmetrical 3-Column Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full">
               
-              {/* Tile 1: Self Service - Takes 2/3 width */}
               <div className="lg:col-span-2 group bg-white rounded-3xl p-10 shadow-xl shadow-gray-200/50 border border-gray-100 hover:border-black transition-all duration-300 hover:shadow-2xl cursor-pointer flex flex-col gap-8 relative overflow-hidden h-full">
-                 {/* Content */}
                  <div className="flex-1 flex flex-col items-start relative z-10">
                      <ServiceIcon />
                      <h2 className="text-3xl font-bold text-gray-900 mb-4">{t.tiles.self.title}</h2>
                      <p className="text-lg text-gray-500 mb-8 leading-relaxed max-w-2xl">{t.tiles.self.desc}</p>
                  </div>
 
-                 {/* Buttons - Controlled by Settings */}
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mt-auto">
                      {settings.processes.packet?.isEnabled && (
                         <button 
@@ -319,7 +309,6 @@ export default function App() {
                  </div>
               </div>
 
-              {/* Tile 2: Assistant Tile (Replacing Video) */}
                <AssistantTile 
                   isConnected={isVoiceConnected} 
                   isSpeaking={isVoiceSpeaking} 
@@ -329,7 +318,6 @@ export default function App() {
           </div>
         )}
 
-        {/* SELF SERVICE VIEW */}
         {view === 'self' && (
           <SelfServiceView 
             t={t} 
@@ -341,7 +329,6 @@ export default function App() {
           />
         )}
 
-        {/* ORACLE PLACEHOLDER */}
         {view === 'oracle' && (
              <OracleView 
                 t={t} 
@@ -353,7 +340,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Chat Component */}
       <ChatBox
         isOpen={isChatOpen}
         isMinimized={isChatMinimized}
@@ -367,6 +353,15 @@ export default function App() {
         onToggleSound={() => setIsSoundEnabled(!isSoundEnabled)}
         currentLang={currentLang}
       />
+
+      {/* Floating Voice Control for Non-Home Views */}
+      {view !== 'home' && (
+          <VoiceControl 
+            isConnected={isVoiceConnected}
+            isSpeaking={isVoiceSpeaking}
+            onToggle={isVoiceConnected ? disconnectVoice : connectVoice}
+          />
+      )}
 
       <LanguageBar 
         currentLang={currentLang} 

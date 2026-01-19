@@ -10,6 +10,12 @@ interface UseGeminiRealtimeProps {
     onControlStep: (step: string) => void;
     currentLang: Language;
     settings: AppSettings;
+    // NEW: Context object to inform the AI where the user is
+    currentContext: {
+        view: string;
+        mode: string;
+        step: string;
+    };
 }
 
 // --- TOOLS DEFINITION ---
@@ -103,7 +109,7 @@ const PROMPT_TEMPLATES: Record<string, { role: string; style: string; strictRule
     }
 };
 
-export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, settings }: UseGeminiRealtimeProps) => {
+export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, settings, currentContext }: UseGeminiRealtimeProps) => {
     const [isConnected, setIsConnected] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
     
@@ -159,6 +165,16 @@ ${tmpl.style}
 ${tmpl.strictRule}
 ${tmpl.toolRule}
 GLOBAL SETTINGS: Persona: ${assistantSettings.globalPrompt} | Formality: ${assistantSettings.politeness}
+
+*** CURRENT USER CONTEXT (Where the user is right now): ***
+- View: ${currentContext.view}
+- Process: ${currentContext.mode}
+- Step: ${currentContext.step}
+
+INSTRUCTION: The user has activated you while on this specific screen. 
+Immediately offer help relevant to this specific step. 
+Example: If step is 'weigh', ask if they need help weighing the package.
+
 ${tmpl.contextIntro}
 GLOBAL KNOWLEDGE:
 ${formatDocs(globalDocs)}
@@ -171,7 +187,7 @@ ${tmpl.outputRule}
         `.trim();
 
         return base;
-    }, [settings, currentLang]);
+    }, [settings, currentLang, currentContext]);
 
     const connect = async () => {
         if (isConnectedRef.current) return;
@@ -192,7 +208,7 @@ ${tmpl.outputRule}
         
         try {
             const systemInstruction = buildSystemInstruction();
-            console.log("Connecting with Language:", currentLang);
+            console.log("Connecting with Context:", currentContext);
 
             activeSessionLangRef.current = currentLang;
 
@@ -325,13 +341,10 @@ ${tmpl.outputRule}
     };
 
     // --- LANGUAGE SWITCH HANDLER ---
-    // Instead of trying to update the session live (which causes crashes),
-    // we simply restart the connection with the new language.
     useEffect(() => {
         if (isConnected && currentLang !== activeSessionLangRef.current) {
             console.log("Language changed. Restarting Voice Agent...");
             cleanup();
-            // Small timeout to allow cleanup to finish before reconnecting
             setTimeout(() => {
                 connect();
             }, 500);
