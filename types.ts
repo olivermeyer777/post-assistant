@@ -70,6 +70,10 @@ export interface TranslationData {
       length: string;
       width: string;
       height: string;
+      // New Packet Address Check
+      packetAddressCheckTitle: string; 
+      packetAddressCheckQuestion: string;
+      
       addressSender: string;
       addressReceiver: string;
       isCompany: string;
@@ -95,7 +99,8 @@ export interface TranslationData {
       instruction1: string;
       instruction2: string;
       instruction3: string;
-      feedbackTitle: string;
+      feedbackTitle: string; // New
+      feedbackQuestion: string; // New
       feedbackThanks: string;
     };
     letter: {

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { TranslationData, Language } from '../types';
 
 // Export Step Type so parent can use it
-export type SelfServiceStep = 'destination' | 'weigh' | 'addressCheck' | 'address' | 'format' | 'options' | 'extras' | 'payment' | 'success' | 'feedback' | 'scan' | 'payDetails' | 'payReceiver' | 'payConfirm' | 'paySummary' | 'trackInput' | 'trackStatus';
+export type SelfServiceStep = 'destination' | 'weigh' | 'packetAddressCheck' | 'addressCheck' | 'address' | 'format' | 'options' | 'extras' | 'payment' | 'success' | 'feedback' | 'scan' | 'payDetails' | 'payReceiver' | 'payConfirm' | 'paySummary' | 'trackInput' | 'trackStatus';
 
 interface SelfServiceViewProps {
   t: TranslationData;
@@ -166,16 +166,17 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
     return `${kg} kg ${g}g`;
   };
 
-  // Timeout Logic for Finish Screens
+  // Timeout Logic for Finish Screens (30s)
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
+    // Reset timer on step change to 'success' or 'feedback'
     if (step === 'success' || step === 'feedback') {
       timer = setTimeout(() => {
         onBack();
-      }, 60000);
+      }, 30000); // 30 seconds
     }
     return () => clearTimeout(timer);
-  }, [step, onBack]);
+  }, [step, onBack, feedbackScore]); // feedbackScore added to reset timer on click if desired, though usually navigation happens
 
   const simulateWeighing = () => {
     setIsWeighing(true);
@@ -183,7 +184,8 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
     setTimeout(() => {
       setWeightGrams(randomWeight);
       setIsWeighing(false);
-      setStep('address');
+      // New logic: Go to address check instead of straight to address
+      setStep('packetAddressCheck');
     }, 2000);
   };
   
@@ -212,7 +214,7 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
 
     if (mode === 'packet') {
         title = t.selfService.title;
-        stepsList = ['destination', 'weigh', 'address', 'options', 'payment', 'success'];
+        stepsList = ['destination', 'weigh', 'packetAddressCheck', 'address', 'options', 'payment', 'success'];
     } else if (mode === 'letter') {
         title = t.selfService.titleLetter;
         stepsList = ['destination', 'addressCheck', 'address', 'format', 'options', 'extras', 'payment', 'success'];
@@ -226,7 +228,11 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
 
     let currentIndex = stepsList.indexOf(step);
     if (step === 'feedback') currentIndex = stepsList.length - 1;
-    if (currentIndex === -1) currentIndex = 0;
+    // Fallback if step is not in list (e.g. dynamic skip)
+    if (currentIndex === -1) {
+        // Find closest
+        if (step === 'packetAddressCheck') currentIndex = 2;
+    }
 
     const progressPercent = stepsList.length > 1 
         ? (currentIndex / (stepsList.length - 1)) * 100 
@@ -491,7 +497,6 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
 
   const renderOptionsView = () => (
      <div className="flex flex-col gap-8 min-h-[400px]">
-         {/* Logic remains same, just rendering content */}
          <div className="flex justify-center mb-4 mt-4">
              {mode === 'packet' ? (
                  <div className="bg-white rounded-full w-48 h-48 shadow-xl border-4 border-[#FFCC00] flex flex-col items-center justify-center transform transition-all hover:scale-105 relative">
@@ -501,15 +506,34 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
                  <h2 className="text-2xl font-bold text-gray-900">{t.selfService.letter.shippingQuestion}</h2>
              )}
          </div>
-         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-             <div className={mode === 'packet' ? "space-y-4" : "col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4"}>
-                  <button onClick={() => setShippingMethod('economy')} className={`p-5 rounded-2xl border-2 flex flex-col md:flex-row justify-between items-center transition-all cursor-pointer group relative overflow-hidden ${shippingMethod === 'economy' ? 'border-[#FFCC00] bg-yellow-50' : 'border-gray-200 bg-white'}`}>
-                      <div className="font-bold text-lg text-gray-900">{mode === 'packet' ? t.selfService.franking.economy : t.selfService.letter.bPost}</div>
-                  </button>
-                  <button onClick={() => setShippingMethod('priority')} className={`p-5 rounded-2xl border-2 flex flex-col md:flex-row justify-between items-center transition-all cursor-pointer group relative overflow-hidden ${shippingMethod === 'priority' ? 'border-[#FFCC00] bg-yellow-50' : 'border-gray-200 bg-white'}`}>
-                      <div className="font-bold text-lg text-gray-900">{mode === 'packet' ? t.selfService.franking.priority : t.selfService.letter.aPost}</div>
-                  </button>
-             </div>
+         
+         {/* STANDARDIZED OPTION BUTTONS for both Packet and Letter */}
+         <div className="flex flex-col md:flex-row gap-6 w-full justify-center">
+              <button 
+                  onClick={() => setShippingMethod('economy')} 
+                  className={`flex-1 group bg-white border-2 rounded-2xl p-6 transition-all flex flex-col items-center gap-3 relative
+                      ${shippingMethod === 'economy' ? 'border-[#FFCC00] bg-yellow-50/50 shadow-md' : 'border-gray-200 hover:border-black'}
+                  `}
+              >
+                   <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 font-bold text-xs group-hover:bg-black group-hover:text-white transition-colors">ECO</div>
+                   <div className="text-center">
+                       <div className="font-bold text-lg text-gray-900">{mode === 'packet' ? t.selfService.franking.economy : t.selfService.letter.bPost}</div>
+                       <div className="text-sm text-gray-500 mt-1">{t.selfService.franking.duration2days}</div>
+                   </div>
+              </button>
+
+              <button 
+                  onClick={() => setShippingMethod('priority')} 
+                  className={`flex-1 group bg-white border-2 rounded-2xl p-6 transition-all flex flex-col items-center gap-3 relative
+                      ${shippingMethod === 'priority' ? 'border-[#FFCC00] bg-yellow-50/50 shadow-md' : 'border-gray-200 hover:border-black'}
+                  `}
+              >
+                   <div className="w-12 h-12 bg-[#FFCC00] rounded-full flex items-center justify-center text-black font-bold text-xs">PRIO</div>
+                   <div className="text-center">
+                       <div className="font-bold text-lg text-gray-900">{mode === 'packet' ? t.selfService.franking.priority : t.selfService.letter.aPost}</div>
+                       <div className="text-sm text-gray-500 mt-1">{t.selfService.franking.duration1day}</div>
+                   </div>
+              </button>
          </div>
      </div>
   );
@@ -551,15 +575,46 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
       </div>
   );
   
+  // Beautified Success View
   const renderSuccessView = () => (
-     <div className="flex flex-col items-center justify-center min-h-[400px] text-center animate-fade-in">
-        <h2 className="text-3xl font-bold text-gray-900 mb-12">{t.selfService.franking.successTitle}</h2>
-        <div className="mt-12 pt-8 border-t border-gray-100 w-full max-w-lg">
-           <div className="flex justify-between gap-1">
-                {[0,1,2,3,4,5,6,7,8,9,10].map(num => (
-                   <button key={num} onClick={() => setFeedbackScore(num)} className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-gray-200 text-xs md:text-sm font-medium hover:bg-black hover:text-white hover:border-black transition-all">{num}</button>
-                ))}
+     <div className="flex flex-col items-center justify-center min-h-[400px] text-center animate-fade-in gap-8">
+        <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center shadow-lg animate-bounce">
+             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                 <polyline points="20 6 9 17 4 12"></polyline>
+             </svg>
+        </div>
+        
+        <div className="space-y-2">
+            <h2 className="text-3xl font-bold text-gray-900">{t.selfService.franking.successTitle}</h2>
+            <p className="text-gray-500">{t.selfService.franking.instruction3}</p>
+        </div>
+
+        {/* FEEDBACK SECTION */}
+        <div className="mt-8 pt-8 border-t border-gray-100 w-full max-w-2xl">
+           <h3 className="text-lg font-bold text-gray-900 mb-6">{t.selfService.franking.feedbackQuestion}</h3>
+           <div className="flex justify-center flex-wrap gap-2">
+                {[1,2,3,4,5,6,7,8,9,10].map(num => {
+                    const isSelected = feedbackScore === num;
+                    return (
+                        <button 
+                            key={num} 
+                            onClick={() => setFeedbackScore(num)} 
+                            className={`
+                                w-10 h-10 md:w-12 md:h-12 rounded-full border text-sm font-bold transition-all
+                                ${isSelected 
+                                    ? 'bg-black text-white border-black scale-110 shadow-lg' 
+                                    : 'bg-white text-gray-600 border-gray-200 hover:border-black hover:bg-gray-50'
+                                }
+                            `}
+                        >
+                            {num}
+                        </button>
+                    );
+                })}
              </div>
+             {feedbackScore !== null && (
+                 <div className="mt-6 text-green-600 font-bold animate-fade-in">{t.selfService.franking.feedbackThanks}</div>
+             )}
         </div>
      </div>
   );
@@ -574,14 +629,36 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
             {step === 'destination' && renderDestinationView()}
             {step === 'weigh' && renderWeighView()}
             {step === 'address' && renderAddressView()}
+            
+            {/* Packet Address Check */}
+            {step === 'packetAddressCheck' && (
+                  <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-10 animate-fade-in">
+                    <h2 className="text-2xl font-bold text-gray-900">{t.selfService.franking.packetAddressCheckQuestion}</h2>
+                    <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl">
+                        {/* YES: Skip to Options */}
+                        <button onClick={() => setStep('options')} className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:border-green-500 hover:bg-green-50 transition-all">
+                             <div className="w-12 h-12 bg-green-100 text-green-700 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
+                             <div className="font-bold text-xl text-gray-900">{t.selfService.letter.addressCheckYes}</div>
+                        </button>
+                        {/* NO: Go to Address Entry */}
+                        <button onClick={() => setStep('address')} className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:border-black hover:bg-gray-50 transition-all">
+                             <div className="w-12 h-12 bg-gray-100 text-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>
+                             <div className="font-bold text-xl text-gray-900">{t.selfService.letter.addressCheckNo}</div>
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {step === 'addressCheck' && (
                   <div className="flex flex-col items-center justify-center min-h-[400px] text-center gap-10">
                     <h2 className="text-2xl font-bold text-gray-900">{t.selfService.letter.addressCheckQuestion}</h2>
                     <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl">
                         <button onClick={() => setStep('format')} className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:border-green-500 hover:bg-green-50 transition-all">
+                            <div className="w-12 h-12 bg-green-100 text-green-700 rounded-full flex items-center justify-center mx-auto mb-4"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
                             <div className="font-bold text-xl text-gray-900">{t.selfService.letter.addressCheckYes}</div>
                         </button>
-                        <button onClick={() => setStep('address')} className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:border-red-500 hover:bg-red-50 transition-all">
+                        <button onClick={() => setStep('address')} className="flex-1 group bg-white border-2 border-gray-200 rounded-2xl p-8 hover:border-black hover:bg-gray-50 transition-all">
+                             <div className="w-12 h-12 bg-gray-100 text-gray-700 rounded-full flex items-center justify-center mx-auto mb-4"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>
                             <div className="font-bold text-xl text-gray-900">{t.selfService.letter.addressCheckNo}</div>
                         </button>
                     </div>
@@ -593,9 +670,9 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
                  <div className="flex flex-col gap-8 min-h-[400px]">
                     <h2 className="text-xl font-bold text-gray-900 text-center">{t.selfService.letter.extrasQuestion}</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <button onClick={() => setLetterExtras(p => ({...p, registered: !p.registered}))} className={`p-6 rounded-2xl border-2 ${letterExtras.registered ? 'bg-black text-white' : 'bg-white'}`}>{t.selfService.letter.extraRegistered}</button>
-                        <button onClick={() => setLetterExtras(p => ({...p, prepaid: !p.prepaid}))} className={`p-6 rounded-2xl border-2 ${letterExtras.prepaid ? 'bg-black text-white' : 'bg-white'}`}>{t.selfService.letter.extraPrepaid}</button>
-                        <button onClick={() => setLetterExtras(p => ({...p, formatSurcharge: !p.formatSurcharge}))} className={`p-6 rounded-2xl border-2 ${letterExtras.formatSurcharge ? 'bg-black text-white' : 'bg-white'}`}>{t.selfService.letter.extraFormat}</button>
+                        <button onClick={() => setLetterExtras(p => ({...p, registered: !p.registered}))} className={`p-6 rounded-2xl border-2 transition-all ${letterExtras.registered ? 'bg-black text-white border-black' : 'bg-white border-gray-200'}`}>{t.selfService.letter.extraRegistered}</button>
+                        <button onClick={() => setLetterExtras(p => ({...p, prepaid: !p.prepaid}))} className={`p-6 rounded-2xl border-2 transition-all ${letterExtras.prepaid ? 'bg-black text-white border-black' : 'bg-white border-gray-200'}`}>{t.selfService.letter.extraPrepaid}</button>
+                        <button onClick={() => setLetterExtras(p => ({...p, formatSurcharge: !p.formatSurcharge}))} className={`p-6 rounded-2xl border-2 transition-all ${letterExtras.formatSurcharge ? 'bg-black text-white border-black' : 'bg-white border-gray-200'}`}>{t.selfService.letter.extraFormat}</button>
                     </div>
                  </div>
             )}
@@ -648,7 +725,8 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
                     <div className="w-full h-20 bg-gray-800 rounded mb-4 flex items-center justify-center text-white font-mono text-lg tracking-widest my-8">
                         CHF {totalPrice.toFixed(2)}
                     </div>
-                    <button onClick={() => setStep('success')} className="w-full max-w-sm py-4 rounded-2xl font-bold text-white bg-black hover:bg-gray-900 shadow-lg transition-all">
+                    {/* RED CONFIRM BUTTON */}
+                    <button onClick={() => setStep('success')} className="w-full max-w-sm py-4 rounded-2xl font-bold text-white bg-red-600 hover:bg-red-700 shadow-lg transition-all scale-105">
                         {t.selfService.franking.payButton}
                     </button>
                 </div>
@@ -662,15 +740,15 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
             <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between gap-4">
                 <button
                     onClick={() => {
-                        // Back Logic controlled by parent/props now implicitly via setStep
+                        // Back Logic
                         if (step === 'destination' || step === 'scan' || step === 'trackInput') {
                             onBack();
                         } else {
-                             // Simple Previous Step Map for this example
                              const backMap: Record<string, SelfServiceStep> = {
                                  'weigh': 'destination',
-                                 'address': mode === 'packet' ? 'weigh' : 'addressCheck',
-                                 'options': mode === 'packet' ? 'address' : 'format',
+                                 'packetAddressCheck': 'weigh', // Back from check to weigh
+                                 'address': mode === 'packet' ? 'packetAddressCheck' : 'addressCheck', // Back from address depends on mode
+                                 'options': mode === 'packet' ? 'packetAddressCheck' : 'format', // Back from options depends on mode (if skipped address or not) - simplified, usually if skipped address we go back to check
                                  'payment': mode === 'packet' ? 'options' : 'extras',
                                  'addressCheck': 'destination',
                                  'format': 'addressCheck',
@@ -681,6 +759,16 @@ export const SelfServiceView: React.FC<SelfServiceViewProps> = ({
                                  'paySummary': 'payConfirm',
                                  'trackStatus': 'trackInput'
                              };
+                             
+                             // Special logic for Packet Options Back button:
+                             // If we are at options, and came from Address Check (skipped), back goes to Check.
+                             // If we came from Address Entry, strictly speaking we should go to Address Entry.
+                             // For prototype simplicity, let's go back to Address Check (the fork point) for packet options.
+                             if (mode === 'packet' && step === 'options') {
+                                 setStep('packetAddressCheck');
+                                 return;
+                             }
+
                              if (backMap[step]) setStep(backMap[step]);
                              else onBack();
                         }

@@ -42,7 +42,7 @@ const toolsDef: FunctionDeclaration[] = [
       properties: {
         step: {
             type: Type.STRING,
-            enum: ['destination', 'weigh', 'addressCheck', 'address', 'format', 'options', 'extras', 'payment', 'scan', 'payDetails', 'payReceiver', 'payConfirm', 'paySummary', 'trackInput', 'trackStatus', 'success'],
+            enum: ['destination', 'weigh', 'packetAddressCheck', 'addressCheck', 'address', 'format', 'options', 'extras', 'payment', 'scan', 'payDetails', 'payReceiver', 'payConfirm', 'paySummary', 'trackInput', 'trackStatus', 'success'],
             description: "Die ID des Ziel-Schritts."
         }
       },

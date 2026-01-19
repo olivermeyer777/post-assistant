@@ -98,6 +98,11 @@ const DE_DEFAULTS: TranslationData = {
         length: "Länge",
         width: "Breite",
         height: "Höhe",
+        
+        // New Packet Address Check
+        packetAddressCheckTitle: "Adresse prüfen",
+        packetAddressCheckQuestion: "Ist die Empfängeradresse bereits auf dem Paket?",
+        
         addressSender: "Absender",
         addressReceiver: "Empfänger erfassen",
         isCompany: "Firma",
@@ -123,8 +128,10 @@ const DE_DEFAULTS: TranslationData = {
         instruction1: "Quittung entnehmen.",
         instruction2: "Zahlungsbeleg aufbewahren.",
         instruction3: "Vorgang abgeschlossen.",
-        feedbackTitle: "Wie zufrieden sind Sie mit Ihrer Erfahrung?",
-        feedbackThanks: "Danke für Ihren Besuch!"
+        
+        feedbackTitle: "Rückmeldung",
+        feedbackQuestion: "Wie wahrscheinlich ist es, dass Sie diesen Service weiterempfehlen?",
+        feedbackThanks: "Danke für Ihr Feedback!"
       },
       letter: {
         addressCheckTitle: "Brief Versenden - Adresse",
@@ -192,9 +199,11 @@ const createTranslation = (lang: string, overrides: any = {}): TranslationData =
 export const TRANSLATIONS: Record<Language, TranslationData> = {
   de: DE_DEFAULTS,
   fr: createTranslation('fr', {
-    // ... (Keep existing overrides)
     selfService: {
-        // ...
+        franking: {
+            packetAddressCheckQuestion: "L'adresse du destinataire figure-t-elle déjà sur le colis ?",
+            feedbackQuestion: "Quelle est la probabilité que vous recommandiez ce service ?"
+        },
         letter: {
             formatSmall: "Lettre Standard (B5)",
             formatSmallDesc: "Jusqu'à 100g, < 2cm",
@@ -213,7 +222,10 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
   }),
   it: createTranslation('it', {
      selfService: {
-        // ...
+        franking: {
+            packetAddressCheckQuestion: "L'indirizzo del destinatario è già sul pacco?",
+            feedbackQuestion: "Con quale probabilità raccomanderebbe questo servizio?"
+        },
         letter: {
             formatSmall: "Lettera Standard (B5)",
             formatSmallDesc: "Fino a 100g, < 2cm",
@@ -232,7 +244,10 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
   }),
   en: createTranslation('en', {
      selfService: {
-        // ...
+        franking: {
+            packetAddressCheckQuestion: "Is the recipient address already on the parcel?",
+            feedbackQuestion: "How likely are you to recommend this service?"
+        },
         letter: {
             formatSmall: "Standard Letter (B5)",
             formatSmallDesc: "Up to 100g, < 2cm",
@@ -251,6 +266,10 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
   }),
   es: createTranslation('es', {
       selfService: {
+          franking: {
+               packetAddressCheckQuestion: "¿La dirección del destinatario ya está en el paquete?",
+               feedbackQuestion: "¿Qué probabilidad hay de que recomiende este servicio?"
+          },
           tracking: {
               step1: "Admitido",
               step2: "Clasificado",
@@ -261,6 +280,10 @@ export const TRANSLATIONS: Record<Language, TranslationData> = {
   }),
   pt: createTranslation('pt', {
       selfService: {
+          franking: {
+              packetAddressCheckQuestion: "O endereço do destinatário já está na encomenda?",
+              feedbackQuestion: "Qual a probabilidade de recomendar este serviço?"
+          },
           tracking: {
               step1: "Aceite",
               step2: "Tratamento",
