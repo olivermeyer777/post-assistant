@@ -112,7 +112,7 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, currentLang, sett
     const [isConnected, setIsConnected] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
-    const [error, setError] = useState<string | null>(null); // New Error State
+    const [error, setError] = useState<string | null>(null); 
     
     const sessionRef = useRef<any>(null);
     const recorderRef = useRef<AudioRecorder | null>(null);
@@ -193,6 +193,14 @@ ${tmpl.outputRule}
 
         let apiKey = '';
         try { apiKey = process.env.API_KEY || ''; } catch (e) {}
+
+        // SANITIZATION: Trim whitespace and remove anything after the first space
+        if (apiKey) {
+            apiKey = apiKey.trim();
+            if (apiKey.includes(" ")) {
+                apiKey = apiKey.split(" ")[0];
+            }
+        }
 
         if (!apiKey) {
             console.error("No API Key found");
