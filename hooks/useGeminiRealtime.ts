@@ -1,4 +1,5 @@
 
+
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
 import { AudioRecorder, AudioStreamPlayer, arrayBufferToBase64, base64ToArrayBuffer } from '../utils/audioStreamer';
@@ -22,7 +23,7 @@ interface UseGeminiRealtimeProps {
 const toolsDef = [
   {
     name: "navigate_app",
-    description: "SWITCHES the main view. Use this when the user wants to START a new process (e.g. 'I want to send a parcel').",
+    description: "CRITICAL: Use this IMMEDIATELY when the user indicates intent to use a service (Packet, Letter, Payment, Tracking). Do not talk about it, just switch the view.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -137,6 +138,9 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, onSubmitFeedback,
                         setIsConnected(true);
                         setIsConnecting(false);
                         isConnectedRef.current = true;
+                        
+                        // Removed invalid session.send() call which caused type error.
+                        // To force a greeting, we rely on the system instruction.
 
                         try {
                             recorderRef.current = new AudioRecorder((pcmBuffer) => {

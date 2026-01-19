@@ -91,20 +91,59 @@ export const buildSystemInstruction = (
         if (procDocsContent) prompt += `\nREFERENCE DATA:\n${procDocsContent}\n`;
 
     } else {
-        prompt += "\nCONTEXT: Home Screen / Dashboard. Waiting for user to select a service (Packet, Letter, Payment, Tracking).\n";
+        // HOME SCREEN LOGIC - REINFORCED
+        prompt += `
+\nCONTEXT: Home Screen / Dashboard.
+AVAILABLE SERVICES & TRIGGERS:
+1. PARCEL/PACKAGE ('Paket') -> Call navigate_app(view='self', mode='packet')
+2. LETTER/MAIL ('Brief') -> Call navigate_app(view='self', mode='letter')
+3. PAYMENT/BILL ('Einzahlung') -> Call navigate_app(view='self', mode='payment')
+4. TRACKING ('Sendungsverfolgung') -> Call navigate_app(view='self', mode='tracking')
+
+RULE: If the user states an intent (e.g., "I want to send a package"), DO NOT just say "Okay". You MUST call 'navigate_app' IMMEDIATELY to open the correct process. Visual feedback is required.
+`;
     }
 
     // 4. Global Documents
     const globalDocsContent = globalDocuments.filter(d => d.isActive).map(d => d.content).join('\n\n');
     if (globalDocsContent) prompt += `\nGENERAL RULES:\n${globalDocsContent}\n`;
 
-    // 5. CRITICAL "AUTO-PILOT" INSTRUCTION
+    // 5. DETERMINE IMMEDIATE GREETING
+    let greeting = "";
+    if (currentLang === 'de') {
+         // German Specifics as requested
+         greeting = (view === 'home') 
+            ? "Herzlich Willkommen bei der Schweizer Post, wie kann ich Sie unterstützen?"
+            : "Wie kann ich Ihnen helfen?";
+    } else if (currentLang === 'fr') {
+         greeting = (view === 'home')
+            ? "Bienvenue à la Poste Suisse, comment puis-je vous aider ?"
+            : "Comment puis-je vous aider ?";
+    } else if (currentLang === 'it') {
+         greeting = (view === 'home')
+            ? "Benvenuti alla Posta Svizzera, come posso aiutarvi?"
+            : "Come posso aiutarvi?";
+    } else if (currentLang === 'en') {
+         greeting = (view === 'home')
+            ? "Welcome to Swiss Post, how can I support you?"
+            : "How can I help you?";
+    } else {
+         // Fallback
+         greeting = "Wie kann ich Ihnen helfen?";
+    }
+
     prompt += `
     \n*** CRITICAL INSTRUCTIONS ***
     1. YOUR PRIMARY JOB IS NAVIGATION. Use 'navigate_app' and 'control_step' tools constantly.
     2. DO NOT narrate what you are going to do ("I will now go to the next step"). JUST DO IT.
     3. If the user gives you the info required for the current screen, CALL THE TOOL IMMEDIATELY.
     4. If the user says "Next", "Continue", or "Yes", interpret that as a command to go to the Logical Next Screen.
+    5. ON HOME SCREEN: If user intent is clear (e.g. "Send parcel"), NAVIGATE IMMEDIATELY. Do not wait.
+
+    *** STARTUP PROTOCOL ***
+    When you receive the text message "SYSTEM_START", you MUST IMMEDIATELY speak the following phrase:
+    "${greeting}"
+    Do not say "Okay" or "Sure". Just speak the greeting.
     `.trim();
 
     return prompt;
