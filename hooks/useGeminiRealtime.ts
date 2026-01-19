@@ -214,8 +214,16 @@ ${tmpl.outputRule}
     const connect = async () => {
         if (isConnected) return;
 
-        const apiKey = process.env.API_KEY;
+        // Use safe access to process.env
+        let apiKey = '';
+        try {
+            apiKey = process.env.API_KEY || '';
+        } catch (e) {
+            console.error("process.env access failed. Vite config might be missing 'define'.");
+        }
+
         if (!apiKey) {
+            alert("API Key fehlt! Bitte fügen Sie 'API_KEY' in die .env Datei ein.");
             console.error("No API Key found");
             return;
         }
