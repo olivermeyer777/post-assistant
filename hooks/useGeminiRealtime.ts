@@ -159,23 +159,6 @@ export const useGeminiRealtime = ({ onNavigate, onControlStep, onSubmitFeedback,
                             
                             await recorderRef.current.start();
                             
-                            // *** TRIGGER PROACTIVE GREETING ***
-                            // Send a text message to "wake up" the model and make it follow the "SYSTEM_START" instruction
-                            sessionPromise.then(session => {
-                                setTimeout(() => {
-                                    try {
-                                        session.sendRealtimeInput({
-                                            content: {
-                                                parts: [{ text: "SYSTEM_START" }],
-                                                role: "user"
-                                            }
-                                        });
-                                    } catch(e) {
-                                        console.warn("Could not send initial trigger:", e);
-                                    }
-                                }, 500);
-                            });
-
                         } catch (recErr) {
                             console.error("Microphone failed", recErr);
                             setError("Mikrofon blockiert.");
